@@ -190,12 +190,12 @@ The center of mass is at (x,y,z)=(%6.2f,%6.2f,%6.2f). The decentering of the cen
     if warnings!="":
         countWarnings = len(warnings.split('\n'))
         toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n"%countWarnings+warnings
+        report.writeSummary("0.a Mass analysis", "{\\color{red} %d warnings}"%countWarnings)
     else:
-        countWarnings = 0
         toWrite += "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
+        report.writeSummary("0.a Mass analysis", "{\\color{blue} OK}")
 
     report.write(toWrite)
-    report.writeSummary("0.a Mass analysis",countWarnings)
 
 def maskAnalysis(report, volume, mask, Ts, threshold):
     V = readMap(volume.getFileName()).getData()
@@ -287,12 +287,12 @@ raw and constructed mask is %5.2f.\\\\
     if warnings!="":
         countWarnings = len(warnings.split('\n'))
         toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n"%countWarnings+warnings
+        report.writeSummary("0.b Mask analysis", "{\\color{red} %d warnings}"%countWarnings)
     else:
-        countWarnings=0
         toWrite += "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
+        report.writeSummary("0.b Mask analysis", "{\\color{blue} OK}")
 
     report.write(toWrite)
-    report.writeSummary("0.b Mask analysis",countWarnings)
 
 
 def xmippDeepRes(project, report, label, map, mask):
@@ -304,14 +304,32 @@ def xmippDeepRes(project, report, label, map, mask):
                                Mask=mask)
     project.launchProtocol(prot, wait=True)
 
-    subsection = "DeepRes"
+    bblCitation= \
+"""\\bibitem[Ram\\'{\i}rez-Aportela et~al., 2019]{Ramirez2019}
+Ram\\'{\i}rez-Aportela, E., Mota, J., Conesa, P., Carazo, J.~M., and Sorzano, C.
+ O.~S. (2019).
+\\newblock {DeepRes}: a new deep-learning- and aspect-based local resolution
+ method for electron-microscopy maps.
+\\newblock {\em IUCRj}, 6:1054--1063."""
+    report.addCitation("Ramirez2019",bblCitation)
+
     msg = \
 """
-Deepres \\cite{Ramirez2020} measures the local resolution using a neural network that has been trained on 
+\\textbf{Explanation}:\\\\ 
+DeepRes \\cite{Ramirez2019} measures the local resolution using a neural network that has been trained on 
 the appearance of atomic structures at different resolutions. Then, by comparing the local appearance of the
-input map to the appearance of the atomic structures a local resolution label can be assigned.
+input map to the appearance of the atomic structures a local resolution label can be assigned.\\\\
+\\\\
+\\textbf{Results:}\\\\
+\\\\
 """
-    report.addReference("Ram")
+    report.writeSubsection("0.d DeepRes", msg)
+
+    if prot.isFailed():
+        report.writeSummary("0.d Deepres", "{\\color{red} Failed}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
     return prot
 
 def reportInput(report, fnMap, Ts, threshold):
@@ -330,12 +348,16 @@ def level0(project, report, fnMap, Ts, threshold, skipAnalysis = False):
 
     # Import map
     protImportMap = importMap(project, report, "import map", fnMap, Ts)
+    if protImportMap.isFailed():
+        raise Exception("Import map did not work")
     protCreateMask = createMask(project, report, "create mask", protImportMap.outputVolume, Ts, threshold)
+    if protCreateMask.isFailed():
+        raise Exception("Create mask did not work")
 
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 0 analysis')
         massAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts)
         maskAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts, threshold)
-        # xmippDeepRes(project, report, "0.c deepRes", protImportMap.outputVolume, protCreateMask.outputMask)
+        xmippDeepRes(project, report, "0.d deepRes", protImportMap.outputVolume, protCreateMask.outputMask)
     return protImportMap, protCreateMask

@@ -27,6 +27,7 @@ class ValidationReport:
         self.fh = open(self.fnReport,"w")
         self.fnSummary = os.path.join(self.fnReportDir,"summary.tex")
         self.fhSummary = open(self.fnSummary,"w")
+        self.citations = {}
         self.writePreamble()
 
     def writePreamble(self):
@@ -67,14 +68,21 @@ class ValidationReport:
     def write(self,msg):
         self.fh.write(msg)
 
-    def writeSummary(self, test, NWarnings):
-        toWrite = "%s &"%test
-        if NWarnings==0:
-            toWrite+=" {\color{blue} OK}"
-        else:
-            toWrite += " {\color{red} %d warnings}"%NWarnings
-        toWrite+="\\\\ \n"
+    def writeSummary(self, test, msg):
+        toWrite = "%s & %s \\\\ \n"%(test,msg)
         self.fhSummary.write(toWrite)
+
+    def addCitation(self, key, bblEntry):
+        # \begin{thebibliography}{}
+        #
+        # \bibitem[Greenwade, 1993] {greenwade93}
+        # Greenwade, G. ~D.(1993).
+        # \newblock The {C}omprehensive {T}ex {A}rchive {N}etwork({CTAN}).
+        # \newblock {\em TUGBoat}, 14(3): 342 - -351.
+        #
+        # \end{thebibliography}
+        if not key in self.citations:
+            self.citations[key] = bblEntry
 
     def writeFailedSubsection(self, subsection, msg):
         toWrite=\
@@ -189,10 +197,11 @@ class ValidationReport:
         self.fh.write(toWrite)
 
     def closeReport(self):
-        toWrite = \
-"""
-\\end{document}
-"""
+        toWrite = "\\begin{thebibliography}{}\n\n"
+        for key in self.citations:
+            toWrite +="%s\n\n"%self.citations[key]
+        toWrite += "\\end{thebibliography}\n\n"
+        toWrite += "\\end{document}\n"
         self.fh.write(toWrite)
         self.fh.close()
 
