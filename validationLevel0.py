@@ -365,10 +365,10 @@ input map to the appearance of the atomic structures a local resolution label ca
 \\textbf{Results:}\\\\
 \\\\
 """
-    report.writeSubsection("0.d DeepRes", msg)
+    report.writeSubsection("0.c DeepRes", msg)
 
     if prot.isFailed():
-        report.writeSummary("0.d Deepres", "{\\color{red} Could not be measured}")
+        report.writeSummary("0.c Deepres", "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
@@ -407,5 +407,5 @@ def level0(project, report, fnMap, Ts, threshold, skipAnalysis = False):
         report.writeSection('Level 0 analysis')
         massAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts)
         maskAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts, threshold)
-        xmippDeepRes(project, report, "0.d deepRes", protImportMap.outputVolume, protCreateMask.outputMask)
+        xmippDeepRes(project, report, "0.c deepRes", protImportMap.outputVolume, protCreateMask.outputMask)
     return protImportMap, protCreateMask
