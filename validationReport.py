@@ -30,6 +30,9 @@ class ValidationReport:
         self.citations = {}
         self.writePreamble()
 
+    def getReportDir(self):
+        return self.fnReportDir
+
     def writePreamble(self):
         toWrite = \
 """
@@ -73,6 +76,7 @@ class ValidationReport:
         self.fhSummary.write(toWrite)
 
     def addCitation(self, key, bblEntry):
+        # Bibliographystyle: apalike
         # \begin{thebibliography}{}
         #
         # \bibitem[Greenwade, 1993] {greenwade93}
@@ -197,7 +201,7 @@ class ValidationReport:
         self.fh.write(toWrite)
 
     def closeReport(self):
-        toWrite = "\\begin{thebibliography}{}\n\n"
+        toWrite = "\n\n\\begin{thebibliography}{}\n\n"
         for key in self.citations:
             toWrite +="%s\n\n"%self.citations[key]
         toWrite += "\\end{thebibliography}\n\n"

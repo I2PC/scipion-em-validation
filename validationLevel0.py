@@ -24,7 +24,10 @@
 # *
 # **************************************************************************
 
+import hashlib
 import math
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 from scipy import ndimage
@@ -257,14 +260,53 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercenta
     report.orthogonalSlices("", "", "Central slices in the three dimensions of the raw mask", rawM, "fig:rawMask",
                             maxVar=True, fnRoot="rawMask")
 
+    # Analysis of different thresholds
+    maxVal = np.max(V)
+    stepGray = maxVal/25
+    g = np.arange(stepGray, maxVal, stepGray)
+    w = np.zeros(g.size)
+    toWrite="\nThe following table shows the variation of the mass enclosed at different thresholds "\
+            "(see Fig. \\ref{fig:mass}):\n\n"
+    toWrite+="\\begin{small}\n"
+    toWrite+="\\begin{center}\n"
+    toWrite+="\\begin{tabular}{|c|c|c|c|}\n"
+    toWrite+="\\hline\n"
+    toWrite+="\\textbf{Threshold} & \\textbf{Voxel mass} & \\textbf{Molecular mass(kDa)} & \\textbf{# Aminoacids}\\\\ \n"
+    toWrite+="\\hline\n"
+    for i in range(g.size):
+        w[i] = np.sum(V>g[i])
+        toWrite+="%5.4f & %5.2f & %5.2f & %5.2f \\\\ \n"%(g[i], w[i], (w[i]*Ts3/(1.207*1000)), w[i]*Ts3/(110*1.207))
+    toWrite+="\\hline\n"
+    toWrite += "\\end{tabular}\n"
+    toWrite += "\\end{center}\n\n"
+    toWrite += "\\end{small}\n"
+    fnFigMass = os.path.join(report.getReportDir(), "mass.png")
+    toWrite +=\
+"""
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=10cm]{%s}
+    \\caption{Voxel mass as a function of the gray level.}
+    \\label{fig:mass}
+\\end{figure}
+
+"""%fnFigMass
+    report.write(toWrite)
+
+    matplotlib.use('Agg')
+    plt.plot(g,w)
+    plt.yscale('log')
+    plt.grid(True)
+    plt.xlabel('Gray level')
+    plt.ylabel('Voxel mass')
+    plt.savefig(fnFigMass)
 
     # Constructed mask
     M = readMap(mask.getFileName()).getData()
     sumM = np.sum(M)
     dice = np.sum(np.multiply(M,rawM))/sumRawM
-    toWrite+=\
+    toWrite=\
 """
-\\\\
 \\underline{Constructed mask}: After keeping the largest component of the previous mask and dilating it by 2\AA,
 there is a total number of voxels of %d and a volume of %5.2f \\AA$^3$. The overlap between the
 raw and constructed mask is %5.2f.\\\\
@@ -326,21 +368,27 @@ input map to the appearance of the atomic structures a local resolution label ca
     report.writeSubsection("0.d DeepRes", msg)
 
     if prot.isFailed():
-        report.writeSummary("0.d Deepres", "{\\color{red} Failed}")
+        report.writeSummary("0.d Deepres", "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
     return prot
 
 def reportInput(report, fnMap, Ts, threshold):
+    sha256_hash = hashlib.sha256()
+    with open(fnMap, "rb") as f:
+        # Read and update hash string value in blocks of 4K
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
     toWrite=\
 """
 \\section{Input data}
 Input map: %s \\\\
+SHA256 hash: %s \\\\ 
 Voxel size: %f (\AA) \\\\
 Visualization threshold: %f \\\\
 
-"""%(fnMap.replace('_','\_').replace('/','/\-'), Ts, threshold)
+"""%(fnMap.replace('_','\_').replace('/','/\-'), sha256_hash.hexdigest(), Ts, threshold)
     report.write(toWrite)
 
 def level0(project, report, fnMap, Ts, threshold, skipAnalysis = False):
