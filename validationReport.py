@@ -25,6 +25,8 @@ class ValidationReport:
         makePath(self.fnReportDir)
         self.fnReport = os.path.join(self.fnReportDir,"report.tex")
         self.fh = open(self.fnReport,"w")
+        self.fnSummary = os.path.join(self.fnReportDir,"summary.tex")
+        self.fhSummary = open(self.fnSummary,"w")
         self.writePreamble()
 
     def writePreamble(self):
@@ -35,6 +37,8 @@ class ValidationReport:
 \\usepackage{graphicx}
 \\usepackage{float}
 \\usepackage{subfig}
+\\usepackage{hyperref}
+\\usepackage{xcolor}
 \\usepackage[us,12hr]{datetime}
 
 \\title{Validation report}
@@ -47,11 +51,30 @@ class ValidationReport:
 \\maketitle
 \\end{titlepage}
 
+\\begin{abstract}
+\\input{summary.tex}
+\\end{abstract}
+
 """
         self.fh.write(toWrite)
 
+        toWrite = \
+"""
+\\begin{tabular}{lr}
+"""
+        self.fhSummary.write(toWrite)
+
     def write(self,msg):
         self.fh.write(msg)
+
+    def writeSummary(self, test, NWarnings):
+        toWrite = "%s &"%test
+        if NWarnings==0:
+            toWrite+=" {\color{blue} OK}"
+        else:
+            toWrite += " {\color{red} %d warnings}"%NWarnings
+        toWrite+="\\\\ \n"
+        self.fhSummary.write(toWrite)
 
     def writeFailedSubsection(self, subsection, msg):
         toWrite=\
@@ -83,7 +106,7 @@ class ValidationReport:
 """ %(section,msg)
         self.fh.write(toWrite)
 
-    def orthogonalProjections(self, subsection, msg, caption, fnMap):
+    def orthogonalProjections(self, subsection, msg, caption, fnMap, label):
         V = readMap(fnMap).getData()
 
         fnRoot = subsection.replace(' ','_')
@@ -107,12 +130,13 @@ class ValidationReport:
   \\hspace{0.2cm}
   \\subfloat[Z Projection]{\includegraphics[width=4cm]{%s}}
   \\caption{%s}
+  \\label{%s}
 \\end{figure}
 
-"""%(subsection, msg, fnX, fnY, fnZ, caption)
+"""%(subsection, msg, fnX, fnY, fnZ, caption, label)
         self.fh.write(toWrite)
 
-    def orthogonalSlices(self, subsection, msg, caption, map, maxVar=False, fnRoot=""):
+    def orthogonalSlices(self, subsection, msg, caption, map, label, maxVar=False, fnRoot=""):
         if type(map) is str:
             V = readMap(map)
             Xdim, Ydim, Zdim, _ = V.getDimensions()
@@ -158,9 +182,10 @@ class ValidationReport:
   \\hspace{0.2cm}
   \\subfloat[Z Slice %d]{\includegraphics[width=4cm]{%s}}
   \\caption{%s}
+  \\label{%s}
 \\end{figure}
 
-""" % (ix, fnX, iy, fnY, iz, fnZ, caption)
+""" % (ix, fnX, iy, fnY, iz, fnZ, caption, label)
         self.fh.write(toWrite)
 
     def closeReport(self):
@@ -171,7 +196,17 @@ class ValidationReport:
         self.fh.write(toWrite)
         self.fh.close()
 
+        toWrite = \
+"""
+\\end{tabular}
+"""
+        self.fhSummary.write(toWrite)
+        self.fhSummary.close()
+
         os.chdir(self.fnReportDir)
+        subprocess.run(["pdflatex","-interaction=nonstopmode","report.tex"],
+                       stdout=subprocess.DEVNULL,
+                       stderr=subprocess.STDOUT)
         subprocess.run(["pdflatex","-interaction=nonstopmode","report.tex"],
                        stdout=subprocess.DEVNULL,
                        stderr=subprocess.STDOUT)
