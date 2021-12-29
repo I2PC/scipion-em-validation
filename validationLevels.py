@@ -39,6 +39,9 @@ def usage(message=''):
           "\n            map:  mymap.mrc"
           "\n            sampling:  1 [A]"
           "\n            threshold:  0.03"
+          "\n         LEVEL 1 ====="
+          "\n            map1:  mymap1.mrc"
+          "\n            map2:  mymap2.mrc"
           )
     message = "\n\n  >>  %s\n" % message if message != '' else ''
     print(message)
