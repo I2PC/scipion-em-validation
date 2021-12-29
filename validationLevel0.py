@@ -56,7 +56,7 @@ def importMap(project, report, label, fnMap, Ts):
     if prot.isFailed():
         report.writeFailedSubsection(subsection, msg)
     else:
-        report.orthogonalSlices(subsection, msg, "Central slices in the three dimensions", fnMap, maxVar=True)
+        report.orthogonalSlices(subsection, msg, "Slices of maximum variation in the three dimensions", fnMap, maxVar=True)
 
     subsection = "Orthogonal projections of the input map"
     msg = "\\textbf{Explanation}:\\\\ In the projections there should not be stripes (this is an indication of "\
@@ -93,12 +93,12 @@ def createMask(project, report, label, map, Ts, threshold):
     if prot.isFailed():
         report.writeFailedSubsection(subsection, msg)
     else:
-        report.orthogonalSlices(subsection, msg, "Central slices in the three dimensions", prot.outputMask.getFileName(),
+        report.orthogonalSlices(subsection, msg, "Slices of maximum variation in the three dimensions", prot.outputMask.getFileName(),
                                 maxVar=True)
 
     return prot
 
-def massAnalysis(project, report, label, volume, mask, Ts):
+def massAnalysis(report, volume, mask, Ts):
     V = readMap(volume.getFileName()).getData()
     M = readMap(mask.getFileName()).getData()
 
@@ -121,7 +121,7 @@ def massAnalysis(project, report, label, volume, mask, Ts):
 
     toWrite=\
 """
-\\subsection{Mass analysis}
+\\subsection{Level 0.a Mass analysis}
 \\textbf{Explanation:}\\\\
 The reconstructed map must be relatively well centered in the box, and there should be at least 30\AA~(the exact size 
 depends on the CTF) on each side to make sure that the CTF can be appropriately corrected.
@@ -137,7 +137,6 @@ There is a decentering ratio (abs(Right-Left)/Size)\\%% of %5.2f\\%%\\\\
 The space from the left and right in Z are %6.2f and %6.2f \AA, respectively.
 There is a decentering ratio (abs(Right-Left)/Size)\\%% of %5.2f\\%%\\\\
 \\\\
-
 """%(x0, xF, dx, y0, yF, dy, z0, zF, dz)
 
     # Analysis of Center of mass
@@ -148,19 +147,18 @@ There is a decentering ratio (abs(Right-Left)/Size)\\%% of %5.2f\\%%\\\\
 
     toWrite += \
 """
-
 The center of mass is at (x,y,z)=(%6.2f,%6.2f,%6.2f). The decentering of the center of mass (abs(Center)/Size)\\%% is
 %5.2f, %5.2f, and %5.2f, respectively.\\%%\\\\
-\\\\
+
 """%(cx,cy,cz,dcx,dcy,dcz)
 
     warnings=""
     if dx>20:
-        warnings+="\\textbf{The volume is significantly decentered in X.\\\\ \n"
+        warnings+="\\textbf{The volume might be significantly decentered in X.\\\\ \n"
     if dy>20:
-        warnings+="\\textbf{The volume is significantly decentered in Y.\\\\ \n"
+        warnings+="\\textbf{The volume might be significantly decentered in Y.\\\\ \n"
     if dz>20:
-        warnings+="\\textbf{The volume is significantly decentered in Z.\\\\ \n"
+        warnings+="\\textbf{The volume might be significantly decentered in Z.\\\\ \n"
     if x0<20:
         warnings+="\\textbf{There could be little space from X left to effectively correct for the CTF.\\\\ \n"
     if y0<20:
@@ -183,6 +181,97 @@ The center of mass is at (x,y,z)=(%6.2f,%6.2f,%6.2f). The decentering of the cen
         toWrite+="\\textbf{WARNINGS}:\\\\"+warnings
 
     report.write(toWrite)
+
+def maskAnalysis(report, volume, mask, Ts, threshold):
+    V = readMap(volume.getFileName()).getData()
+    Ts3 = math.pow(Ts,3)
+
+    # Analysis of the raw mask
+    rawM = np.where(V>threshold,1,0)
+
+    # Connected components
+    structure = np.ones((3, 3, 3), dtype=np.int)
+    labeled, ncomponents = ndimage.measurements.label(rawM, structure)
+    sumRawM=np.sum(rawM)
+    toWrite=\
+"""
+\\subsection{Level 0.b Mask analysis}
+\\textbf{Explanation:}\\\\
+The map at the suggested threshold should have most of its mass concentrated in a single connected component.
+It is normal that after thresholding there are a few thousands of very small, disconnected noise blobs. However,
+there total mass should not exceed 10\\%%. 
+The raw mask (just thresholding) and the mask constructed for the analysis (thresholding +
+largest connected component + dilation) should significantly overlap. Overlap is defined by the overlapping coefficient
+(size(Raw AND Constructed)/size(Raw)) that is a number between 0 and 1, the closer to 1, the more they
+agree.
+\\\\
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+\\underline{Raw mask}: At threshold %f, there are %d connected components with a total number of voxels of %d and
+a volume of %5.2f \\AA$^3$. 
+The size and percentage of the total number of voxels for the raw mask are listed below (up to 95\\%% of the mass),
+the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercentage):\\\\
+\\\\
+"""%(threshold, ncomponents, sumRawM, sumRawM*Ts3)
+
+    individualMass = [np.sum(labeled==i) for i in range(1,ncomponents+1)]
+    idx = np.argsort(-np.asarray(individualMass)) # Minus is for sorting i descending order
+    cumulatedMass = 0
+    i = 0
+    while cumulatedMass/sumRawM<0.95:
+        massi = individualMass[idx[i]]
+        cumulatedMass += massi
+        if i>0:
+            toWrite+=", "
+        toWrite+="(%d (%5.2f), %5.2f, %5.2f)"%(massi, massi*Ts3, 100.0*massi/sumRawM, 100.0*cumulatedMass/sumRawM)
+        i+=1
+    ncomponents95 = i
+    toWrite+="\\\\ \\\\Number of components to reach 95\\%% of the mass: %d\\\\ \\\\"%ncomponents95
+    ncomponentsRemaining = ncomponents-ncomponents95
+    voxelsRemaining = sumRawM-cumulatedMass
+    avgVolumeRemaining = voxelsRemaining/voxelsRemaining*Ts3
+    maxVolumeRemaining = individualMass[idx[ncomponents95]]*Ts3
+    minVolumeRemaining = individualMass[idx[-1]]*Ts3
+    toWrite+="The average size of the remaining %d components is %5.2f voxels (%5.2f \AA$^3$). "\
+              "Their size go from %d voxels (%5.2f \AA$^3$) to %d voxels (%5.2f \AA$^3$). \\\\ \\\\"%\
+             (ncomponentsRemaining, voxelsRemaining/ncomponentsRemaining, avgVolumeRemaining,
+              int(individualMass[idx[ncomponents95]]), maxVolumeRemaining,
+              int(individualMass[idx[-1]]), minVolumeRemaining)
+
+    report.orthogonalSlices("", "", "Central slices in the three dimensions of the raw mask", rawM, maxVar=True,
+                            fnRoot="rawMask")
+
+
+    # Constructed mask
+    M = readMap(mask.getFileName()).getData()
+    sumM = np.sum(M)
+    dice = np.sum(np.multiply(M,rawM))/sumRawM
+    toWrite+=\
+"""
+\\\\
+\\underline{Constructed mask}: After keeping the largest component of the previous mask and dilating it by 2\AA,
+there is a total number of voxels of %d and a volume of %5.2f \\AA$^3$. The overlap between the
+raw and constructed mask is %5.2f.
+"""%(sumM, sumM*Ts3, dice)
+
+    # Warnings
+    warnings=""
+    if ncomponents95>5:
+        warnings+="\\textbf{There might be a problem of connectivity at this threshold because more than 5 connected "\
+                  "components are needed to reach 95\\%% of the total mask.}\\\\ \n"
+    if avgVolumeRemaining>5:
+        warnings += "\\textbf{There might be a problem with noise and artifacts, because the average noise blob has "\
+                    "a volume of %f \AA$^3$.}\\\\ \n"%avgVolumeRemaining
+    if dice<0.75:
+        warnings += "\\textbf{There might be a problem in the construction of the mask, because the Dice coefficient "\
+                    "is smaller than 0.75. A common reason is that the suggested threshold causes too many "\
+                    "disconnected components.}\\\\ \n"
+    if warnings!="":
+        toWrite+="\\textbf{WARNINGS}:\\\\"+warnings
+
+    report.write(toWrite)
+
 
 def xmippDeepRes(project, report, label, map, mask):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -214,7 +303,7 @@ Visualization threshold: %f \\\\
 """%(fnMap.replace('_','\_').replace('/','/\-'), Ts, threshold)
     report.write(toWrite)
 
-def level0(project, report, fnMap, Ts, threshold):
+def level0(project, report, fnMap, Ts, threshold, skipAnalysis = False):
     reportInput(report, fnMap, Ts, threshold)
 
     # Import map
@@ -222,7 +311,9 @@ def level0(project, report, fnMap, Ts, threshold):
     protCreateMask = createMask(project, report, "create mask", protImportMap.outputVolume, Ts, threshold)
 
     # Quality Measures
-    report.writeSection('Level 0 analysis')
-    massAnalysis(project, report, "0.a Mass analysis", protImportMap.outputVolume, protCreateMask.outputMask, Ts)
-    # xmippDeepRes(project, report, "0.c deepRes", protImportMap.outputVolume, protCreateMask.outputMask)
+    if not skipAnalysis:
+        report.writeSection('Level 0 analysis')
+        massAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts)
+        maskAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts, threshold)
+        # xmippDeepRes(project, report, "0.c deepRes", protImportMap.outputVolume, protCreateMask.outputMask)
     return protImportMap, protCreateMask

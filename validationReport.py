@@ -11,6 +11,7 @@ def readMap(fnMap):
 
 def writeImage(I, fnOut, scale=True):
     if scale:
+        I = I.astype(np.float)
         I -= np.min(I)
         I *= 255/np.max(I)
     Iout = PIL.Image.fromarray(I.astype(np.uint8))
@@ -111,12 +112,16 @@ class ValidationReport:
 """%(subsection, msg, fnX, fnY, fnZ, caption)
         self.fh.write(toWrite)
 
-    def orthogonalSlices(self, subsection, msg, caption, fnMap, maxVar=False):
-        V = readMap(fnMap)
-        Xdim, Ydim, Zdim, _ = V.getDimensions()
+    def orthogonalSlices(self, subsection, msg, caption, map, maxVar=False, fnRoot=""):
+        if type(map) is str:
+            V = readMap(map)
+            Xdim, Ydim, Zdim, _ = V.getDimensions()
+            mV = V.getData()
+        else:
+            mV = map
+            Xdim, Ydim, Zdim = mV.shape
 
         if maxVar:
-            mV = V.getData()
             ix = np.argmax([np.var(mV[i, :, :]) for i in range(Xdim)])
             iy = np.argmax([np.var(mV[:, i, :]) for i in range(Ydim)])
             iz = np.argmax([np.var(mV[:, :, i]) for i in range(Zdim)])
@@ -125,20 +130,27 @@ class ValidationReport:
             iy = int(Ydim / 2)
             iz = int(Zdim / 2)
 
-        fnRoot = subsection.replace(' ', '_')
+        if fnRoot=="":
+            fnRoot = subsection.replace(' ', '_')
         fnZ = os.path.join(self.fnReportDir, fnRoot + "_Z.jpg")
-        writeImage(V.getData()[:, :, iz], fnZ)
+        writeImage(mV[:, :, iz], fnZ)
         fnY = os.path.join(self.fnReportDir, fnRoot + "_Y.jpg")
-        writeImage(V.getData()[:, iy, :], fnY)
+        writeImage(mV[:, iy, :], fnY)
         fnX = os.path.join(self.fnReportDir, fnRoot + "_X.jpg")
-        writeImage(V.getData()[ix, :, :], fnX)
+        writeImage(mV[ix, :, :], fnX)
 
-        toWrite = """
+        toWrite = ""
+        if subsection!="":
+            toWrite+=\
+"""
+
 \\subsection{%s}
 
 %s
+"""%(subsection, msg)
 
-\\begin{figure}[H]
+        toWrite+=\
+"""\\begin{figure}[H]
   \\centering
   \\subfloat[X Slice %d]{\includegraphics[width=4cm]{%s}}
   \\hspace{0.2cm}
@@ -148,7 +160,7 @@ class ValidationReport:
   \\caption{%s}
 \\end{figure}
 
-""" % (subsection, msg, ix, fnX, iy, fnY, iz, fnZ, caption)
+""" % (ix, fnX, iy, fnY, iz, fnZ, caption)
         self.fh.write(toWrite)
 
     def closeReport(self):
