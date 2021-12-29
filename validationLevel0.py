@@ -33,7 +33,7 @@ import os
 import scipy
 
 import pyworkflow.plugin as pwplugin
-from validationReport import readMap
+from validationReport import readMap, latexEnumerate
 
 def importMap(project, report, label, fnMap, Ts):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -164,47 +164,36 @@ The center of mass is at (x,y,z)=(%6.2f,%6.2f,%6.2f). The decentering of the cen
 
 """%(cx,cy,cz,dcx,dcy,dcz)
 
-    warnings=""
+    warnings=[]
     testWarnings = False
     countWarnings=0
     if dx>20 or testWarnings:
-        warnings+="{\\color{red} \\textbf{The volume might be significantly decentered in X.}}\\\\ \n"
-        countWarnings += 1
+        warnings.append("{\\color{red} \\textbf{The volume might be significantly decentered in X.}}")
     if dy>20 or testWarnings:
-        warnings+="{\\color{red} \\textbf{The volume might be significantly decentered in Y.}}\\\\ \n"
-        countWarnings += 1
+        warnings.append("{\\color{red} \\textbf{The volume might be significantly decentered in Y.}}")
     if dz>20 or testWarnings:
-        warnings+="{\\color{red} \\textbf{The volume might be significantly decentered in Z.}}\\\\ \n"
-        countWarnings += 1
+        warnings.append("{\\color{red} \\textbf{The volume might be significantly decentered in Z.}}")
     if x0<20 or testWarnings:
-        warnings+="{\\color{red} \\textbf{There could be little space from X left to effectively correct for the CTF.}}\\\\ \n"
-        countWarnings += 1
+        warnings.append("{\\color{red} \\textbf{There could be little space from X left to effectively correct for the CTF.}}")
     if y0<20 or testWarnings:
-        warnings+="{\\color{red} \\textbf{There could be little space from Y left to effectively correct for the CTF.}}\\\\ \n"
-        countWarnings += 1
+        warnings.append("{\\color{red} \\textbf{There could be little space from Y left to effectively correct for the CTF.}}")
     if z0<20 or testWarnings:
-        warnings+="{\\color{red} \\textbf{There could be little space from Z left to effectively correct for the CTF.}}\\\\ \n"
-        countWarnings += 1
+        warnings.append("{\\color{red} \\textbf{There could be little space from Z left to effectively correct for the CTF.}}")
     if xF<20 or testWarnings:
-        warnings+="{\\color{red} \\textbf{There could be little space from X right to effectively correct for the CTF.}}\\\\ \n"
-        countWarnings += 1
+        warnings.append("{\\color{red} \\textbf{There could be little space from X right to effectively correct for the CTF.}}")
     if yF<20 or testWarnings:
-        warnings+="{\\color{red} \\textbf{There could be little space from Y right to effectively correct for the CTF.}}\\\\ \n"
-        countWarnings += 1
+        warnings.append("{\\color{red} \\textbf{There could be little space from Y right to effectively correct for the CTF.}}")
     if zF<20 or testWarnings:
-        warnings+="{\\color{red} \\textbf{There could be little space from Z right to effectively correct for the CTF.}}\\\\ \n"
-        countWarnings += 1
+        warnings.append("{\\color{red} \\textbf{There could be little space from Z right to effectively correct for the CTF.}}")
     if dcx>20 or testWarnings:
-        warnings+="{\\color{red} \\textbf{The center of mass in X may be significantly shifted.}}\\\\ \n"
-        countWarnings += 1
+        warnings.append("{\\color{red} \\textbf{The center of mass in X may be significantly shifted.}}")
     if dcy>20 or testWarnings:
-        warnings+="{\\color{red} \\textbf{The center of mass in Y may be significantly shifted.}}\\\\ \n"
-        countWarnings += 1
+        warnings.append("{\\color{red} \\textbf{The center of mass in Y may be significantly shifted.}}")
     if dcz>20 or testWarnings:
-        warnings+="{\\color{red} \\textbf{The center of mass in Z may be significantly shifted.}}\\\\ \n"
-        countWarnings += 1
-    if warnings!="":
-        toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n"%countWarnings+warnings
+        warnings.append("{\\color{red} \\textbf{The center of mass in Z may be significantly shifted.}}")
+    if len(warnings)>0:
+        countWarnings=len(warnings)
+        toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n"%(countWarnings,latexEnumerate(warnings))
         report.writeSummary("0.a Mass analysis", "{\\color{red} %d warnings}"%countWarnings)
     else:
         toWrite += "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
@@ -316,34 +305,32 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercenta
     # Constructed mask
     M = readMap(mask.getFileName()).getData()
     sumM = np.sum(M)
-    dice = np.sum(np.multiply(M,rawM))/sumRawM
+    overlap = np.sum(np.multiply(M,rawM))/sumRawM
     toWrite=\
 """
 \\underline{Constructed mask}: After keeping the largest component of the previous mask and dilating it by 2\AA,
 there is a total number of voxels of %d and a volume of %5.2f \\AA$^3$. The overlap between the
 raw and constructed mask is %5.2f.\\\\
 
-"""%(sumM, sumM*Ts3, dice)
+"""%(sumM, sumM*Ts3, overlap)
 
     # Warnings
-    warnings=""
+    warnings=[]
     testWarnings = False
     countWarnings=0
     if ncomponents95>5 or testWarnings:
-        warnings+="{\\color{red} \\textbf{There might be a problem of connectivity at this threshold because more than 5 connected "\
-                  "components are needed to reach 95\\% of the total mask.}}\\\\ \n"
-        countWarnings += 1
+        warnings.append("{\\color{red} \\textbf{There might be a problem of connectivity at this threshold because "\
+                        "more than 5 connected components are needed to reach 95\\% of the total mask.}}")
     if avgVolumeRemaining>5 or testWarnings:
-        warnings += "{\\color{red} \\textbf{There might be a problem with noise and artifacts, because the average noise blob has "\
-                    "a volume of %f \AA$^3$.}}\\\\ \n"%avgVolumeRemaining
-        countWarnings += 1
-    if dice<0.75 or testWarnings:
-        warnings += "{\\color{red} \\textbf{There might be a problem in the construction of the mask, because the Dice coefficient "\
-                    "is smaller than 0.75. A common reason is that the suggested threshold causes too many "\
-                    "disconnected components.}}\\\\ \n"
-        countWarnings += 1
-    if warnings!="":
-        toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n"%countWarnings+warnings
+        warnings.append("{\\color{red} \\textbf{There might be a problem with noise and artifacts, because the "\
+                        "average noise blob has a volume of %f \AA$^3$.}}"%avgVolumeRemaining)
+    if overlap<0.75 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{There might be a problem in the construction of the mask, because the "\
+                        "overlap is smaller than 0.75. A common reason is that the suggested threshold causes too many "\
+                        "disconnected components.}}")
+    if len(warnings)>0:
+        countWarnings=len(warnings)
+        toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n"%(countWarnings,latexEnumerate(warnings))
         report.writeSummary("0.b Mask analysis", "{\\color{red} %d warnings}"%countWarnings)
     else:
         toWrite += "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
@@ -377,27 +364,34 @@ the symmetry of the structure.
     stdBg = np.std(Vbg)
     fractionLarge = np.sum(np.abs(Vbg)>5*stdBg)/Vbg.size
 
+    cdf5 = 2*scipy.stats.norm.cdf(-5)
+    cdf5Ratio = fractionLarge/cdf5
+
     toWrite+="The null hypothesis that the background mean is 0 was tested with a one-sample Student's t-test. The "\
              "resulting t-statistic and p-value where %5.2f and %f, respectively.\\\\ \n"\
              "\\\\ \n"\
              "The mean and standard deviation of the background where %f and %f. "\
              "The percentage of background voxels whose absolute value is larger than 5 times the standard "\
-             "deviation is %5.2f \\%% (see Fig. \\ref{fig:sigma5}).\\\\ \n\\\\ \n"%(t,p,meanBg, stdBg,fractionLarge*100)
+             "deviation is %5.2f \\%% (see Fig. \\ref{fig:sigma5}). The same percentage from a Gaussian would be "\
+             "%f\\%% (ratio between the two percentages: %f).\\\\ \n\\\\ \n"%\
+             (t,p,meanBg, stdBg,fractionLarge*100,cdf5*100,cdf5Ratio)
 
     Vshooting = np.where(np.logical_and(M, np.abs(V)>5*stdBg),V,0)
     report.orthogonalSlices("", "", "Maximum variance slices in the three dimensions of the parts of the "\
                             "background beyond 5*sigma", Vshooting, "fig:sigma5",
                             maxVar=True, fnRoot="sigma5")
     # Warnings
-    warnings=""
+    warnings=[]
     testWarnings = False
-    countWarnings = 0
     if p<0.05 or testWarnings:
-        warnings+="{\\color{red} \\textbf{The null hypothesis that the background mean is 0 has been rejected because "\
-                  "the p-value of the comparison is smaller than 0.05}}\\\\ \n"
-        countWarnings+=1
-    if warnings!="":
-        toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n"%countWarnings+warnings
+        warnings.append("{\\color{red} \\textbf{The null hypothesis that the background mean is 0 has been rejected "\
+                        "because the p-value of the comparison is smaller than 0.05}}")
+    if cdf5Ratio>20 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{There is a significant proportion of outlier values in the background "\
+                        "(cdf5 ratio=%5.2f})}"%cdf5Ratio)
+    if len(warnings)>0:
+        countWarnings=len(warnings)
+        toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n"%(countWarnings,latexEnumerate(warnings))
         report.writeSummary("0.c Background analysis", "{\\color{red} %d warnings}"%countWarnings)
     else:
         toWrite += "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
@@ -473,8 +467,8 @@ def level0(project, report, fnMap, Ts, threshold, skipAnalysis = False):
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 0 analysis')
-        # massAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts)
-        # maskAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts, threshold)
+        massAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts)
+        maskAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts, threshold)
         backgroundAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask)
-        # xmippDeepRes(project, report, "0.d deepRes", protImportMap.outputVolume, protCreateMask.outputMask)
+        xmippDeepRes(project, report, "0.d deepRes", protImportMap.outputVolume, protCreateMask.outputMask)
     return protImportMap, protCreateMask

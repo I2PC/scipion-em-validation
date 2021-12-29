@@ -17,6 +17,20 @@ def writeImage(I, fnOut, scale=True):
     Iout = PIL.Image.fromarray(I.astype(np.uint8))
     Iout.save(fnOut)
 
+def latexItemize(itemList):
+    toWrite="\\begin{itemize}\n"
+    for item in itemList:
+        toWrite+="   \item %s\n"%item
+    toWrite+="\\end{itemize}\n\n"
+    return toWrite
+
+def latexEnumerate(itemList):
+    toWrite="\\begin{enumerate}\n"
+    for item in itemList:
+        toWrite+="   \item %s\n"%item
+    toWrite+="\\end{enumerate}\n\n"
+    return toWrite
+
 class ValidationReport:
 
     def __init__(self, fnDir):
