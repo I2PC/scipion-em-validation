@@ -34,7 +34,7 @@ import scipy
 import pyworkflow.plugin as pwplugin
 from validationReport import readMap, latexEnumerate, calculateSha256
 
-def importMap(project, report, label, fnMap, Ts, threshold):
+def importMap(project, label, fnMap, Ts):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
     fnDir, fnBase = os.path.split(fnMap)
@@ -44,40 +44,9 @@ def importMap(project, report, label, fnMap, Ts, threshold):
                                filesPattern=fnMap,
                                samplingRate=Ts)
     project.launchProtocol(prot, wait=True)
-
-    subsection = "Orthogonal slices of the input map"
-    msg = "\\textbf{Explanation}:\\\\ In the orthogonal slices of the map, the noise outside the protein should not "\
-          "have any structure (stripes going out, small blobs, particularly high or low densities, ...)\\\\ \\\\"\
-          "\\textbf{Results}:\\\\"
-    if prot.isFailed():
-        report.writeFailedSection(subsection, msg)
-        return
-    msg+=" See Fig. \\ref{fig:centralInput}.\\\\"
-    report.orthogonalSlices(subsection, msg, "Central slices in the three dimensions", fnMap, "fig:centralInput")
-
-    subsection = "Orthogonal slices of maximum variance of the input map"
-    msg=""
-    msg+=" See Fig. \\ref{fig:maxVarInput}.\\\\"
-    report.orthogonalSlices(subsection, msg, "Slices of maximum variation in the three dimensions", fnMap,
-                            "fig:maxVarInput", maxVar=True)
-
-    subsection = "Orthogonal projections of the input map"
-    msg = "\\textbf{Explanation}:\\\\ In the projections there should not be stripes (this is an indication of "\
-          "directional overweighting, or angular attraction), and there should not be a dark halo around or inside the structure"\
-          " (this is an indication of incorrect CTF correction or the reconstruction of a biased map).\\\\ \\\\"\
-          "\\textbf{Results}:\\\\"
-    msg+= " See Fig. \\ref{fig:projInput}.\\\\"
-    report.orthogonalProjections(subsection, msg, "Projections in the three dimensions", fnMap, "fig:projInput")
-
-    subsection = "Isosurface views"
-    msg = "\\textbf{Explanation}:\\\\ An isosurface is the surface of all points that have the same gray value. \\\\ \\\\"\
-          "\\textbf{Results}:\\\\"
-    msg+= " See Fig. \\ref{fig:isoInput}.\\\\"
-    report.isoSurfaces(subsection, msg, "Isosurface at threshold=%f"%threshold, fnMap, threshold, "fig:isoInput")
-
     return prot
 
-def createMask(project, report, label, map, Ts, threshold):
+def createMask(project, label, map, Ts, threshold):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess',
                                             'XmippProtCreateMask3D', doRaise=True)
     prot = project.newProtocol(Prot,
@@ -88,25 +57,6 @@ def createMask(project, report, label, map, Ts, threshold):
                                doMorphological=True,
                                elementSize=math.ceil(2/Ts)) # Dilation by 2A
     project.launchProtocol(prot, wait=True)
-
-    subsection = "Orthogonal slices of mask"
-    msg = "The mask has been calculated at the suggested threshold %f, and then dilated by 2\AA."%threshold
-    if prot.isFailed():
-        report.writeFailedSection(subsection, msg)
-    else:
-        msg+=" See. Fig. \\ref{fig:centralMask}\\\\"
-        report.orthogonalSlices(subsection, msg, "Central slices in the three dimensions",
-                                prot.outputMask.getFileName(), "fig:centralMask")
-
-    subsection = "Orthogonal slices of maximum variance of mask"
-    msg = ""
-    if prot.isFailed():
-        report.writeFailedSubsection(subsection, msg)
-    else:
-        msg+=" See. Fig. \\ref{fig:maxVarMask}\\\\"
-        report.orthogonalSlices(subsection, msg, "Slices of maximum variation in the three dimensions",
-                                prot.outputMask.getFileName(), "fig:maxVarMask", maxVar=True)
-
     return prot
 
 def massAnalysis(report, volume, mask, Ts):
@@ -262,8 +212,9 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercenta
               int(individualMass[idx[-1]]), minVolumeRemaining)
     report.write(toWrite)
 
-    report.orthogonalSlices("", "", "Maximum variance slices in the three dimensions of the raw mask", rawM,
-                            "fig:rawMask", maxVar=True, fnRoot="rawMask")
+    msg = "The slices of the raw mask can be seen in Fig. \\ref{fig:rawMask}.\\\\"
+    report.orthogonalSlices("rawMask", msg, "Maximum variance slices in the three dimensions of the raw mask", rawM,
+                            "fig:rawMask", maxVar=True)
 
     # Analysis of different thresholds
     maxVal = np.max(V)
@@ -321,7 +272,6 @@ raw and constructed mask is %5.2f.\\\\
     # Warnings
     warnings=[]
     testWarnings = False
-    countWarnings=0
     if ncomponents95>5 or testWarnings:
         warnings.append("{\\color{red} \\textbf{There might be a problem of connectivity at this threshold because "\
                         "more than 5 connected components are needed to reach 95\\% of the total mask.}}")
@@ -383,9 +333,9 @@ the symmetry of the structure.
              (t,p,meanBg, stdBg,fractionLarge*100,cdf5*100,cdf5Ratio)
 
     Vshooting = np.where(np.logical_and(M, np.abs(V)>5*stdBg),V,0)
-    report.orthogonalSlices("", "", "Maximum variance slices in the three dimensions of the parts of the "\
-                            "background beyond 5*sigma", Vshooting, "fig:sigma5",
-                            maxVar=True, fnRoot="sigma5")
+    msg = "Slices of the background beyong 5*sigma can be seen in Fig. \\ref{fig:sigma5}.\\\\"
+    report.orthogonalSlices("sigma5", msg, "Maximum variance slices in the three dimensions of the parts of the "\
+                            "background beyond 5*sigma", Vshooting, "fig:sigma5", maxVar=True)
     # Warnings
     warnings=[]
     testWarnings = False
@@ -445,7 +395,7 @@ input map to the appearance of the atomic structures a local resolution label ca
 
     return prot
 
-def reportInput(report, fnMap, Ts, threshold):
+def reportInput(project, report, fnMap, Ts, threshold, protImportMap, protCreateMask):
     toWrite=\
 """
 \\section{Input data}
@@ -457,16 +407,56 @@ Visualization threshold: %f \\\\
 """%(fnMap.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap), Ts, threshold)
     report.write(toWrite)
 
-def level0(project, report, fnMap, Ts, threshold, skipAnalysis = False):
-    reportInput(report, fnMap, Ts, threshold)
+    fnImportMap = os.path.join(project.getPath(),protImportMap.outputVolume.getFileName())
+    msg = "\\underline{\\textbf{Orthogonal slices of the input map}}\\\\"\
+          "\\textbf{Explanation}:\\\\ In the orthogonal slices of the map, the noise outside the protein should not "\
+          "have any structure (stripes going out, small blobs, particularly high or low densities, ...)\\\\ \\\\"\
+          "\\textbf{Results}:\\\\"\
+          "See Fig. \\ref{fig:centralInput}.\\\\"
+    report.orthogonalSlices("centralSlicesInputMap", msg, "Central slices of the input map in the three dimensions",
+                            fnImportMap, "fig:centralInput")
 
+    msg = "\\underline{\\textbf{Orthogonal slices of maximum variance of the input map}}\\\\"\
+          "\\textbf{Results}:\\\\"\
+          "See Fig. \\ref{fig:maxVarInput}.\\\\"
+    report.orthogonalSlices("maxVarSlicesInputMap", msg, "Slices of maximum variation in the three dimensions",
+                            fnImportMap, "fig:maxVarInput", maxVar=True)
+
+    msg = "\\underline{\\textbf{Orthogonal projections of the input map}}\\\\" \
+          "\\textbf{Explanation}:\\\\ In the projections there should not be stripes (this is an indication of " \
+          "directional overweighting, or angular attraction), and there should not be a dark halo around or inside the structure" \
+          " (this is an indication of incorrect CTF correction or the reconstruction of a biased map).\\\\ \\\\" \
+          "\\textbf{Results}:\\\\"\
+          "See Fig. \\ref{fig:projInput}.\\\\"
+    report.orthogonalProjections("projInput", msg, "Projections in the three dimensions",
+                                fnImportMap, "fig:projInput")
+
+    msg = "\\underline{\\textbf{Isosurface views of the input map}}\\\\" \
+          "\\textbf{Explanation}:\\\\ An isosurface is the surface of all points that have the same gray value. "\
+          "In these views there should not be many artifacts or noise blobs around the map.\\\\ \\\\" \
+          "\\textbf{Results}:\\\\"\
+          "See Fig. \\ref{fig:isoInput}.\\\\"
+    report.isoSurfaces("isoInput", msg, "Isosurface at threshold=%f"%threshold,
+                       fnImportMap, threshold, "fig:isoInput")
+
+    fnMask = os.path.join(project.getPath(),protCreateMask.outputMask.getFileName())
+    msg = "\\underline{\\textbf{Orthogonal slices of maximum variance of the mask}}\\\\"\
+          "\\textbf{Explanation}:\\\\ The mask has been calculated at the suggested threshold %f, "\
+          "the largest connected component was selected, and then dilated by 2\AA.\\\\ \\\\"\
+          "\\textbf{Results}:\\\\"\
+          "See Fig. \\ref{fig:maxVarMask}.\\\\"%threshold
+    report.orthogonalSlices("maxVarMask", msg, "Slices of maximum variation in the three dimensions of the mask",
+                            fnMask, "fig:maxVarMask")
+
+def level0(project, report, fnMap, Ts, threshold, skipAnalysis = False):
     # Import map
-    protImportMap = importMap(project, report, "import map", fnMap, Ts, threshold)
+    protImportMap = importMap(project, "import map", fnMap, Ts)
     if protImportMap.isFailed():
         raise Exception("Import map did not work")
-    protCreateMask = createMask(project, report, "create mask", protImportMap.outputVolume, Ts, threshold)
+    protCreateMask = createMask(project, "create mask", protImportMap.outputVolume, Ts, threshold)
     if protCreateMask.isFailed():
         raise Exception("Create mask did not work")
+    reportInput(project, report, fnMap, Ts, threshold, protImportMap, protCreateMask)
 
     # Quality Measures
     if not skipAnalysis:

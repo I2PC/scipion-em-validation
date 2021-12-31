@@ -46,7 +46,7 @@ def usage(message=''):
     message = "\n\n  >>  %s\n" % message if message != '' else ''
     print(message)
     sys.exit(1)
-    # ~/scipion3/scipion3 python ~/data/Dropbox/H/ValidationLevels/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025
+    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol
 
 if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
     usage()
@@ -64,10 +64,16 @@ for arg in sys.argv:
         TS = float(arg.split("sampling=")[1])
     if arg.startswith('threshold='):
         MAPTHRESHOLD = float(arg.split("threshold=")[1])
+    if arg.startswith('map1='):
+        FNMAP1 = arg.split("map1=")[1]
+    if arg.startswith('map2='):
+        FNMAP2 = arg.split("map2=")[1]
 
 # Detect level
 argsPresent = [x.split('=')[0] for x in sys.argv]
 LEVEL0 = ["map", "sampling", "threshold"]
+LEVEL1 = ["map1", "map2"]
+
 def detectLevel(labels, args):
     retval = True
     for label in labels:
@@ -78,10 +84,11 @@ def detectLevel(labels, args):
 levels = []
 if detectLevel(LEVEL0, argsPresent):
     levels.append(0)
+if detectLevel(LEVEL1, argsPresent):
+    levels.append(1)
 
 if len(levels)==0 or not 0 in levels:
     usage()
-print("Levels",levels)
 
 # Creating the project
 projectDir = manager.getProjectPath(PROJECT_NAME)
@@ -93,11 +100,16 @@ os.chdir(fnProjectDir)
 
 # Create report
 from validationReport import ValidationReport
-report = ValidationReport(fnProjectDir)
+report = ValidationReport(fnProjectDir, levels)
 
 # Level 0
 from validationLevel0 import level0
-protImportMap, protCreateMask = level0(project, report, FNMAP, TS, MAPTHRESHOLD)
+protImportMap, protCreateMask = level0(project, report, FNMAP, TS, MAPTHRESHOLD, skipAnalysis = True)
+
+# Level 1
+if 1 in levels:
+    from validationLevel1 import level1
+    protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, protImportMap, protCreateMask)
 
 # Close report
 report.closeReport()

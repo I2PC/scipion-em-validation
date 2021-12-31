@@ -162,10 +162,9 @@ class ValidationReport:
 """%section
         self.fh.write(toWrite)
 
-    def orthogonalProjections(self, subsection, msg, caption, fnMap, label):
+    def orthogonalProjections(self, fnRoot, msg, caption, fnMap, label):
         V = readMap(fnMap).getData()
 
-        fnRoot = subsection.replace(' ','_')
         fnZ = os.path.join(self.fnReportDir,fnRoot+"_Z.jpg")
         writeImage(np.sum(V,axis=2), fnZ)
         fnY = os.path.join(self.fnReportDir,fnRoot+"_Y.jpg")
@@ -174,8 +173,6 @@ class ValidationReport:
         writeImage(np.sum(V,axis=0), fnX)
 
         toWrite="""
-\\subsection{%s}
-
 %s
 
 \\begin{figure}[H]
@@ -189,11 +186,10 @@ class ValidationReport:
   \\label{%s}
 \\end{figure}
 
-"""%(subsection, msg, fnX, fnY, fnZ, caption, label)
+"""%(msg, fnX, fnY, fnZ, caption, label)
         self.fh.write(toWrite)
 
-    def isoSurfaces(self, subsection, msg, caption, fnMap, threshold, label):
-        fnRoot = subsection.replace(' ', '_')
+    def isoSurfaces(self, fnRoot, msg, caption, fnMap, threshold, label):
         generateChimeraView(self.fnReportDir, fnMap, threshold, fnRoot + "1.jpg", 0, 0, 0)
         generateChimeraView(self.fnReportDir, fnMap, threshold, fnRoot + "2.jpg", 90, 0, 0)
         generateChimeraView(self.fnReportDir, fnMap, threshold, fnRoot + "3.jpg", 0, 90, 0)
@@ -206,8 +202,6 @@ class ValidationReport:
         fn3 = os.path.join(self.fnReportDir,fnRoot + "3.jpg")
         toWrite = \
 """
-\\subsection{%s}
-
 %s
 
 \\begin{figure}[H]
@@ -221,10 +215,10 @@ class ValidationReport:
   \\label{%s}
 \\end{figure}
 
-""" % (subsection, msg, fn1, fn2, fn3, caption, label)
+""" % (msg, fn1, fn2, fn3, caption, label)
         self.fh.write(toWrite)
 
-    def orthogonalSlices(self, subsection, msg, caption, map, label, maxVar=False, fnRoot=""):
+    def orthogonalSlices(self, fnRoot, msg, caption, map, label, maxVar=False):
         if type(map) is str:
             V = readMap(map)
             Xdim, Ydim, Zdim, _ = V.getDimensions()
@@ -242,8 +236,6 @@ class ValidationReport:
             iy = int(Ydim / 2)
             iz = int(Zdim / 2)
 
-        if fnRoot=="":
-            fnRoot = subsection.replace(' ', '_')
         fnZ = os.path.join(self.fnReportDir, fnRoot + "_Z.jpg")
         writeImage(mV[:, :, iz], fnZ)
         fnY = os.path.join(self.fnReportDir, fnRoot + "_Y.jpg")
@@ -251,15 +243,7 @@ class ValidationReport:
         fnX = os.path.join(self.fnReportDir, fnRoot + "_X.jpg")
         writeImage(mV[ix, :, :], fnX)
 
-        toWrite = ""
-        if subsection!="":
-            toWrite+=\
-"""
-
-\\subsection{%s}
-
-%s
-"""%(subsection, msg)
+        toWrite = msg
 
         toWrite+=\
 """\\begin{figure}[H]
