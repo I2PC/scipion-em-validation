@@ -115,7 +115,8 @@ protImportMap, protCreateMask = level0(project, report, FNMAP, FNMAP1, FNMAP2, T
 # Level 1
 if 1 in levels:
     from validationLevel1 import level1
-    protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, protImportMap, protCreateMask)
+    protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION,
+                                            protImportMap, protCreateMask)
 
 # Close report
 report.closeReport()

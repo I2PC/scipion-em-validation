@@ -94,6 +94,18 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
     report.writeSummary("1.b Resmap", secLabel, "{\\color{red} Not fully automatic}")
     report.write("{\\color{red} \\textbf{ERROR: Not fully automatic.}}\\\\ \n")
 
+def monores(project, report, label, protImportMap, protCreateMask, resolution):
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtMonoRes', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel=label,
+                               useHalfVolumes=True,
+                               maxRes=max(10,5*resolution))
+    prot.associatedHalves.set(protImportMap.outputVolume)
+    prot.maskExcl.set(protCreateMask.outputMask)
+    project.launchProtocol(prot, wait=True)
+    return prot
+
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):
     toWrite=\
 """
@@ -127,7 +139,7 @@ any structure in this difference. Sometimes some patterns are seen if the map is
                             "fig:maxVarHalfDiff", maxVar=True)
 
 
-def level1(project, report, fnMap1, fnMap2, Ts, protImportMap, protCreateMask, skipAnalysis = False):
+def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protCreateMask, skipAnalysis = False):
     # Import maps
     protImportMap1 = importMap(project, "import half1", fnMap1, Ts)
     if protImportMap1.isFailed():
@@ -142,5 +154,6 @@ def level1(project, report, fnMap1, fnMap2, Ts, protImportMap, protCreateMask, s
         report.writeSection('Level 1 analysis')
         blocres(project, report, "1.a Blocres", protImportMap, protCreateMask)
         resmap(project, report, "1.b Resmap", protImportMap, protCreateMask)
+        monores(project, report, "1.c Monores", protImportMap, protCreateMask, resolution)
 
     return protImportMap1, protImportMap2
