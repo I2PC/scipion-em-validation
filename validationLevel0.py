@@ -35,7 +35,7 @@ import scipy
 import pyworkflow.plugin as pwplugin
 from validationReport import readMap, latexEnumerate
 
-def importMap(project, report, label, fnMap, Ts):
+def importMap(project, report, label, fnMap, Ts, threshold):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
     fnDir, fnBase = os.path.split(fnMap)
@@ -52,29 +52,29 @@ def importMap(project, report, label, fnMap, Ts):
           "\\textbf{Results}:\\\\"
     if prot.isFailed():
         report.writeFailedSection(subsection, msg)
-    else:
-        msg+=" See Fig. \\ref{fig:centralInput}.\\\\"
-        report.orthogonalSlices(subsection, msg, "Central slices in the three dimensions", fnMap, "fig:centralInput")
+        return
+    msg+=" See Fig. \\ref{fig:centralInput}.\\\\"
+    report.orthogonalSlices(subsection, msg, "Central slices in the three dimensions", fnMap, "fig:centralInput")
 
     subsection = "Orthogonal slices of maximum variance of the input map"
     msg=""
-    if prot.isFailed():
-        report.writeFailedSubsection(subsection, msg)
-    else:
-        msg+=" See Fig. \\ref{fig:maxVarInput}.\\\\"
-        report.orthogonalSlices(subsection, msg, "Slices of maximum variation in the three dimensions", fnMap,
-                                "fig:maxVarInput", maxVar=True)
+    msg+=" See Fig. \\ref{fig:maxVarInput}.\\\\"
+    report.orthogonalSlices(subsection, msg, "Slices of maximum variation in the three dimensions", fnMap,
+                            "fig:maxVarInput", maxVar=True)
 
     subsection = "Orthogonal projections of the input map"
     msg = "\\textbf{Explanation}:\\\\ In the projections there should not be stripes (this is an indication of "\
           "directional overweighting, or angular attraction), and there should not be a dark halo around or inside the structure"\
           " (this is an indication of incorrect CTF correction or the reconstruction of a biased map).\\\\ \\\\"\
           "\\textbf{Results}:\\\\"
-    if prot.isFailed():
-        report.writeFailedSubsection(subsection, msg)
-    else:
-        msg+= " See Fig. \\ref{fig:projInput}.\\\\"
-        report.orthogonalProjections(subsection, msg, "Projections in the three dimensions", fnMap, "fig:projInput")
+    msg+= " See Fig. \\ref{fig:projInput}.\\\\"
+    report.orthogonalProjections(subsection, msg, "Projections in the three dimensions", fnMap, "fig:projInput")
+
+    subsection = "Isosurface views"
+    msg = "\\textbf{Explanation}:\\\\ An isosurface is the surface of all points that have the same gray value. \\\\ \\\\"\
+          "\\textbf{Results}:\\\\"
+    msg+= " See Fig. \\ref{fig:isoInput}.\\\\"
+    report.isoSurfaces(subsection, msg, "Isosurface at threshold=%f"%threshold, fnMap, threshold, "fig:isoInput")
 
     return prot
 
@@ -272,7 +272,7 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercenta
     toWrite+="\\begin{center}\n"
     toWrite+="\\begin{tabular}{|c|c|c|c|}\n"
     toWrite+="\\hline\n"
-    toWrite+="\\textbf{Threshold} & \\textbf{Voxel mass} & \\textbf{Molecular mass(kDa)} & \\textbf{# Aminoacids}\\\\ \n"
+    toWrite+="\\textbf{Threshold} & \\textbf{Voxel mass} & \\textbf{Molecular mass(kDa)} & \\textbf{\\# Aminoacids}\\\\ \n"
     toWrite+="\\hline\n"
     for i in range(g.size):
         w[i] = np.sum(V>g[i])
@@ -457,7 +457,7 @@ def level0(project, report, fnMap, Ts, threshold, skipAnalysis = False):
     reportInput(report, fnMap, Ts, threshold)
 
     # Import map
-    protImportMap = importMap(project, report, "import map", fnMap, Ts)
+    protImportMap = importMap(project, report, "import map", fnMap, Ts, threshold)
     if protImportMap.isFailed():
         raise Exception("Import map did not work")
     protCreateMask = createMask(project, report, "create mask", protImportMap.outputVolume, Ts, threshold)
