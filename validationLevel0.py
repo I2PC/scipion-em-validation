@@ -24,7 +24,6 @@
 # *
 # **************************************************************************
 
-import hashlib
 import math
 import matplotlib
 import matplotlib.pyplot as plt
@@ -33,7 +32,7 @@ import os
 import scipy
 
 import pyworkflow.plugin as pwplugin
-from validationReport import readMap, latexEnumerate
+from validationReport import readMap, latexEnumerate, calculateSha256
 
 def importMap(project, report, label, fnMap, Ts, threshold):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -447,11 +446,6 @@ input map to the appearance of the atomic structures a local resolution label ca
     return prot
 
 def reportInput(report, fnMap, Ts, threshold):
-    sha256_hash = hashlib.sha256()
-    with open(fnMap, "rb") as f:
-        # Read and update hash string value in blocks of 4K
-        for byte_block in iter(lambda: f.read(4096), b""):
-            sha256_hash.update(byte_block)
     toWrite=\
 """
 \\section{Input data}
@@ -460,7 +454,7 @@ SHA256 hash: %s \\\\
 Voxel size: %f (\AA) \\\\
 Visualization threshold: %f \\\\
 
-"""%(fnMap.replace('_','\_').replace('/','/\-'), sha256_hash.hexdigest(), Ts, threshold)
+"""%(fnMap.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap), Ts, threshold)
     report.write(toWrite)
 
 def level0(project, report, fnMap, Ts, threshold, skipAnalysis = False):

@@ -1,3 +1,4 @@
+import hashlib
 import numpy as np
 import os
 import subprocess
@@ -54,9 +55,17 @@ exit
     Plugin.runChimeraProgram(Plugin.getProgram(), args, cwd=fnWorkingDir)
     cleanPath(fnTmp)
 
+def calculateSha256(fn):
+    sha256_hash = hashlib.sha256()
+    with open(fn, "rb") as f:
+        # Read and update hash string value in blocks of 4K
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
+
 class ValidationReport:
 
-    def __init__(self, fnDir):
+    def __init__(self, fnDir, levels):
         self.fnProjectDir = fnDir
         self.fnReportDir = os.path.join(fnDir,"validationReport")
         makePath(self.fnReportDir)
@@ -65,12 +74,14 @@ class ValidationReport:
         self.fnSummary = os.path.join(self.fnReportDir,"summary.tex")
         self.fhSummary = open(self.fnSummary,"w")
         self.citations = {}
-        self.writePreamble()
+        self.writePreamble(levels)
 
     def getReportDir(self):
         return self.fnReportDir
 
-    def writePreamble(self):
+    def writePreamble(self, levels):
+        maxLevel = np.max(levels)
+
         toWrite = \
 """
 \\documentclass[12pt, letterpaper]{article}
@@ -82,7 +93,7 @@ class ValidationReport:
 \\usepackage{xcolor}
 \\usepackage[us,12hr]{datetime}
 
-\\title{Validation report}
+\\title{Validation report of Level %d}
 \\author{I$^2$PC Validation server}
 \\date{\\today \\\\ \\currenttime}
 
@@ -102,7 +113,7 @@ class ValidationReport:
 
 \\clearpage
 
-"""
+"""%maxLevel
         self.fh.write(toWrite)
 
         toWrite = \
