@@ -395,7 +395,81 @@ input map to the appearance of the atomic structures a local resolution label ca
 
     return prot
 
-def reportInput(project, report, fnMap, Ts, threshold, protImportMap, protCreateMask):
+def locBfactor(project, report, label, map, mask):
+    bblCitation = \
+"""\\bibitem[Kaur et~al., 2021]{Kaur2021}
+Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
+  R., Wrapp, D., McLellan, J.~S., Bui, K.~H., and Vargas, J. (2021).
+\\newblock Local computational methods to improve the interpretability and
+  analysis of cryo-{EM} maps.
+\\newblock {\em Nature Communications}, 12(1):1--12."""
+    report.addCitation("Kaur2021", bblCitation)
+
+    secLabel = "sec:locbfactor"
+    msg = \
+"""
+\\subsection{Level 0.e Local B-factor}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+LocBfactor \\cite{Kaur2021} estimates a local resolution B-factor by decomposing the input map into a 
+local magnitude and phase term using the spiral transform.\\\\
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    report.writeSummary("0.e LocBfactor", secLabel, "{\\color{red} Not in Scipion}")
+    report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+
+def locOccupancy(project, report, label, map, mask):
+    bblCitation = \
+"""\bibitem[Kaur et~al., 2021]{Kaur2021}
+Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
+  R., Wrapp, D., McLellan, J.~S., Bui, K.~H., and Vargas, J. (2021).
+\newblock Local computational methods to improve the interpretability and
+  analysis of cryo-{EM} maps.
+\newblock {\em Nature Communications}, 12(1):1--12."""
+    report.addCitation("Kaur2021", bblCitation)
+
+    secLabel = "sec:locOccupancy"
+    msg = \
+"""
+\\subsection{Level 0.f Local Occupancy}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromolecule.\\\\
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    report.writeSummary("0.f LocOccupancy", secLabel, "{\\color{red} Not in Scipion}")
+    report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+
+def deepHand(project, report, label, resolution, map, mask):
+    secLabel = "sec:deepHand"
+    msg = \
+"""
+\\subsection{Level 0.g Hand correction}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+Deep Hand determines the correction of the hand for those maps with a resolution smaller than 5\\AA\\\\
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+
+    if resolution>5:
+        toWrite="This method cannot be applied to maps whose resolution is worse than 5\AA.\\\\"\
+                "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
+        report.write(toWrite)
+        report.writeSummary("0.g Deep hand", secLabel, "{\\color{blue} OK}")
+    else:
+        report.writeSummary("0.g Deep hand", secLabel, "{\\color{red} Not in Scipion}")
+        report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+
+def reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateMask):
     toWrite=\
 """
 \\section{Input data}
@@ -403,8 +477,9 @@ Input map: %s \\\\
 SHA256 hash: %s \\\\ 
 Voxel size: %f (\AA) \\\\
 Visualization threshold: %f \\\\
+Resolution estimated by user: %f \\\\
 
-"""%(fnMap.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap), Ts, threshold)
+"""%(fnMap.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap), Ts, threshold, resolution)
     report.write(toWrite)
 
     fnImportMap = os.path.join(project.getPath(),protImportMap.outputVolume.getFileName())
@@ -448,7 +523,7 @@ Visualization threshold: %f \\\\
     report.orthogonalSlices("maxVarMask", msg, "Slices of maximum variation in the three dimensions of the mask",
                             fnMask, "fig:maxVarMask")
 
-def level0(project, report, fnMap, Ts, threshold, skipAnalysis = False):
+def level0(project, report, fnMap, Ts, threshold, resolution, skipAnalysis = False):
     # Import map
     protImportMap = importMap(project, "import map", fnMap, Ts)
     if protImportMap.isFailed():
@@ -456,7 +531,7 @@ def level0(project, report, fnMap, Ts, threshold, skipAnalysis = False):
     protCreateMask = createMask(project, "create mask", protImportMap.outputVolume, Ts, threshold)
     if protCreateMask.isFailed():
         raise Exception("Create mask did not work")
-    reportInput(project, report, fnMap, Ts, threshold, protImportMap, protCreateMask)
+    reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateMask)
 
     # Quality Measures
     if not skipAnalysis:
@@ -465,4 +540,7 @@ def level0(project, report, fnMap, Ts, threshold, skipAnalysis = False):
         maskAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts, threshold)
         backgroundAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask)
         xmippDeepRes(project, report, "0.d deepRes", protImportMap.outputVolume, protCreateMask.outputMask)
+        locBfactor(project, report, "0.e locBfactor", protImportMap.outputVolume, protCreateMask.outputMask)
+        locOccupancy(project, report, "0.f locOccupancy", protImportMap.outputVolume, protCreateMask.outputMask)
+        deepHand(project, report, "0.g deepHand", resolution, protImportMap.outputVolume, protCreateMask.outputMask)
     return protImportMap, protCreateMask

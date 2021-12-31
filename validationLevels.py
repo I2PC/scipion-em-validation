@@ -39,6 +39,7 @@ def usage(message=''):
           "\n            map:  mymap.mrc"
           "\n            sampling:  1 [A]"
           "\n            threshold:  0.03"
+          "\n            resolution:  2 [A]"
           "\n         LEVEL 1 ====="
           "\n            map1:  mymap1.mrc"
           "\n            map2:  mymap2.mrc"
@@ -46,7 +47,7 @@ def usage(message=''):
     message = "\n\n  >>  %s\n" % message if message != '' else ''
     print(message)
     sys.exit(1)
-    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol
+    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=3 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol
 
 if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
     usage()
@@ -64,6 +65,8 @@ for arg in sys.argv:
         TS = float(arg.split("sampling=")[1])
     if arg.startswith('threshold='):
         MAPTHRESHOLD = float(arg.split("threshold=")[1])
+    if arg.startswith('resolution='):
+        MAPRESOLUTION = float(arg.split("resolution=")[1])
     if arg.startswith('map1='):
         FNMAP1 = arg.split("map1=")[1]
     if arg.startswith('map2='):
@@ -71,7 +74,7 @@ for arg in sys.argv:
 
 # Detect level
 argsPresent = [x.split('=')[0] for x in sys.argv]
-LEVEL0 = ["map", "sampling", "threshold"]
+LEVEL0 = ["map", "sampling", "threshold", "resolution"]
 LEVEL1 = ["map1", "map2"]
 
 def detectLevel(labels, args):
@@ -104,7 +107,7 @@ report = ValidationReport(fnProjectDir, levels)
 
 # Level 0
 from validationLevel0 import level0
-protImportMap, protCreateMask = level0(project, report, FNMAP, TS, MAPTHRESHOLD, skipAnalysis = True)
+protImportMap, protCreateMask = level0(project, report, FNMAP, TS, MAPTHRESHOLD, MAPRESOLUTION, skipAnalysis = False)
 
 # Level 1
 if 1 in levels:
