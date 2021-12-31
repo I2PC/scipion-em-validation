@@ -106,7 +106,8 @@ SHA256 hash: %s \\\\
 \\\\
 Slices of the first half map can be seen in Fig. \\ref{fig:maxVarHalf1}.\\\\
 Slices of the second half map can be seen in Fig. \\ref{fig:maxVarHalf2}.\\\\
-Slices of the difference between both maps can be seen in Fig. \\ref{fig:maxVarHalfDiff}.\\\\
+Slices of the difference between both maps can be seen in Fig. \\ref{fig:maxVarHalfDiff}. There should not be 
+any structure in this difference. Sometimes some patterns are seen if the map is symmetric.\\\\
 """%(fnMap1.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap1),\
      fnMap2.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap2))
     report.write(toWrite)
