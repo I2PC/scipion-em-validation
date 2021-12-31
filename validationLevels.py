@@ -56,6 +56,8 @@ if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
 manager = Manager()
 
 # Fixing some parameters depending on the arguments or taking the default ones
+FNMAP1 = None
+FNMAP2 = None
 for arg in sys.argv:
     if arg.startswith('project='):
         PROJECT_NAME = arg.split('project=')[1]
@@ -107,7 +109,8 @@ report = ValidationReport(fnProjectDir, levels)
 
 # Level 0
 from validationLevel0 import level0
-protImportMap, protCreateMask = level0(project, report, FNMAP, TS, MAPTHRESHOLD, MAPRESOLUTION, skipAnalysis = False)
+protImportMap, protCreateMask = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION,
+                                       skipAnalysis = True)
 
 # Level 1
 if 1 in levels:

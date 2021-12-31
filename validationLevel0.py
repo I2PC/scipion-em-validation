@@ -34,15 +34,18 @@ import scipy
 import pyworkflow.plugin as pwplugin
 from validationReport import readMap, latexEnumerate, calculateSha256
 
-def importMap(project, label, fnMap, Ts):
+def importMap(project, label, fnMap, fnMap1, fnMap2, Ts):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
     fnDir, fnBase = os.path.split(fnMap)
     prot = project.newProtocol(Prot,
                                objLabel=label,
-                               filesPath=fnDir,
-                               filesPattern=fnMap,
+                               filesPath=os.path.join(fnDir,fnMap),
                                samplingRate=Ts)
+    if fnMap1 is not None and fnMap2 is not None:
+        prot.setHalfMaps.set(True)
+        prot.half1map.set(fnMap1)
+        prot.half2map.set(fnMap2)
     project.launchProtocol(prot, wait=True)
     return prot
 
@@ -523,9 +526,9 @@ Resolution estimated by user: %f \\\\
     report.orthogonalSlices("maxVarMask", msg, "Slices of maximum variation in the three dimensions of the mask",
                             fnMask, "fig:maxVarMask")
 
-def level0(project, report, fnMap, Ts, threshold, resolution, skipAnalysis = False):
+def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, skipAnalysis = False):
     # Import map
-    protImportMap = importMap(project, "import map", fnMap, Ts)
+    protImportMap = importMap(project, "import map", fnMap, fnMap1, fnMap2, Ts)
     if protImportMap.isFailed():
         raise Exception("Import map did not work")
     protCreateMask = createMask(project, "create mask", protImportMap.outputVolume, Ts, threshold)
