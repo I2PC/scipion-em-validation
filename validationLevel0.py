@@ -131,9 +131,11 @@ def massAnalysis(report, volume, mask, Ts):
     dy = abs(yF-y0)/(Ts*Y)*100
     dz = abs(zF-z0)/(Ts*Z)*100
 
+    secLabel = "sec:massAnalysis"
     toWrite=\
 """
 \\subsection{Level 0.a Mass analysis}
+\\label{%s}
 \\textbf{Explanation:}\\\\
 The reconstructed map must be relatively well centered in the box, and there should be at least 30\AA~(the exact size 
 depends on the CTF) on each side to make sure that the CTF can be appropriately corrected.
@@ -149,7 +151,7 @@ There is a decentering ratio (abs(Right-Left)/Size)\\%% of %5.2f\\%%\\\\
 The space from the left and right in Z are %6.2f and %6.2f \AA, respectively.
 There is a decentering ratio (abs(Right-Left)/Size)\\%% of %5.2f\\%%\\\\
 \\\\
-"""%(x0, xF, dx, y0, yF, dy, z0, zF, dz)
+"""%(secLabel, x0, xF, dx, y0, yF, dy, z0, zF, dz)
 
     # Analysis of Center of mass
     cx, cy, cz = scipy.ndimage.measurements.center_of_mass(V)
@@ -194,10 +196,10 @@ The center of mass is at (x,y,z)=(%6.2f,%6.2f,%6.2f). The decentering of the cen
     if len(warnings)>0:
         countWarnings=len(warnings)
         toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n"%(countWarnings,latexEnumerate(warnings))
-        report.writeSummary("0.a Mass analysis", "{\\color{red} %d warnings}"%countWarnings)
+        report.writeSummary("0.a Mass analysis", secLabel, "{\\color{red} %d warnings}"%countWarnings)
     else:
         toWrite += "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
-        report.writeSummary("0.a Mass analysis", "{\\color{blue} OK}")
+        report.writeSummary("0.a Mass analysis", secLabel, "{\\color{blue} OK}")
 
     report.write(toWrite)
 
@@ -212,9 +214,11 @@ def maskAnalysis(report, volume, mask, Ts, threshold):
     structure = np.ones((3, 3, 3), dtype=np.int)
     labeled, ncomponents = scipy.ndimage.measurements.label(rawM, structure)
     sumRawM=np.sum(rawM)
+    secLabel="sec:maskAnalysis"
     toWrite=\
 """
 \\subsection{Level 0.b Mask analysis}
+\\label{%s}
 \\textbf{Explanation:}\\\\
 The map at the suggested threshold should have most of its mass concentrated in a single connected component.
 It is normal that after thresholding there are a few thousands of very small, disconnected noise blobs. However,
@@ -232,7 +236,7 @@ a volume of %5.2f \\AA$^3$ (see Fig. \\ref{fig:rawMask}).
 The size and percentage of the total number of voxels for the raw mask are listed below (up to 95\\%% of the mass),
 the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercentage):\\\\
 \\\\
-"""%(threshold, ncomponents, sumRawM, sumRawM*Ts3)
+"""%(secLabel,threshold, ncomponents, sumRawM, sumRawM*Ts3)
 
     individualMass = [np.sum(labeled==i) for i in range(1,ncomponents+1)]
     idx = np.argsort(-np.asarray(individualMass)) # Minus is for sorting i descending order
@@ -257,6 +261,7 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercenta
              (ncomponentsRemaining, voxelsRemaining/ncomponentsRemaining, avgVolumeRemaining,
               int(individualMass[idx[ncomponents95]]), maxVolumeRemaining,
               int(individualMass[idx[-1]]), minVolumeRemaining)
+    report.write(toWrite)
 
     report.orthogonalSlices("", "", "Maximum variance slices in the three dimensions of the raw mask", rawM,
                             "fig:rawMask", maxVar=True, fnRoot="rawMask")
@@ -331,20 +336,22 @@ raw and constructed mask is %5.2f.\\\\
     if len(warnings)>0:
         countWarnings=len(warnings)
         toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n"%(countWarnings,latexEnumerate(warnings))
-        report.writeSummary("0.b Mask analysis", "{\\color{red} %d warnings}"%countWarnings)
+        report.writeSummary("0.b Mask analysis", secLabel, "{\\color{red} %d warnings}"%countWarnings)
     else:
         toWrite += "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
-        report.writeSummary("0.b Mask analysis", "{\\color{blue} OK}")
+        report.writeSummary("0.b Mask analysis", secLabel, "{\\color{blue} OK}")
 
     report.write(toWrite)
 
 def backgroundAnalysis(report, volume, mask):
     V = readMap(volume.getFileName()).getData()
 
+    secLabel = "sec:bgAnalysis"
     toWrite=\
 """
 
 \\subsection{Level 0.c Background analysis}
+\\label{%s}
 \\textbf{Explanation:}\\\\
 Background is defined as the region outside the macromolecule mask. The background mean should be zero, and the number
 of voxels with a very low or very high value (below 5 standard deviations of the noise) should be very small and 
@@ -354,7 +361,7 @@ the symmetry of the structure.
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-"""
+"""%secLabel
 
     M = 1-readMap(mask.getFileName()).getData() # Background mask
     Vbg = V[M>0]
@@ -392,10 +399,10 @@ the symmetry of the structure.
     if len(warnings)>0:
         countWarnings=len(warnings)
         toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n"%(countWarnings,latexEnumerate(warnings))
-        report.writeSummary("0.c Background analysis", "{\\color{red} %d warnings}"%countWarnings)
+        report.writeSummary("0.c Background analysis", secLabel, "{\\color{red} %d warnings}"%countWarnings)
     else:
         toWrite += "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
-        report.writeSummary("0.c Background analysis", "{\\color{blue} OK}")
+        report.writeSummary("0.c Background analysis", secLabel, "{\\color{blue} OK}")
 
     report.write(toWrite)
 
@@ -417,8 +424,11 @@ Ram\\'{\i}rez-Aportela, E., Mota, J., Conesa, P., Carazo, J.~M., and Sorzano, C.
 \\newblock {\em IUCRj}, 6:1054--1063."""
     report.addCitation("Ramirez2019",bblCitation)
 
+    secLabel = "sec:deepres"
     msg = \
 """
+\\subsection{Level 0.d Local resolution with DeepRes}
+\\label{%s}
 \\textbf{Explanation}:\\\\ 
 DeepRes \\cite{Ramirez2019} measures the local resolution using a neural network that has been trained on 
 the appearance of atomic structures at different resolutions. Then, by comparing the local appearance of the
@@ -426,11 +436,11 @@ input map to the appearance of the atomic structures a local resolution label ca
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-"""
-    report.writeSubsection("0.d DeepRes", msg)
+"""%secLabel
+    report.write(msg)
 
     if prot.isFailed():
-        report.writeSummary("0.d Deepres", "{\\color{red} Could not be measured}")
+        report.writeSummary("0.d Deepres", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 

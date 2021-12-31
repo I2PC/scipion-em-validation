@@ -3,7 +3,7 @@ import os
 import subprocess
 import PIL
 
-from pyworkflow.utils.path import makePath
+from pyworkflow.utils.path import makePath, cleanPath
 import xmipp3
 
 def readMap(fnMap):
@@ -52,7 +52,7 @@ exit
     from chimera import Plugin
     args = "chimeraScript.cxc"
     Plugin.runChimeraProgram(Plugin.getProgram(), args, cwd=fnWorkingDir)
-    # cleanPath(fnTmp)
+    cleanPath(fnTmp)
 
 class ValidationReport:
 
@@ -96,20 +96,26 @@ class ValidationReport:
 \\input{summary.tex}
 \\end{abstract}
 
+\\clearpage
+
+\\tableofcontents
+
+\\clearpage
+
 """
         self.fh.write(toWrite)
 
         toWrite = \
 """
-\\begin{tabular}{lr}
+\\begin{tabular}{lrr}
 """
         self.fhSummary.write(toWrite)
 
     def write(self,msg):
         self.fh.write(msg)
 
-    def writeSummary(self, test, msg):
-        toWrite = "%s & %s \\\\ \n"%(test,msg)
+    def writeSummary(self, test, sec, msg):
+        toWrite = "%s & Sec. \\ref{%s} & %s \\\\ \n"%(test,sec,msg)
         self.fhSummary.write(toWrite)
 
     def addCitation(self, key, bblEntry):
@@ -143,16 +149,6 @@ class ValidationReport:
 \\section{%s}
 
 """%section
-        self.fh.write(toWrite)
-
-    def writeSubsection(self, section, msg):
-        toWrite = \
-"""
-\\subsection{%s}
-
-%s
-
-""" %(section,msg)
         self.fh.write(toWrite)
 
     def orthogonalProjections(self, subsection, msg, caption, fnMap, label):
