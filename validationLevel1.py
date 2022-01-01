@@ -32,8 +32,7 @@ import os
 import scipy
 
 import pyworkflow.plugin as pwplugin
-from pwem.viewers import LocalResolutionViewer
-from validationReport import readMap, latexEnumerate, calculateSha256, CDFFromHistogram, CDFpercentile
+from validationReport import readMap, latexEnumerate, calculateSha256, CDFFromHistogram, CDFpercentile, reportPlot
 import xmipp3
 
 def importMap(project, label, fnMap, Ts):
@@ -97,11 +96,14 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
     report.write("{\\color{red} \\textbf{ERROR: Not fully automatic.}}\\\\ \n")
 
 def monores(project, report, label, protImportMap, protCreateMask, resolution):
+    Ts = protImportMap.outputVolume.getSamplingRate()
+
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtMonoRes', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel=label,
                                useHalfVolumes=True,
+                               minRes=2*Ts,
                                maxRes=max(10,5*resolution))
     prot.associatedHalves.set(protImportMap.outputVolume)
     prot.maskExcl.set(protCreateMask.outputMask)
@@ -109,8 +111,8 @@ def monores(project, report, label, protImportMap, protCreateMask, resolution):
 
     bblCitation = \
 """\\bibitem[Vilas et~al., 2018]{Vilas2018}
-Vilas, J.~L., G{\'o}mez-Blanco, J., Conesa, P., Melero, R., de~la
-  Rosa~Trev\'{\i}n, J.~M., Ot{\'o}n, J., Cuenca, J., Marabini, R., Carazo,
+Vilas, J.~L., G{\\'o}mez-Blanco, J., Conesa, P., Melero, R., de~la
+  Rosa~Trev\\'{\i}n, J.~M., Ot{\\'o}n, J., Cuenca, J., Marabini, R., Carazo,
   J.~M., Vargas, J., and Sorzano, C. O.~S. (2018).
 \\newblock {MonoRes}: automatic and unbiased estimation of local resolution for
   electron microscopy maps.
@@ -142,13 +144,8 @@ transformation separates the amplitude and phase of the input map.\\\\
     y_axis = md.getColumnValues(xmipp3.MDL_COUNT)
 
     fnHistMonoRes = os.path.join(report.getReportDir(), "histMonoRes.png")
-    matplotlib.use('Agg')
-    plt.bar(x_axis[:-2], y_axis[:-2],width=(x_axis[-1] - x_axis[0]) / len(x_axis))
-    plt.yscale('linear')
-    plt.grid(True)
-    plt.xlabel('Resolution (A)')
-    plt.ylabel('# of voxels')
-    plt.savefig(fnHistMonoRes)
+    reportPlot(x_axis[:-2], y_axis[:-2], 'Resolution (A)', '# of voxels', fnHistMonoRes, plotType="bar",
+               barWidth=(x_axis[-1] - x_axis[0]) / len(x_axis))
 
     R, RCDF=CDFFromHistogram(x_axis[:-2], y_axis[:-2])
     Rpercentiles = CDFpercentile(R, RCDF, Fp=[0.025, 0.25, 0.5, 0.75, 0.975])
@@ -177,12 +174,13 @@ percentiles are:
     \\end{tabular}
 \\end{center}
 
-The reported resolution, %5.2f \AA, is at the percentile %5.2f.
+The reported resolution, %5.2f \AA, is at the percentile %5.2f. 
+Fig. \\ref{fig:monoresColor} shows some representative views of the local resolution
 
 \\begin{figure}[H]
     \centering
     \includegraphics[width=10cm]{%s}
-    \\caption{Histogram of the local resolution according to MonoRes \cite{Vilas2018}.}
+    \\caption{Histogram of the local resolution according to MonoRes.}
     \\label{fig:histMonores}
 \\end{figure}
 
@@ -190,15 +188,9 @@ The reported resolution, %5.2f \AA, is at the percentile %5.2f.
      fnHistMonoRes)
     report.write(toWrite)
 
-    viewer = LocalResolutionViewer()
-    cmdFile = os.path.join(report.getReportDir(), "monoresViewer.py")
-    fnResVol = prot._getExtraPath(prot.OUTPUT_RESOLUTION_FILE_CHIMERA)
-    fnOrigMap = protImportMap.outputVolume.getFileName()
-    Ts = protImportMap.outputVolume.getSamplingRate()
-    viewer.createChimeraScript(cmdFile, fnResVol, fnOrigMap, Ts,
-                                 numColors=11,
-                                 lowResLimit=Rpercentiles[-1],
-                                 highResLimit=Rpercentiles[0])
+    report.colorIsoSurfaces("", "Local resolution according to Monores.", "fig:monoresColor",
+                            project, "monoresViewer", protImportMap.outputVolume.getFileName(),
+                            Ts, prot._getExtraPath("monoresResolutionChimera.mrc"), Rpercentiles[0], Rpercentiles[-1])
 
     # Warnings
     warnings=[]

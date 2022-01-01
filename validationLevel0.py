@@ -25,14 +25,12 @@
 # **************************************************************************
 
 import math
-import matplotlib
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import scipy
 
 import pyworkflow.plugin as pwplugin
-from validationReport import readMap, latexEnumerate, calculateSha256
+from validationReport import readMap, latexEnumerate, calculateSha256, reportPlot
 
 def importMap(project, label, fnMap, fnMap1, fnMap2, Ts):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -244,13 +242,7 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercenta
 """%fnFigMass
     report.write(toWrite)
 
-    matplotlib.use('Agg')
-    plt.plot(g,w)
-    plt.yscale('log')
-    plt.grid(True)
-    plt.xlabel('Gray level')
-    plt.ylabel('Voxel mass')
-    plt.savefig(fnFigMass)
+    reportPlot(g,w, 'Gray level', 'Voxel mass', fnFigMass, yscale="log")
 
     # Constructed mask
     M = readMap(mask.getFileName()).getData()
