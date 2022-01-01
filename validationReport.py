@@ -1,6 +1,7 @@
 import hashlib
 import numpy as np
 import os
+import scipy
 import subprocess
 import PIL
 
@@ -63,6 +64,29 @@ def calculateSha256(fn):
             sha256_hash.update(byte_block)
     return sha256_hash.hexdigest()
 
+def CDFFromHistogram(x,count):
+    xWidth=x[1]-x[0]
+    newX = np.array(x+[x[-1]+xWidth])
+    newX -= xWidth/2
+    newY = np.array([0]+count)
+    F = np.cumsum(newY)
+    F = F/F[-1]
+    return newX, F
+
+def CDFpercentile(x,F,xp=None,Fp=None):
+    if xp is not None:
+        f = scipy.interpolate.interp1d(x, F, bounds_error=False, fill_value=(0.0,1.0))
+        if type(xp)==list:
+            return [f(xpp) for xpp in xp]
+        else:
+            return f(xp)
+    if Fp is not None:
+        f = scipy.interpolate.interp1d(F, x, bounds_error=False, fill_value=(np.min(x),np.max(x)))
+        if type(Fp)==list:
+            return [f(Fpp) for Fpp in Fp]
+        return f(Fp)
+    return None
+
 class ValidationReport:
 
     def __init__(self, fnDir, levels):
@@ -124,6 +148,16 @@ class ValidationReport:
 
     def write(self,msg):
         self.fh.write(msg)
+
+    def writeWarningsAndSummary(self, warnings, section, secLabel):
+        if len(warnings) > 0:
+            countWarnings = len(warnings)
+            toWrite = "\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n" % (countWarnings, latexEnumerate(warnings))
+            self.writeSummary(section, secLabel, "{\\color{red} %d warnings}" % countWarnings)
+        else:
+            toWrite = "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
+            self.writeSummary(section, secLabel, "{\\color{blue} OK}")
+        self.write(toWrite)
 
     def writeSummary(self, test, sec, msg):
         toWrite = "%s & Sec. \\ref{%s} & %s \\\\ \n"%(test,sec,msg)

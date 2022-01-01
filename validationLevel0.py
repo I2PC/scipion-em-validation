@@ -117,10 +117,10 @@ The center of mass is at (x,y,z)=(%6.2f,%6.2f,%6.2f). The decentering of the cen
 %5.2f, %5.2f, and %5.2f, respectively.\\%%\\\\
 
 """%(cx,cy,cz,dcx,dcy,dcz)
+    report.write(toWrite)
 
     warnings=[]
     testWarnings = False
-    countWarnings=0
     if dx>20 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The volume might be significantly decentered in X.}}")
     if dy>20 or testWarnings:
@@ -145,15 +145,7 @@ The center of mass is at (x,y,z)=(%6.2f,%6.2f,%6.2f). The decentering of the cen
         warnings.append("{\\color{red} \\textbf{The center of mass in Y may be significantly shifted.}}")
     if dcz>20 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The center of mass in Z may be significantly shifted.}}")
-    if len(warnings)>0:
-        countWarnings=len(warnings)
-        toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n"%(countWarnings,latexEnumerate(warnings))
-        report.writeSummary("0.a Mass analysis", secLabel, "{\\color{red} %d warnings}"%countWarnings)
-    else:
-        toWrite += "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
-        report.writeSummary("0.a Mass analysis", secLabel, "{\\color{blue} OK}")
-
-    report.write(toWrite)
+    report.writeWarningsAndSummary(warnings, "0.a Mass analysis", secLabel)
 
 def maskAnalysis(report, volume, mask, Ts, threshold):
     V = readMap(volume.getFileName()).getData()
@@ -271,6 +263,7 @@ there is a total number of voxels of %d and a volume of %5.2f \\AA$^3$. The over
 raw and constructed mask is %5.2f.\\\\
 
 """%(sumM, sumM*Ts3, overlap)
+    report.write(toWrite)
 
     # Warnings
     warnings=[]
@@ -285,15 +278,7 @@ raw and constructed mask is %5.2f.\\\\
         warnings.append("{\\color{red} \\textbf{There might be a problem in the construction of the mask, because the "\
                         "overlap is smaller than 0.75. A common reason is that the suggested threshold causes too many "\
                         "disconnected components.}}")
-    if len(warnings)>0:
-        countWarnings=len(warnings)
-        toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n"%(countWarnings,latexEnumerate(warnings))
-        report.writeSummary("0.b Mask analysis", secLabel, "{\\color{red} %d warnings}"%countWarnings)
-    else:
-        toWrite += "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
-        report.writeSummary("0.b Mask analysis", secLabel, "{\\color{blue} OK}")
-
-    report.write(toWrite)
+    report.writeWarningsAndSummary(warnings, "0.b Mask analysis", secLabel)
 
 def backgroundAnalysis(report, volume, mask):
     V = readMap(volume.getFileName()).getData()
@@ -339,6 +324,8 @@ the symmetry of the structure.
     msg = "Slices of the background beyong 5*sigma can be seen in Fig. \\ref{fig:sigma5}.\\\\"
     report.orthogonalSlices("sigma5", msg, "Maximum variance slices in the three dimensions of the parts of the "\
                             "background beyond 5*sigma", Vshooting, "fig:sigma5", maxVar=True)
+    report.write(toWrite)
+
     # Warnings
     warnings=[]
     testWarnings = False
@@ -348,15 +335,8 @@ the symmetry of the structure.
     if cdf5Ratio>20 or testWarnings:
         warnings.append("{\\color{red} \\textbf{There is a significant proportion of outlier values in the background "\
                         "(cdf5 ratio=%5.2f})}"%cdf5Ratio)
-    if len(warnings)>0:
-        countWarnings=len(warnings)
-        toWrite+="\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n"%(countWarnings,latexEnumerate(warnings))
-        report.writeSummary("0.c Background analysis", secLabel, "{\\color{red} %d warnings}"%countWarnings)
-    else:
-        toWrite += "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
-        report.writeSummary("0.c Background analysis", secLabel, "{\\color{blue} OK}")
+    report.writeWarningsAndSummary(warnings, "0.c Background analysis", secLabel)
 
-    report.write(toWrite)
 
 def xmippDeepRes(project, report, label, map, mask):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -392,7 +372,7 @@ input map to the appearance of the atomic structures a local resolution label ca
     report.write(msg)
 
     if prot.isFailed():
-        report.writeSummary("0.d Deepres", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("0.d DeepRes", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 

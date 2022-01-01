@@ -32,7 +32,9 @@ import os
 import scipy
 
 import pyworkflow.plugin as pwplugin
-from validationReport import readMap, latexEnumerate, calculateSha256
+from pwem.viewers import LocalResolutionViewer
+from validationReport import readMap, latexEnumerate, calculateSha256, CDFFromHistogram, CDFpercentile
+import xmipp3
 
 def importMap(project, label, fnMap, Ts):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -104,6 +106,108 @@ def monores(project, report, label, protImportMap, protCreateMask, resolution):
     prot.associatedHalves.set(protImportMap.outputVolume)
     prot.maskExcl.set(protCreateMask.outputMask)
     project.launchProtocol(prot, wait=True)
+
+    bblCitation = \
+"""\\bibitem[Vilas et~al., 2018]{Vilas2018}
+Vilas, J.~L., G{\'o}mez-Blanco, J., Conesa, P., Melero, R., de~la
+  Rosa~Trev\'{\i}n, J.~M., Ot{\'o}n, J., Cuenca, J., Marabini, R., Carazo,
+  J.~M., Vargas, J., and Sorzano, C. O.~S. (2018).
+\\newblock {MonoRes}: automatic and unbiased estimation of local resolution for
+  electron microscopy maps.
+\\newblock {\em Structure}, 26:337--344."""
+    report.addCitation("Vilas2018", bblCitation)
+
+    secLabel = "sec:monores"
+    msg = \
+"""
+\\subsection{Level 1.c Local resolution with MonoRes}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+MonoRes \\cite{Vilas2018} This methods evaluates the local energy of a point with respect to the distribution of 
+energy in the noise. This comparison is performed at multiple frequencies and for each one, the monogenic 
+transformation separates the amplitude and phase of the input map.\\\\
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    if prot.isFailed():
+        report.writeSummary("1.c MonoRes", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    md = xmipp3.MetaData()
+    md.read(prot._getExtraPath("hist.xmd"))
+    x_axis = md.getColumnValues(xmipp3.MDL_X)
+    y_axis = md.getColumnValues(xmipp3.MDL_COUNT)
+
+    fnHistMonoRes = os.path.join(report.getReportDir(), "histMonoRes.png")
+    matplotlib.use('Agg')
+    plt.bar(x_axis[:-2], y_axis[:-2],width=(x_axis[-1] - x_axis[0]) / len(x_axis))
+    plt.yscale('linear')
+    plt.grid(True)
+    plt.xlabel('Resolution (A)')
+    plt.ylabel('# of voxels')
+    plt.savefig(fnHistMonoRes)
+
+    R, RCDF=CDFFromHistogram(x_axis[:-2], y_axis[:-2])
+    Rpercentiles = CDFpercentile(R, RCDF, Fp=[0.025, 0.25, 0.5, 0.75, 0.975])
+    resolutionP = CDFpercentile(R, RCDF, xp=resolution)
+
+    toWrite=\
+"""
+Fig. \\ref{fig:histMonores} shows the histogram of the local resolution according to MonoRes. Some representative
+percentiles are:
+
+\\begin{center}
+    \\begin{tabular}{|c|c|}
+        \\hline
+        \\textbf{Percentile} & Resolution(\AA) \\\\
+        \\hline
+        2.5\\%% & %5.2f \\\\
+        \\hline
+        25\\%% & %5.2f \\\\
+        \\hline
+        50\\%% & %5.2f \\\\
+        \\hline
+        75\\%% & %5.2f \\\\
+        \\hline
+        97.5\\%% & %5.2f \\\\
+        \\hline
+    \\end{tabular}
+\\end{center}
+
+The reported resolution, %5.2f \AA, is at the percentile %5.2f.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=10cm]{%s}
+    \\caption{Histogram of the local resolution according to MonoRes \cite{Vilas2018}.}
+    \\label{fig:histMonores}
+\\end{figure}
+
+"""%(Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution, resolutionP,
+     fnHistMonoRes)
+    report.write(toWrite)
+
+    viewer = LocalResolutionViewer()
+    cmdFile = os.path.join(report.getReportDir(), "monoresViewer.py")
+    fnResVol = prot._getExtraPath(prot.OUTPUT_RESOLUTION_FILE_CHIMERA)
+    fnOrigMap = protImportMap.outputVolume.getFileName()
+    Ts = protImportMap.outputVolume.getSamplingRate()
+    viewer.createChimeraScript(cmdFile, fnResVol, fnOrigMap, Ts,
+                                 numColors=11,
+                                 lowResLimit=Rpercentiles[-1],
+                                 highResLimit=Rpercentiles[0])
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if resolutionP<0.05 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \AA, is particularly with respect "\
+                        "to the local resolution distribution. It occupies the %5.2f percentile}}"%\
+                        (resolution,resolutionP))
+    report.writeWarningsAndSummary(warnings, "1.c Monores", secLabel)
     return prot
 
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):
