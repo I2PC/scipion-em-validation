@@ -125,7 +125,7 @@ Vilas, J.~L., G{\\'o}mez-Blanco, J., Conesa, P., Melero, R., de~la
 \\subsection{Level 1.c Local resolution with MonoRes}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-MonoRes \\cite{Vilas2018} This methods evaluates the local energy of a point with respect to the distribution of 
+MonoRes \\cite{Vilas2018} evaluates the local energy of a point with respect to the distribution of 
 energy in the noise. This comparison is performed at multiple frequencies and for each one, the monogenic 
 transformation separates the amplitude and phase of the input map.\\\\
 \\\\
