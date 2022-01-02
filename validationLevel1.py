@@ -32,7 +32,8 @@ import os
 import scipy
 
 import pyworkflow.plugin as pwplugin
-from validationReport import readMap, latexEnumerate, calculateSha256, CDFFromHistogram, CDFpercentile, reportPlot
+from validationReport import readMap, latexEnumerate, calculateSha256, CDFFromHistogram, CDFpercentile, reportPlot, \
+    radialPlot, reportMultiplePlots
 import xmipp3
 
 def importMap(project, label, fnMap, Ts):
@@ -47,6 +48,39 @@ def importMap(project, label, fnMap, Ts):
     project.launchProtocol(prot, wait=True)
     return prot
 
+def globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, protCreateMask):
+    Ts = protImportMap1.outputVolume.getSamplingRate()
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtResolution3D', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel=label,
+                               useHalfVolumes=True,
+                               minRes=2*Ts,
+                               maxRes=max(10,5*resolution))
+    prot.inputVolume.set(protImportMap1.outputVolume)
+    prot.referenceVolume.set(protImportMap2.outputVolume)
+    project.launchProtocol(prot, wait=True)
+    secLabel = "sec:globalResolution"
+    msg = \
+        """
+        \\subsection{Level 1.a Global resolution}
+        \\label{%s}
+        \\textbf{Explanation}:\\\\ 
+        
+        \\\\
+        \\\\
+        \\textbf{Results:}\\\\
+        \\\\
+        """ % secLabel
+    report.write(msg)
+    if prot.isFailed():
+        report.writeSummary("1.a Global resolution", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    return prot
+
 def blocres(project, report, label, map, mask):
     bblCitation = \
 """\\bibitem[Cardone et~al., 2013]{Cardone2013}
@@ -59,7 +93,7 @@ Cardone, G., Heymann, J.~B., and Steven, A.~C. (2013).
     secLabel = "sec:blocres"
     msg = \
 """
-\\subsection{Level 1.a Local resolution with Blocres}
+\\subsection{Level 1.b Local resolution with Blocres}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC) between the two half maps.\\\\
@@ -69,7 +103,7 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
 """ % secLabel
     report.write(msg)
 
-    report.writeSummary("1.a Blocres", secLabel, "{\\color{red} Binary installation fails}")
+    report.writeSummary("1.b Blocres", secLabel, "{\\color{red} Binary installation fails}")
     report.write("{\\color{red} \\textbf{ERROR: Binary installation fails.}}\\\\ \n")
 
 def resmap(project, report, label, map, mask):
@@ -83,7 +117,7 @@ Kucukelbir, A., Sigworth, F.~J., and Tagare, H.~D. (2014).
     secLabel = "sec:resmap"
     msg = \
 """
-\\subsection{Level 1.b Local resolution with Resmap}
+\\subsection{Level 1.c Local resolution with Resmap}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the superiority of signal over noise at different frequencies.\\\\
@@ -92,7 +126,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
 """ % secLabel
     report.write(msg)
 
-    report.writeSummary("1.b Resmap", secLabel, "{\\color{red} Not fully automatic}")
+    report.writeSummary("1.c Resmap", secLabel, "{\\color{red} Not fully automatic}")
     report.write("{\\color{red} \\textbf{ERROR: Not fully automatic.}}\\\\ \n")
 
 def monores(project, report, label, protImportMap, protCreateMask, resolution):
@@ -106,7 +140,7 @@ def monores(project, report, label, protImportMap, protCreateMask, resolution):
                                minRes=2*Ts,
                                maxRes=max(10,5*resolution))
     prot.associatedHalves.set(protImportMap.outputVolume)
-    prot.maskExcl.set(protCreateMask.outputMask)
+    prot.mask.set(protCreateMask.outputMask)
     project.launchProtocol(prot, wait=True)
 
     bblCitation = \
@@ -122,7 +156,7 @@ Vilas, J.~L., G{\\'o}mez-Blanco, J., Conesa, P., Melero, R., de~la
     secLabel = "sec:monores"
     msg = \
 """
-\\subsection{Level 1.c Local resolution with MonoRes}
+\\subsection{Level 1.d Local resolution with MonoRes}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 MonoRes \\cite{Vilas2018} evaluates the local energy of a point with respect to the distribution of 
@@ -134,7 +168,7 @@ transformation separates the amplitude and phase of the input map.\\\\
 """ % secLabel
     report.write(msg)
     if prot.isFailed():
-        report.writeSummary("1.c MonoRes", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("1.d MonoRes", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
@@ -199,8 +233,138 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \AA, is particularly with respect "\
                         "to the local resolution distribution. It occupies the %5.2f percentile}}"%\
                         (resolution,resolutionP))
-    report.writeWarningsAndSummary(warnings, "1.c Monores", secLabel)
+    report.writeWarningsAndSummary(warnings, "1.d MonoRes", secLabel)
     return prot
+
+def monodir(project, report, label, protImportMap, protCreateMask, resolution):
+    Ts = protImportMap.outputVolume.getSamplingRate()
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtMonoDir', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel=label,
+                               fast=True,
+                               resstep=resolution/3)
+    prot.inputVolumes.set(protImportMap.outputVolume)
+    prot.Mask.set(protCreateMask.outputMask)
+    project.launchProtocol(prot, wait=True)
+
+    bblCitation = \
+"""\\bibitem[Vilas et~al., 2020]{Vilas2020}
+Vilas, J.~L., Tagare, H.~D., Vargas, J., Carazo, J.~M., and Sorzano, C. O.~S.
+  (2020).
+\\newblock Measuring local-directional resolution and local anisotropy in
+  cryo-{EM} maps.
+\\newblock {\em Nature communications}, 11:55.
+"""
+    report.addCitation("Vilas2020", bblCitation)
+
+    secLabel = "sec:monodir"
+    msg = \
+"""
+\\subsection{Level 1.e Local and directional resolution with MonoDir}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+MonoDir \\cite{Vilas2020} extends the concept of local resolution to local and directional resolution by changing 
+the shape of the filter applied to the input map. The directional analysis can reveal image alignment problems.
+
+The histogram of best resolution voxels per direction (Directional Histogram 1D) shows how many voxels in the
+volume has their maximum resolution in that direction. Directions are arbitrarily numbered from 1 to N. This histogram
+should be relatively flat. We perform a Kolmogorov-Smirnov test to check its uniformity. If the null hypothesis is
+rejected, then the directional resolution is not uniform. It does not mean that it is wrong, and it could be caused
+by several reasons: 1) the angular distribution is not uniform, 2) there are missing directions, 3) there is some
+anisotropy in the data (including some preferential directional movement).
+
+Ideally, the radial average of the minimum, maximum, and average resolution at each voxel (note that these are spatial
+radial averages) should be flat and as low as possible. If they show some slope, this is associated with
+inaccuracies in the angular assignment. These averages make sense when the shells are fully contained within the
+protein. As the shells approach the outside of the protein, these radial averages make less sense.
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    if prot.isFailed():
+        report.writeSummary("1.e MonoDir", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    # 1D Histogram
+    fnHistDirMonoDir1 = os.path.join(report.getReportDir(), "histDirMonoDir1D.png")
+    md = xmipp3.MetaData()
+    md.read(prot._getExtraPath("hist_prefdir.xmd"))
+    direction = md.getColumnValues(xmipp3.MDL_X)
+    count = md.getColumnValues(xmipp3.MDL_COUNT)
+    reportPlot(direction, count, 'Resolution (A)', '# of voxels', fnHistDirMonoDir1, plotType="bar")
+
+    # Test
+    randomSample = np.random.choice([x for x in range(int(np.max(direction))+1)], size=50000,
+                                    p=np.array(count,dtype=np.float)/np.sum(count))
+    D, p = scipy.stats.kstest(randomSample, scipy.stats.randint(0, int(np.max(direction))).cdf)
+
+    # 2D Histogram
+    fnHistDirMonoDir2 = os.path.join(report.getReportDir(), "histDirMonoDir2D.png")
+    rot = md.getColumnValues(xmipp3.MDL_ANGLE_ROT)
+    tilt = md.getColumnValues(xmipp3.MDL_ANGLE_TILT)
+    radialPlot(rot, tilt, count, fnHistDirMonoDir2)
+
+    # Radial averages
+    fnMonodirRadial = os.path.join(report.getReportDir(), "monoDirRadial.png")
+    md = xmipp3.MetaData()
+    md.read(prot._getExtraPath("Radial_averages.xmd"))
+    x = md.getColumnValues(xmipp3.MDL_IDX)
+    minResolution = md.getColumnValues(xmipp3.MDL_VOLUME_SCORE3)
+    maxResolution = md.getColumnValues(xmipp3.MDL_VOLUME_SCORE4)
+    avgResolution = md.getColumnValues(xmipp3.MDL_AVG)
+    reportMultiplePlots(x, [minResolution, maxResolution, avgResolution], "Radius (voxels)", "Resolution (A)",
+                        fnMonodirRadial, ['Min. Resolution', 'Max. Resolution', 'Average Resolution'])
+    avgDirResolution = np.mean(avgResolution)
+
+    msg=\
+"""
+Fig. \\ref{fig:histDirMonoDir1} shows the 1D directional histogram and Fig. \\ref{fig:histDirMonoDir2} the 2D
+directional histogram. We compared the 1D directional histogram to a uniform distribution using a Kolmogorov-Smirnov
+test. The D statistic was %f, and the p-value of the null hypothesis %f.
+
+The radial average of the minimum, maximum and average resolution at each voxel is shown in
+Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is %5.2f
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Histogram 1D of the best direction at each voxel.}
+    \\label{fig:histDirMonoDir1}
+\\end{figure}
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Histogram 2D of the best direction at each voxel. The azimuthal rotation is circular, while the tilt
+    angle is the radius. The size of the point is proportional to the number of voxels whose maximum resolution
+    is in that direction (this count can be seen in Fig. \\ref{fig:histDirMonoDir1}. }
+    \\label{fig:histDirMonoDir2}
+\\end{figure}
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Radial averages (in space) of the minimum, maximum and average resolution at each voxel.}
+    \\label{fig:monoDirRadial}
+\\end{figure}
+"""%(D, p, avgDirResolution, fnHistDirMonoDir1, fnHistDirMonoDir2, fnMonodirRadial)
+    report.write(msg)
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if p<0.05 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The distribution of best resolution is not uniform in all directions. "\
+                        "The associated p-value is %f.}}"%p)
+    if resolution<0.8*avgDirResolution or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\AA, is at least 80\\%% "\
+                        "smaller than the average directional resolution, %5.2f}}" % (resolution, avgDirResolution))
+    report.writeWarningsAndSummary(warnings, "1.e MonoDir", secLabel)
+
 
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):
     toWrite=\
@@ -234,7 +398,6 @@ any structure in this difference. Sometimes some patterns are seen if the map is
                             "Slices of maximum variation in the three dimensions of the difference Half1-Half2.", Vdiff,
                             "fig:maxVarHalfDiff", maxVar=True)
 
-
 def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protCreateMask, skipAnalysis = False):
     # Import maps
     protImportMap1 = importMap(project, "import half1", fnMap1, Ts)
@@ -248,8 +411,10 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protC
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 1 analysis')
-        blocres(project, report, "1.a Blocres", protImportMap, protCreateMask)
-        resmap(project, report, "1.b Resmap", protImportMap, protCreateMask)
-        monores(project, report, "1.c Monores", protImportMap, protCreateMask, resolution)
+        globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, protCreateMask)
+        # blocres(project, report, "1.b Blocres", protImportMap, protCreateMask)
+        # resmap(project, report, "1.c Resmap", protImportMap, protCreateMask)
+        # monores(project, report, "1.d MonoRes", protImportMap, protCreateMask, resolution)
+        monodir(project, report, "1.e MonoDir", protImportMap, protCreateMask, resolution)
 
     return protImportMap1, protImportMap2

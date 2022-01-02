@@ -1,7 +1,8 @@
 import hashlib
-import numpy as np
+from math import radians
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 import os
 import scipy
 import subprocess
@@ -103,6 +104,37 @@ def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear", grid=True, plotType=
     plt.grid(grid)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    plt.savefig(fnOut)
+
+def reportMultiplePlots(x,yList, xlabel, ylabel, fnOut, legends):
+    matplotlib.use('Agg')
+    plt.figure()
+    for i in range(len(yList)):
+        plt.plot(x,yList[i], label=legends[i])
+    plt.legend()
+    plt.grid(True)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.savefig(fnOut)
+
+def radialPlot(thetas, radii, weights, fnOut):
+    max_w = max(weights)
+    min_w = min(weights)
+    min_p = 5
+    max_p = 40
+
+    matplotlib.use('Agg')
+    plt.figure()
+
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    for theta, radius, w in zip(thetas, radii, weights):
+        pointsize = int((w - min_w) / (max_w - min_w + 0.001) * (max_p - min_p) + min_p)
+        ax.plot(radians(theta), radius, markerfacecolor='blue', marker='.', markersize=pointsize)
+    ax.set_rmax(np.max(radii))
+    ax.set_rticks([15, 30, 45, 60, 75, 90])  # Less radial ticks
+    ax.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
+    ax.grid(True)
+
     plt.savefig(fnOut)
 
 def calculateSha256(fn):
