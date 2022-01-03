@@ -71,6 +71,7 @@ def globalResolution(project, report, label, protImportMap1, protImportMap2, res
                                objLabel=label)
     prot.inputVolume.set(protImportMap1.outputVolume)
     prot.referenceVolume.set(protImportMap2.outputVolume)
+
     project.launchProtocol(prot, wait=True)
 
     bblCitation = \
@@ -151,9 +152,51 @@ behavior. If they have, this is typically due to the presence of a mask in real 
                         "Resolution (A)", "Differential Phase Residual", fnDPR,
                         ['DPR','103.9'], invertXLabels=True)
 
+    # SSNR
+    V1 = xmipp3.Image(protImportMap1.outputVolume.getFileName())
+    V2 = xmipp3.Image(protImportMap2.outputVolume.getFileName())
+    VS = (V1.getData()+V2.getData())/2
+    VN = (V1.getData()-V2.getData())/2
+
+    VS2 = np.fft.fftshift(np.absolute(np.fft.fftn(VS)))
+    VN2 = np.fft.fftshift(np.absolute(np.fft.fftn(VN)))
+    VSSNR = np.divide(VS2,VN2)
+
+    def radial_profile(V):
+        z, y, x = np.indices((V.shape))
+        center = [int(x/2) for x in V.shape]
+        r = np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2 + (z - center[2]) ** 2)
+        r = r.astype(np.int)
+
+        tbin = np.bincount(r.ravel(), V.ravel())
+        nr = np.bincount(r.ravel())
+        radialprofile = tbin / nr
+        return radialprofile
+    radialSSNR=radial_profile(VSSNR)
+    N = int(VSSNR.shape[0]/2)
+    Ts = protImportMap1.outputVolume.getSamplingRate()
+    f=np.arange(0,N)*2*Ts/VSSNR.shape[0]
+    logRadialSSNR = np.log10(radialSSNR[0:N]-1)
+
+    fSSNR=findFirstCross(f,logRadialSSNR,0,'lesser')
+    if fDPR is None:
+        strSSNR= "The SSNR does not cross the 1 threshold."
+    else:
+        strSSNR = "The resolution according to the SSNR is %5.2f\\AA."%(1/fSSNR)
+
+    fnSSNR = os.path.join(report.getReportDir(), "ssnr.png")
+    reportMultiplePlots(f, [logRadialSSNR, [0]*len(f)],
+                        "Resolution (A)", "log10(Radial SSNR)", fnSSNR,
+                        ['log10(SSNR)','0'], invertXLabels=True)
+
+    # Mean and uncertainty
+    resolutionList = [1/fFSC, 1/fDPR, 1/fSSNR]
+
     msg = \
 """Fig. \\ref{fig:FSC} shows the FSC and the 0.143 threshold. %s\\\\
 Fig. \\ref{fig:DPR} shows the DPR and the 103.9$^\circ$ threshold. %s\\\\
+Fig. \\ref{fig:SSNR} shows the SSNR and the SSNR=1 threshold. %s\\\\
+The mean resolution between the three methods is %5.2f\AA~and its range is within the interval [%5.2f,%5.2f]\\AA.
 
 \\begin{figure}[H]
     \centering
@@ -168,7 +211,15 @@ Fig. \\ref{fig:DPR} shows the DPR and the 103.9$^\circ$ threshold. %s\\\\
     \\caption{Differential Phase Residual between the two halves.}
     \\label{fig:DPR}
 \\end{figure}
-        """ % (strFSC, strDPR, fnFSC, fnDPR)
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Spectral Signal-to-Noise Ratio estimated from the two halves.}
+    \\label{fig:SSNR}
+\\end{figure}
+        """ % (strFSC, strDPR, strSSNR, np.mean(resolutionList), np.min(resolutionList), np.max(resolutionList),
+               fnFSC, fnDPR, fnSSNR)
     report.write(msg)
 
     # Warnings
@@ -180,6 +231,9 @@ Fig. \\ref{fig:DPR} shows the DPR and the 103.9$^\circ$ threshold. %s\\\\
     if resolution<0.8/fDPR or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
                         "to the resolution calculated by the DPR, %5.2f\\AA.}}"%(resolution,1.0/fDPR))
+    if resolution<0.8/fSSNR or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
+                        "to the resolution calculated by the SSNR, %5.2f\\AA.}}"%(resolution,1.0/fSSNR))
     report.writeWarningsAndSummary(warnings, "1.a Global resolution", secLabel)
 
     return prot
@@ -517,7 +571,7 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protC
         globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
         # blocres(project, report, "1.b Blocres", protImportMap, protCreateMask)
         # resmap(project, report, "1.c Resmap", protImportMap, protCreateMask)
-        monores(project, report, "1.d MonoRes", protImportMap, protCreateMask, resolution)
+        # monores(project, report, "1.d MonoRes", protImportMap, protCreateMask, resolution)
         # monodir(project, report, "1.e MonoDir", protImportMap, protCreateMask, resolution)
 
     return protImportMap1, protImportMap2
