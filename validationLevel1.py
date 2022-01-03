@@ -503,8 +503,7 @@ protein. As the shells approach the outside of the protein, these radial average
     avgDirResolution = np.mean(avgResolution)
 
     msg=\
-"""
-Fig. \\ref{fig:histDirMonoDir1} shows the 1D directional histogram and Fig. \\ref{fig:histDirMonoDir2} the 2D
+"""Fig. \\ref{fig:histDirMonoDir1} shows the 1D directional histogram and Fig. \\ref{fig:histDirMonoDir2} the 2D
 directional histogram. We compared the 1D directional histogram to a uniform distribution using a Kolmogorov-Smirnov
 test. The D statistic was %f, and the p-value of the null hypothesis %f.
 
@@ -610,8 +609,7 @@ respectively. This region is shaded in the plot.
     radialPlot(rot, tilt, counts, fnContour, plotType="contour")
 
     msg = \
-"""
-Fig. \\ref{fig:fso} shows the Fourier Shell Occupancy and its anisotropy. The directional resolution is shown in
+"""Fig. \\ref{fig:fso} shows the Fourier Shell Occupancy and its anisotropy. The directional resolution is shown in
 Fig. \\ref{fig:fsoContour}. %s
 
 \\begin{figure}[H]
