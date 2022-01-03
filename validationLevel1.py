@@ -25,7 +25,6 @@
 # **************************************************************************
 
 import math
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -548,6 +547,98 @@ Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is
                         "smaller than the average directional resolution, %5.2f \\AA.}}" % (resolution, avgDirResolution))
     report.writeWarningsAndSummary(warnings, "1.f MonoDir", secLabel)
 
+def fso(project, report, label, protImportMap, protMask, resolution):
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtFSO', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel=label,
+                               halfVolumesFile=True,
+                               estimate3DFSC=False)
+    prot.inputHalves.set(protImportMap.outputVolume)
+    prot.mask.set(protMask.outputMask)
+
+    project.launchProtocol(prot, wait=True)
+
+    secLabel = "sec:fso"
+    msg = \
+"""
+\\subsection{Level 1.g Fourier Shell Occupancy}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+his method calculates the anisotropy of the energy distribution in Fourier shells. This is an indirect measure of
+anisotropy of the angular distribution or the presence of heterogeneity. A natural threshold for this measure is 0.5.
+However, 0.9 and 0.1 are also interesting values that define the frequency at which the occupancy is 90\\%% and 10\\%%,
+respectively. This region is shaded in the plot.
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    if prot.isFailed():
+        report.writeSummary("1.g FSO", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    md = xmipp3.MetaData(prot._getExtraPath("fso.xmd"))
+    f = md.getColumnValues(xmipp3.MDL_RESOLUTION_FREQ)
+    fso = md.getColumnValues(xmipp3.MDL_RESOLUTION_FSO)
+    anisotropy = md.getColumnValues(xmipp3.MDL_RESOLUTION_ANISOTROPY)
+
+    f05 = findFirstCross(f,fso,0.5,'lesser')
+    f09 = findFirstCross(f,fso,0.9,'lesser')
+    f01 = findFirstCross(f,fso,0.1,'lesser')
+    if f05 is None:
+        strFSO = "The FSO does not cross the 0.5 threshold."
+    else:
+        strFSO = "The resolution according to the FSO is %5.2f\\AA."%(1/f05)
+    if f01 is not None:
+        strFSO += " Fourier shells are occupied at between 90 and than 10\\%% in the range [%5.2f,%5.2f]\\AA."%\
+                  (1/f09, 1/f01)
+
+    fnFSO = os.path.join(report.getReportDir(), "fso.png")
+    reportMultiplePlots(f, [fso, anisotropy, [0.5]*len(f)], "Resolution (A)", "",
+                        fnFSO, ['FSO', "Anisotropy", '0.5 threshold'], invertXLabels=True)
+    if f01 is not None:
+        plt.gca().axes.axvspan(f09, f01, alpha=0.3, color='green')
+        plt.savefig(fnFSO)
+
+    md = xmipp3.MetaData(prot._getExtraPath('Resolution_Distribution.xmd'))
+    rot = md.getColumnValues(xmipp3.MDL_ANGLE_ROT)
+    tilt = md.getColumnValues(xmipp3.MDL_ANGLE_TILT)
+    counts = md.getColumnValues(xmipp3.MDL_RESOLUTION_FRC)
+    fnContour = os.path.join(report.getReportDir(), "fsoDirectional.png")
+    radialPlot(rot, tilt, counts, fnContour, plotType="contour")
+
+    msg = \
+"""
+Fig. \\ref{fig:fso} shows the Fourier Shell Occupancy and its anisotropy. The directional resolution is shown in
+Fig. \\ref{fig:fsoContour}. %s
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{FSO and anisotropy.}
+    \\label{fig:fso}
+\\end{figure}
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Directional resolution in the projection sphere.}
+    \\label{fig:fsoContour}
+\\end{figure}
+""" % (strFSO, fnFSO, fnContour)
+    report.write(msg)
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if resolution<0.8/f05 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
+                        "smaller than the resolution estimated by FSO, %5.2f \\AA.}}" % (resolution, 1/f05))
+    report.writeWarningsAndSummary(warnings, "1.g FSO", secLabel)
+
+    return prot
 
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):
     toWrite=\
@@ -600,5 +691,6 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protC
         # resmap(project, report, "1.d Resmap", protImportMap, protCreateMask)
         # monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
         # monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
+        fso(project, report, "1.g FSO", protImportMap, protCreateMask, resolution)
 
     return protImportMap1, protImportMap2

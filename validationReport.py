@@ -129,7 +129,7 @@ def reportMultiplePlots(x,yList, xlabel, ylabel, fnOut, legends, invertXLabels=F
     plt.ylabel(ylabel)
     plt.savefig(fnOut)
 
-def radialPlot(thetas, radii, weights, fnOut):
+def radialPlot(thetas, radii, weights, fnOut, plotType="points"):
     max_w = max(weights)
     min_w = min(weights)
     min_p = 5
@@ -139,9 +139,23 @@ def radialPlot(thetas, radii, weights, fnOut):
     plt.figure()
 
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-    for theta, radius, w in zip(thetas, radii, weights):
-        pointsize = int((w - min_w) / (max_w - min_w + 0.001) * (max_p - min_p) + min_p)
-        ax.plot(radians(theta), radius, markerfacecolor='blue', marker='.', markersize=pointsize)
+    if plotType=="points":
+        for theta, radius, w in zip(thetas, radii, weights):
+            pointsize = int((w - min_w) / (max_w - min_w + 0.001) * (max_p - min_p) + min_p)
+            ax.plot(radians(theta), radius, markerfacecolor='blue', marker='.', markersize=pointsize)
+    elif plotType=="contour":
+        thetasp = np.radians(np.linspace(0, 360, 360))
+        radiip = np.arange(0, np.max(radii)+1, 1)
+        rmesh, thetamesh = np.meshgrid(radiip, thetasp)
+        values = np.zeros((len(thetasp), len(radiip)))
+
+        for i in range(0, len(thetas)):
+            values[int(thetas[i]), int(radii[i])] = weights[i]
+        stp = 0.1
+        lowlim = max(0.0, values.min())
+        highlim = values.max() + stp
+        pc = plt.contourf(thetamesh, rmesh, values, np.arange(lowlim, highlim, stp))
+        plt.colorbar(pc)
     ax.set_rmax(np.max(radii))
     ax.set_rticks([15, 30, 45, 60, 75, 90])  # Less radial ticks
     ax.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
