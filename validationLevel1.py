@@ -31,6 +31,7 @@ import os
 import scipy
 
 import pyworkflow.plugin as pwplugin
+from pyworkflow.utils.path import cleanPattern
 from validationReport import readMap, latexEnumerate, calculateSha256, CDFFromHistogram, CDFpercentile, reportPlot, \
     radialPlot, reportMultiplePlots
 import xmipp3
@@ -419,8 +420,6 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
     return prot
 
 def monodir(project, report, label, protImportMap, protCreateMask, resolution):
-    Ts = protImportMap.outputVolume.getSamplingRate()
-
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtMonoDir', doRaise=True)
     prot = project.newProtocol(Prot,
@@ -564,7 +563,7 @@ def fso(project, report, label, protImportMap, protMask, resolution):
 \\subsection{Level 1.g Fourier Shell Occupancy}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-his method calculates the anisotropy of the energy distribution in Fourier shells. This is an indirect measure of
+This method calculates the anisotropy of the energy distribution in Fourier shells. This is an indirect measure of
 anisotropy of the angular distribution or the presence of heterogeneity. A natural threshold for this measure is 0.5.
 However, 0.9 and 0.1 are also interesting values that define the frequency at which the occupancy is 90\\%% and 10\\%%,
 respectively. This region is shaded in the plot.
@@ -636,7 +635,101 @@ Fig. \\ref{fig:fsoContour}. %s
                         "smaller than the resolution estimated by FSO, %5.2f \\AA.}}" % (resolution, 1/f05))
     report.writeWarningsAndSummary(warnings, "1.g FSO", secLabel)
 
+    cleanPattern(os.path.join(project.getPath(),"fscDirection*.xmd"))
+
     return prot
+
+def fsc3d(project, report, label, protImportMap, protImportMap1, protImportMap2, protMask, resolution):
+    Xdim = protImportMap.outputVolume.getDim()[0]
+    print("Xdim",Xdim)
+
+    Prot = pwplugin.Domain.importFromPlugin('fsc3d.protocols',
+                                            'Prot3DFSC', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel=label,
+                               applyMask=True)
+    prot.inputVolume.set(protImportMap.outputVolume)
+    prot.volumeHalf1.set(protImportMap1.outputVolume)
+    prot.volumeHalf2.set(protImportMap2.outputVolume)
+    prot.maskVolume.set(protMask.outputMask)
+
+    project.launchProtocol(prot, wait=True)
+
+    secLabel = "sec:fsc3d"
+    msg = \
+"""
+\\subsection{Level 1.h Fourier Shell Correlation 3D}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+This method analyzes the FSC in different directions and evaluates its homogeneity.
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    if prot.isFailed():
+        report.writeSummary("1.h FSC3D", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    Ts = protImportMap.outputVolume.getSamplingRate()
+    md=np.genfromtxt(prot._getExtraPath(os.path.join('Results_3D-FSC','Plots3D-FSC.csv')), delimiter=' ')
+    N=md.shape[0]
+    f = np.arange(0,N)*2*Ts/Xdim
+    fscx = md[:,0].tolist()
+    fscy = md[:,1].tolist()
+    fscz = md[:,2].tolist()
+    fscg = md[:,4].tolist()
+
+    fx = findFirstCross(f,fscx,0.143,'lesser')
+    fy = findFirstCross(f,fscy,0.143,'lesser')
+    fz = findFirstCross(f,fscz,0.143,'lesser')
+    fg = findFirstCross(f,fscg,0.143,'lesser')
+    fList = [1/fx, 1/fy, 1/fz, 1/fg]
+    strFSC3D = "The FSC 3D resolutions at a 0.143 threshold in X, Y, and Z are %5.2f, %5.2f, and %5.2f \AA, "\
+               "respectively. The global resolution at the same threshold is %5.2f \AA. The resolution range is "\
+               "[%5.2f,%5.2f]\AA."%(1/fx, 1/fy, 1/fz, 1/fg, np.min(fList), np.max(fList))
+
+    fnDir = prot._getExtraPath(os.path.join(project.getPath(),'Results_3D-FSC','Plots3D-FSC.jpg'))
+    fnHist = prot._getExtraPath(os.path.join(project.getPath(),'Results_3D-FSC','histogram.png'))
+    fnPower = prot._getExtraPath(os.path.join(project.getPath(),'Results_3D-FSC','FTPlot3D-FSC.jpg'))
+    msg = \
+"""Fig. \\ref{fig:fsc3DDir} shows the FSCs in X, Y, Z, and the global FSC. Fig.\\ref{fig:fsc3DHist} shows the global
+FSC and the histogram of the directional FSC. Finally, Fig. \\ref{fig:FSC3DFTPower} shows the rotational average of
+the map power in Fourier space. %s
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{FSC in  X, Y, Z, the global FSC, and the Average Cosine Phase.}
+    \\label{fig:fsc3DDir}
+\\end{figure}
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Global FSC and histogram of the directional FSC.}
+    \\label{fig:fsc3DHist}
+\\end{figure}
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Logarithm of the radial average of the input map power in Fourier space.}
+    \\label{fig:FSC3DFTPower}
+\\end{figure}
+
+""" % (strFSC3D, fnDir, fnHist, fnPower)
+    report.write(msg)
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if resolution<0.8/fg or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
+                        "smaller than the resolution estimated by FSC3D, %5.2f \\AA.}}" % (resolution, 1/fg))
+    report.writeWarningsAndSummary(warnings, "1.h FSC3D", secLabel)
+
 
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):
     toWrite=\
@@ -685,10 +778,11 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protC
         report.writeSection('Level 1 analysis')
         globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
         fscPermutation(project, report, "1.b FSC permutation", protImportMap, protCreateMask)
-        # blocres(project, report, "1.c Blocres", protImportMap, protCreateMask)
-        # resmap(project, report, "1.d Resmap", protImportMap, protCreateMask)
-        # monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
-        # monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
+        blocres(project, report, "1.c Blocres", protImportMap, protCreateMask)
+        resmap(project, report, "1.d Resmap", protImportMap, protCreateMask)
+        monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
+        monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
         fso(project, report, "1.g FSO", protImportMap, protCreateMask, resolution)
+        fsc3d(project, report, "1.h FSC3D", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
 
     return protImportMap1, protImportMap2
