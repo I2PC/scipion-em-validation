@@ -93,7 +93,15 @@ run(session, 'exit')
     args = "--script %s"%cmdFile
     Plugin.runChimeraProgram(Plugin.getProgram(), args, cwd=fnWorkingDir)
 
-def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear", grid=True, plotType="plot", barWidth=1):
+def formatInv(value, pos):
+    """ Format function for Matplotlib formatter. """
+    inv = 999.
+    if value:
+        inv = 1 / value
+    return "1/%0.2f" % inv
+
+def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear", grid=True, plotType="plot", barWidth=1,
+               invertXLabels=False):
     matplotlib.use('Agg')
     plt.figure()
     if plotType=="plot":
@@ -101,17 +109,21 @@ def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear", grid=True, plotType=
     elif plotType=="bar":
         plt.bar(x,y,barWidth)
     plt.yscale(yscale)
+    if invertXLabels:
+        plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(formatInv))
     plt.grid(grid)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.savefig(fnOut)
 
-def reportMultiplePlots(x,yList, xlabel, ylabel, fnOut, legends):
+def reportMultiplePlots(x,yList, xlabel, ylabel, fnOut, legends, invertXLabels=False):
     matplotlib.use('Agg')
     plt.figure()
     for i in range(len(yList)):
         plt.plot(x,yList[i], label=legends[i])
     plt.legend()
+    if invertXLabels:
+        plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(formatInv))
     plt.grid(True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)

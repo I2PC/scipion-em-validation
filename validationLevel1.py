@@ -48,36 +48,139 @@ def importMap(project, label, fnMap, Ts):
     project.launchProtocol(prot, wait=True)
     return prot
 
-def globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, protCreateMask):
-    Ts = protImportMap1.outputVolume.getSamplingRate()
+def findFirstCross(x,y,y0,mode):
+    if mode=='lesser':
+        ycond = np.array(y)<y0
+    else:
+        ycond = np.array(y)>y0
+    i0 = None
+    for i in range(len(ycond)):
+        if ycond[i]:
+            i0=i
+            break
+    if i0 is not None and i0>1:
+        f = scipy.interpolate.interp1d(y[(i0-1):(i0+1)], x[(i0-1):(i0+1)])
+        return f(y0)
+    else:
+        return None
 
+def globalResolution(project, report, label, protImportMap1, protImportMap2, resolution):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtResolution3D', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel=label,
-                               useHalfVolumes=True,
-                               minRes=2*Ts,
-                               maxRes=max(10,5*resolution))
+                               objLabel=label)
     prot.inputVolume.set(protImportMap1.outputVolume)
     prot.referenceVolume.set(protImportMap2.outputVolume)
     project.launchProtocol(prot, wait=True)
+
+    bblCitation = \
+"""\\bibitem[Sorzano et~al., 2017]{Sorzano2017}
+Sorzano, C. O.~S., Vargas, J., Oton, J., Abrishami, V., de~la Rosa-Trevin,
+  J.~M., Gomez-Blanco, J., Vilas, J.~L., Marabini, R., and Carazo, J.~M.
+  (2017).
+\\newblock A review of resolution measures and related aspects in {3D} electron
+  microscopy.
+\\newblock {\em Progress in biophysics and molecular biology}, 124:1--30."""
+    report.addCitation("Sorzano2017", bblCitation)
+
     secLabel = "sec:globalResolution"
     msg = \
-        """
-        \\subsection{Level 1.a Global resolution}
-        \\label{%s}
-        \\textbf{Explanation}:\\\\ 
-        
-        \\\\
-        \\\\
-        \\textbf{Results:}\\\\
-        \\\\
-        """ % secLabel
+"""
+\\subsection{Level 1.a Global resolution}
+\\label{%s}
+\\textbf{Explanation}: The Fourier Shell Correlation (FSC) between the two half maps is the most standard 
+method to determine the global resolution of a map. However, other measures exist such as the Spectral 
+Signal-to-Noise Ratio and the Differential Phase Residual. There is a long debate about the right thresholds 
+for these measures. Probably, the most clear threshold is the one of the SSNR (SSNR=1). For the DPR we have 
+chosen 103.9$^\circ$ and for the FSC, the standard 0.143. For a deep discussion of all these thresholds, see
+\\cite{Sorzano2017}. Note that these thresholds typically result in resolution values that are at the lower
+extreme of the local resolution range, meaning that this resolution is normally in the first quarter.
+It should not be understood as the average resolution of the map.\\\\
+\\\\
+Except for the noise, the FSC and DPR should be approximately monotonic. They should not have any ``coming back''
+behavior. If they have, this is typically due to the presence of a mask in real space or non-linear processing.\\\\
+\\textbf{Results:} \\\\
+""" % secLabel
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("1.a Global resolution", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
+
+    md = xmipp3.MetaData()
+    md.read(prot._getPath("fsc.xmd"))
+    f = md.getColumnValues(xmipp3.MDL_RESOLUTION_FREQ)
+    FSC = md.getColumnValues(xmipp3.MDL_RESOLUTION_FRC)
+    DPR = md.getColumnValues(xmipp3.MDL_RESOLUTION_DPR)
+
+    fFSC = findFirstCross(f,FSC,0.143,'lesser')
+    fDPR = findFirstCross(f,DPR,102.9,'greater')
+    if fFSC is None:
+        strFSC = "The FSC does not cross the 0.143 threshold."
+    else:
+        strFSC = "The resolution according to the FSC is %5.2f\\AA."%(1/fFSC)
+    if fDPR is None:
+        strDPR = "The DPR does not cross the 103.9 threshold."
+    else:
+        strDPR = "The resolution according to the DPR is %5.2f\\AA."%(1/fDPR)
+
+    def logistic(x, *args):
+        a=args[0]
+        b=args[1]
+        x0=args[2]
+        c=args[3]
+        return 1-(a * np.reciprocal(1+np.exp(-b * (x-x0)) + c))
+    f05 = findFirstCross(f,FSC,0.5,'lesser')
+    yFitted=None
+    if f05 is not None:
+        opt, pcov = scipy.optimize.curve_fit(logistic, f, FSC, p0=[1, 1, f05, 0])
+        yFitted = logistic(f, *opt)
+        fsc90 = findFirstCross(f, yFitted, 0.9, 'lesser')
+        strFSC+=" The map information is well preserved (FSC$>$0.9) up to %5.2f\\AA."%(1/fsc90)
+
+    fnFSC = os.path.join(report.getReportDir(), "fsc.png")
+    toPlot = [FSC, [0.143]*len(FSC)]
+    legends = ['FSC','0.143']
+    if yFitted is not None:
+        toPlot.append(yFitted.tolist())
+        legends.append("Fitted model")
+    reportMultiplePlots(f, toPlot,
+                        "Resolution (A)", "Fourier Shell Correlation", fnFSC, legends, invertXLabels=True)
+    fnDPR = os.path.join(report.getReportDir(), "dpr.png")
+    reportMultiplePlots(f[:-2], [DPR[:-2], [103.9]*len(DPR[:-2])],
+                        "Resolution (A)", "Differential Phase Residual", fnDPR,
+                        ['DPR','103.9'], invertXLabels=True)
+
+    msg = \
+"""Fig. \\ref{fig:FSC} shows the FSC and the 0.143 threshold. %s\\\\
+Fig. \\ref{fig:DPR} shows the DPR and the 103.9$^\circ$ threshold. %s\\\\
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Fourier Shell correlation between the two halves.}
+    \\label{fig:FSC}
+\\end{figure}
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Differential Phase Residual between the two halves.}
+    \\label{fig:DPR}
+\\end{figure}
+        """ % (strFSC, strDPR, fnFSC, fnDPR)
+    report.write(msg)
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if resolution<0.8/fFSC or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
+                        "to the resolution calculated by the FSC, %5.2f \\AA}}"%(resolution,1.0/fFSC))
+    if resolution<0.8/fDPR or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
+                        "to the resolution calculated by the DPR, %5.2f\\AA.}}"%(resolution,1.0/fDPR))
+    report.writeWarningsAndSummary(warnings, "1.a Global resolution", secLabel)
 
     return prot
 
@@ -218,7 +321,7 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
     \\label{fig:histMonores}
 \\end{figure}
 
-"""%(Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution, resolutionP,
+"""%(Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution, resolutionP*100,
      fnHistMonoRes)
     report.write(toWrite)
 
@@ -230,9 +333,9 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
     warnings=[]
     testWarnings = False
     if resolutionP<0.05 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \AA, is particularly with respect "\
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
                         "to the local resolution distribution. It occupies the %5.2f percentile}}"%\
-                        (resolution,resolutionP))
+                        (resolution,resolutionP*100))
     report.writeWarningsAndSummary(warnings, "1.d MonoRes", secLabel)
     return prot
 
@@ -361,8 +464,8 @@ Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is
         warnings.append("{\\color{red} \\textbf{The distribution of best resolution is not uniform in all directions. "\
                         "The associated p-value is %f.}}"%p)
     if resolution<0.8*avgDirResolution or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\AA, is at least 80\\%% "\
-                        "smaller than the average directional resolution, %5.2f}}" % (resolution, avgDirResolution))
+        warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
+                        "smaller than the average directional resolution, %5.2f \\AA.}}" % (resolution, avgDirResolution))
     report.writeWarningsAndSummary(warnings, "1.e MonoDir", secLabel)
 
 
@@ -411,10 +514,10 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protC
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 1 analysis')
-        globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, protCreateMask)
+        globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
         # blocres(project, report, "1.b Blocres", protImportMap, protCreateMask)
         # resmap(project, report, "1.c Resmap", protImportMap, protCreateMask)
-        # monores(project, report, "1.d MonoRes", protImportMap, protCreateMask, resolution)
-        monodir(project, report, "1.e MonoDir", protImportMap, protCreateMask, resolution)
+        monores(project, report, "1.d MonoRes", protImportMap, protCreateMask, resolution)
+        # monodir(project, report, "1.e MonoDir", protImportMap, protCreateMask, resolution)
 
     return protImportMap1, protImportMap2
