@@ -238,6 +238,32 @@ The mean resolution between the three methods is %5.2f\AA~and its range is withi
 
     return prot
 
+def fscPermutation(project, report, label, map, mask):
+    bblCitation = \
+"""\\bibitem[Beckers and Sachse, 2020]{Beckers2020b}
+Beckers, M. and Sachse, C. (2020).
+\\newblock Permutation testing of fourier shell correlation for resolution
+  estimation of cryo-em maps.
+\\newblock {\em J. Structural Biology}, 212(1):107579."""
+    report.addCitation("Beckers2020b", bblCitation)
+
+    secLabel = "sec:fscPermutation"
+    msg = \
+"""
+\\subsection{Level 1.b FSC permutation}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+This method \\cite{Beckers2020b} calculates a global resolution by formulating a hypothesis test in which the 
+distribution of the FSC of noise is calculated from the two maps.\\\\
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+
+    report.writeSummary("1.b FSC permutation", secLabel, "{\\color{red} Not in Scipion}")
+    report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+
 def blocres(project, report, label, map, mask):
     bblCitation = \
 """\\bibitem[Cardone et~al., 2013]{Cardone2013}
@@ -250,7 +276,7 @@ Cardone, G., Heymann, J.~B., and Steven, A.~C. (2013).
     secLabel = "sec:blocres"
     msg = \
 """
-\\subsection{Level 1.b Local resolution with Blocres}
+\\subsection{Level 1.c Local resolution with Blocres}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC) between the two half maps.\\\\
@@ -260,7 +286,7 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
 """ % secLabel
     report.write(msg)
 
-    report.writeSummary("1.b Blocres", secLabel, "{\\color{red} Binary installation fails}")
+    report.writeSummary("1.c Blocres", secLabel, "{\\color{red} Binary installation fails}")
     report.write("{\\color{red} \\textbf{ERROR: Binary installation fails.}}\\\\ \n")
 
 def resmap(project, report, label, map, mask):
@@ -274,7 +300,7 @@ Kucukelbir, A., Sigworth, F.~J., and Tagare, H.~D. (2014).
     secLabel = "sec:resmap"
     msg = \
 """
-\\subsection{Level 1.c Local resolution with Resmap}
+\\subsection{Level 1.d Local resolution with Resmap}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the superiority of signal over noise at different frequencies.\\\\
@@ -283,7 +309,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
 """ % secLabel
     report.write(msg)
 
-    report.writeSummary("1.c Resmap", secLabel, "{\\color{red} Not fully automatic}")
+    report.writeSummary("1.d Resmap", secLabel, "{\\color{red} Not fully automatic}")
     report.write("{\\color{red} \\textbf{ERROR: Not fully automatic.}}\\\\ \n")
 
 def monores(project, report, label, protImportMap, protCreateMask, resolution):
@@ -313,7 +339,7 @@ Vilas, J.~L., G{\\'o}mez-Blanco, J., Conesa, P., Melero, R., de~la
     secLabel = "sec:monores"
     msg = \
 """
-\\subsection{Level 1.d Local resolution with MonoRes}
+\\subsection{Level 1.e Local resolution with MonoRes}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 MonoRes \\cite{Vilas2018} evaluates the local energy of a point with respect to the distribution of 
@@ -325,7 +351,7 @@ transformation separates the amplitude and phase of the input map.\\\\
 """ % secLabel
     report.write(msg)
     if prot.isFailed():
-        report.writeSummary("1.d MonoRes", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("1.e MonoRes", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
@@ -390,7 +416,7 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
                         "to the local resolution distribution. It occupies the %5.2f percentile}}"%\
                         (resolution,resolutionP*100))
-    report.writeWarningsAndSummary(warnings, "1.d MonoRes", secLabel)
+    report.writeWarningsAndSummary(warnings, "1.e MonoRes", secLabel)
     return prot
 
 def monodir(project, report, label, protImportMap, protCreateMask, resolution):
@@ -419,7 +445,7 @@ Vilas, J.~L., Tagare, H.~D., Vargas, J., Carazo, J.~M., and Sorzano, C. O.~S.
     secLabel = "sec:monodir"
     msg = \
 """
-\\subsection{Level 1.e Local and directional resolution with MonoDir}
+\\subsection{Level 1.f Local and directional resolution with MonoDir}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 MonoDir \\cite{Vilas2020} extends the concept of local resolution to local and directional resolution by changing 
@@ -442,7 +468,7 @@ protein. As the shells approach the outside of the protein, these radial average
 """ % secLabel
     report.write(msg)
     if prot.isFailed():
-        report.writeSummary("1.e MonoDir", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("1.f MonoDir", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
@@ -520,7 +546,7 @@ Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is
     if resolution<0.8*avgDirResolution or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the average directional resolution, %5.2f \\AA.}}" % (resolution, avgDirResolution))
-    report.writeWarningsAndSummary(warnings, "1.e MonoDir", secLabel)
+    report.writeWarningsAndSummary(warnings, "1.f MonoDir", secLabel)
 
 
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):
@@ -569,9 +595,10 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protC
     if not skipAnalysis:
         report.writeSection('Level 1 analysis')
         globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
-        # blocres(project, report, "1.b Blocres", protImportMap, protCreateMask)
-        # resmap(project, report, "1.c Resmap", protImportMap, protCreateMask)
-        # monores(project, report, "1.d MonoRes", protImportMap, protCreateMask, resolution)
-        # monodir(project, report, "1.e MonoDir", protImportMap, protCreateMask, resolution)
+        fscPermutation(project, report, "1.b FSC permutation", protImportMap, protCreateMask)
+        # blocres(project, report, "1.c Blocres", protImportMap, protCreateMask)
+        # resmap(project, report, "1.d Resmap", protImportMap, protCreateMask)
+        # monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
+        # monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
 
     return protImportMap1, protImportMap2
