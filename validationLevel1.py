@@ -391,7 +391,7 @@ percentiles are:
     \\end{tabular}
 \\end{center}
 
-The reported resolution, %5.2f \AA, is at the percentile %5.2f. 
+The reported resolution, %5.2f \AA, is at the percentile %4.1f. 
 Fig. \\ref{fig:monoresColor} shows some representative views of the local resolution
 
 \\begin{figure}[H]
@@ -641,7 +641,6 @@ Fig. \\ref{fig:fsoContour}. %s
 
 def fsc3d(project, report, label, protImportMap, protImportMap1, protImportMap2, protMask, resolution):
     Xdim = protImportMap.outputVolume.getDim()[0]
-    print("Xdim",Xdim)
 
     Prot = pwplugin.Domain.importFromPlugin('fsc3d.protocols',
                                             'Prot3DFSC', doRaise=True)
@@ -690,9 +689,9 @@ This method analyzes the FSC in different directions and evaluates its homogenei
                "respectively. The global resolution at the same threshold is %5.2f \AA. The resolution range is "\
                "[%5.2f,%5.2f]\AA."%(1/fx, 1/fy, 1/fz, 1/fg, np.min(fList), np.max(fList))
 
-    fnDir = prot._getExtraPath(os.path.join(project.getPath(),'Results_3D-FSC','Plots3D-FSC.jpg'))
-    fnHist = prot._getExtraPath(os.path.join(project.getPath(),'Results_3D-FSC','histogram.png'))
-    fnPower = prot._getExtraPath(os.path.join(project.getPath(),'Results_3D-FSC','FTPlot3D-FSC.jpg'))
+    fnDir = os.path.join(project.getPath(),prot._getExtraPath('Results_3D-FSC','Plots3D-FSC.jpg'))
+    fnHist = os.path.join(project.getPath(),prot._getExtraPath('Results_3D-FSC','histogram.png'))
+    fnPower = os.path.join(project.getPath(),prot._getExtraPath('Results_3D-FSC','FTPlot3D-FSC.jpg'))
     msg = \
 """Fig. \\ref{fig:fsc3DDir} shows the FSCs in X, Y, Z, and the global FSC. Fig.\\ref{fig:fsc3DHist} shows the global
 FSC and the histogram of the directional FSC. Finally, Fig. \\ref{fig:FSC3DFTPower} shows the rotational average of

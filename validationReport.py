@@ -428,6 +428,33 @@ class ValidationReport:
 """ % (ix, fnX, iy, fnY, iz, fnZ, caption, label)
         self.fh.write(toWrite)
 
+    def setOfImages(self, fnImgs, mdlLabel, caption, label, fnRoot, width, Ximgs):
+        toWrite = \
+"""\\begin{figure}[H]
+  \\centering
+"""
+        self.write(toWrite)
+
+        md = xmipp3.MetaData(fnImgs)
+        imgNames = md.getColumnValues(mdlLabel)
+        toWrite = ""
+        for i in range(len(imgNames)):
+            I = xmipp3.Image(imgNames[i])
+            fnOut = "%s_%04d.jpg"%(fnRoot,i)
+            I.write(fnOut)
+            toWrite+=\
+"""\\includegraphics[width=%s]{%s}
+"""%(width,fnOut)
+            if (i+1)%Ximgs==0:
+                toWrite+="\\\\ \n"
+        toWrite+=\
+"""\\caption{%s}
+  \\label{%s}
+\\end{figure}
+
+"""%(caption, label)
+        self.write(toWrite)
+
     def closeReport(self):
         toWrite = "\n\n\\begin{thebibliography}{}\n\n"
         for key in self.citations:
