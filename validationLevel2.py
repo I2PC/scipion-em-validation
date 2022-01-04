@@ -33,6 +33,8 @@ from pyworkflow.utils.path import cleanPath
 from xmipp3.convert import writeSetOfParticles
 import xmipp3
 
+from validationReport import reportHistogram
+
 def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportAverages', doRaise=True)
@@ -75,6 +77,82 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
     project.launchProtocol(protResize2, wait=True)
     return protResize2
 
+
+def compareReprojections(project, report, protImportMap, protAvgs, symmetry):
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtCompareReprojections', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="2.a Compare reprojections",
+                               optimizeGray=True,
+                               doEvaluateResiduals=True,
+                               symmetryGroup=symmetry)
+    prot.inputSet.set(protAvgs.outputAverages)
+    prot.inputVolume.set(protImportMap.outputVolume)
+    project.launchProtocol(prot, wait=True)
+
+    secLabel = "sec:fsc3d"
+    msg = \
+"""
+\\subsection{Level 2.a Reprojection consistency}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+The 2D classes can be aligned against the reconstructed map, then the correlation between reprojections of the map 
+and the 2D classes can be analyzed. Also, analyzing the residuals (2D class minus the corresponding reprojection) can 
+reveal systematic differences between them.\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    if prot.isFailed():
+        report.writeSummary("2.a Compare reprojections", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    md = xmipp3.MetaData(prot._getExtraPath("anglesCont.xmd"))
+    md.sort(xmipp3.MDL_MAXCC)
+
+    fnHist = os.path.join(report.getReportDir(),"reprojectionCCHist.png")
+    cc = md.getColumnValues(xmipp3.MDL_MAXCC)
+    reportHistogram(cc,'Cross-correlation',fnHist)
+
+    toWrite =\
+"""Fig. \\ref{fig:reprojectionCChist} shows the histogram of the cross-correlation between the 2D classes and 
+the map reprojections. The average correlation is %f, and its range is [%f,%f]. Now we show
+the 2D classes, the corresponding reprojection, the difference between both (residual), the covariance matrix of the
+residual image, and the correlation between the 2D class and the reprojection. For a perfect match, the residual
+would be just noise, and its covariance matrix should be a diagonal. Rows have been sorted by correlation so that
+the worse correlating images are displayed at the beginning.
+
+Also, 2D classes of a high-resolution map should also be of high resolution. This cannot, for the moment, be
+automatically assessed. But a visual inspection should confirm that the resolution of the 2D classes match the
+reported resolution of the map.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Histogram of the correlation coefficient between the 2D classes provided by the user and the
+    corresponding reprojections.}
+    \\label{fig:reprojectionCChist}
+\\end{figure}
+"""%(np.mean(cc), np.min(cc), np.max(cc), fnHist)
+    report.write(toWrite)
+
+    report.showj(md,
+                 [xmipp3.MDL_IMAGE, xmipp3.MDL_IMAGE_REF, xmipp3.MDL_IMAGE_RESIDUAL, xmipp3.MDL_IMAGE_COVARIANCE, \
+                  xmipp3.MDL_MAXCC],
+                 [True, True, True, True, False],
+                 ["2D Class","Reprojection","Residual","Covariance",'Correlation'],
+                 os.path.join(report.getReportDir(),"reproj_"), "2cm")
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if np.sum(np.array(cc)<0.7)/len(cc)>0.2 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{A large fraction of the 2D classes, %4.1f\\%%, correlate less "\
+                        "than 0.7 with reprojections of the input map}}"%(np.sum(cc<0.7)/len(cc)*100))
+    report.writeWarningsAndSummary(warnings, "2.a Reprojection consistency", secLabel)
+
+
 def reportInput(project, report, fnAvgs, protAvgs):
     avgStack = os.path.join(report.getReportDir(),"avgs.xmd")
     writeSetOfParticles(protAvgs.outputAverages, avgStack)
@@ -91,12 +169,13 @@ The classes can be seen in Fig. \\ref{fig:classes2D}.\\\\
                        "fig:classes2D", os.path.join(report.getReportDir(),"avg2D_"), "1.5cm", 8)
     cleanPath(avgStack)
 
-def level2(project, report, importMap, fnAvgs, TsAvg, skipAnalysis = False):
+def level2(project, report, protImportMap, fnAvgs, TsAvg, symmetry, skipAnalysis = False):
     # Import averages
-    protAvgs = importAvgs(project, "import averages", importMap, fnAvgs, TsAvg)
+    protAvgs = importAvgs(project, "import averages", protImportMap, fnAvgs, TsAvg)
     reportInput(project, report, fnAvgs, protAvgs)
 
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 2 analysis')
+        compareReprojections(project, report, protImportMap, protAvgs, symmetry)
     return protAvgs

@@ -46,11 +46,12 @@ def usage(message=''):
           "\n         LEVEL 2 ====="
           "\n            avgs:  myaverages.mrcs"
           "\n            avgSampling:  2 [A]"
+          "\n            symmetry: c1"
           )
     message = "\n\n  >>  %s\n" % message if message != '' else ''
     print(message)
     sys.exit(1)
-    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24
+    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o
 
 if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
     usage()
@@ -80,12 +81,14 @@ for arg in sys.argv:
         FNAVGS = arg.split("avgs=")[1]
     if arg.startswith('avgSampling='):
         TSAVG = float(arg.split("avgSampling=")[1])
+    if arg.startswith('symmetry='):
+        SYM = arg.split("symmetry=")[1]
 
 # Detect level
 argsPresent = [x.split('=')[0] for x in sys.argv]
 LEVEL0 = ["map", "sampling", "threshold", "resolution"]
 LEVEL1 = ["map1", "map2"]
-LEVEL2 = ["avgs", "avgSampling"]
+LEVEL2 = ["avgs", "avgSampling", "symmetry"]
 
 def detectLevel(labels, args):
     retval = True
@@ -131,7 +134,7 @@ if 1 in levels:
 # Level 2
 if 1 in levels:
     from validationLevel2 import level2
-    protImportAvgs = level2(project, report, protImportMap, FNAVGS, TSAVG,)
+    protImportAvgs = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM)
 
 # Close report
 report.closeReport()

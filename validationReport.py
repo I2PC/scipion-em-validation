@@ -11,6 +11,7 @@ import PIL
 from pyworkflow.protocol import StringParam
 from pyworkflow.utils.path import makePath, cleanPath
 from pwem.viewers import LocalResolutionViewer
+from pwem.emlib.metadata import iterRows
 
 import xmipp3
 
@@ -114,6 +115,15 @@ def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear", grid=True, plotType=
     plt.grid(grid)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    plt.savefig(fnOut)
+
+def reportHistogram(y, ylabel, fnOut):
+    matplotlib.use('Agg')
+    plt.figure()
+    plt.hist(y)
+    plt.grid(True)
+    plt.xlabel(ylabel)
+    plt.ylabel("Count")
     plt.savefig(fnOut)
 
 def reportMultiplePlots(x,yList, xlabel, ylabel, fnOut, legends, invertXLabels=False):
@@ -223,6 +233,7 @@ class ValidationReport:
 \\usepackage{hyperref}
 \\usepackage{xcolor}
 \\usepackage[us,12hr]{datetime}
+\\usepackage{longtable}
 
 \\title{Validation report of Level %d}
 \\author{I$^2$PC Validation server}
@@ -453,6 +464,45 @@ class ValidationReport:
 \\end{figure}
 
 """%(caption, label)
+        self.write(toWrite)
+
+    def showj(self, md, mdLabelList, renderList, headers, fnRoot, width):
+        toWrite = \
+"""\\begin{longtable}{%s}
+  \\centering
+"""%('c'*len(headers))
+        i = 0
+        for header in headers:
+            if i>0:
+                toWrite+=" & "
+            toWrite+="\\textbf{%s}"%header
+            i+=1
+        toWrite+="\\\\ \n"
+        self.write(toWrite)
+
+        toWrite = ""
+        idx=0
+        for row in iterRows(md):
+            i=0
+            for label, render in zip(mdLabelList, renderList):
+                content = row.getValue(label)
+                if i > 0:
+                    toWrite += " & "
+                if render:
+                    I = xmipp3.Image(content)
+                    fnOut = "%s_%05d.jpg" % (fnRoot, idx)
+                    I.write(fnOut)
+                    idx+=1
+                    toWrite += "\\includegraphics[width=%s]{%s} " % (width, fnOut)
+                else:
+                    toWrite+="%s "%content
+                i+=1
+            toWrite+="\\\\ \n"
+
+        toWrite += \
+"""\\end{longtable}
+
+"""
         self.write(toWrite)
 
     def closeReport(self):
