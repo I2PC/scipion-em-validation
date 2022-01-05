@@ -439,7 +439,7 @@ class ValidationReport:
 """ % (ix, fnX, iy, fnY, iz, fnZ, caption, label)
         self.fh.write(toWrite)
 
-    def setOfImages(self, fnImgs, mdlLabel, caption, label, fnRoot, width, Ximgs):
+    def setOfImages(self, fnImgs, mdlLabel, caption, label, fnRoot, width, Ximgs, imgMax=1e6):
         toWrite = \
 """\\begin{figure}[H]
   \\centering
@@ -458,6 +458,8 @@ class ValidationReport:
 """%(width,fnOut)
             if (i+1)%Ximgs==0:
                 toWrite+="\\\\ \n"
+            if i==imgMax:
+                break
         toWrite+=\
 """\\caption{%s}
   \\label{%s}

@@ -53,7 +53,7 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
     XdimAvgs = protImport.outputAverages.getDim()[0]
 
     if XdimAvgs==XdimMap and TsAvg==TsMap:
-        return prot
+        return protImport
 
     XdimAvgsp = int(AMap/TsAvg)
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',

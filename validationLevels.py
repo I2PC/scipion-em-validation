@@ -47,11 +47,17 @@ def usage(message=''):
           "\n            avgs:  myaverages.mrcs"
           "\n            avgSampling:  2 [A]"
           "\n            symmetry: c1"
+          "\n         LEVEL 3 ====="
+          "\n            particles:  myparticles.mrcs"
+          "\n            ptclSampling:  1 [A]"
+          "\n            kV:  300 [kV]"
+          "\n            Cs:  2.7 [mm]"
+          "\n            Q0:  0.1"
           )
     message = "\n\n  >>  %s\n" % message if message != '' else ''
     print(message)
     sys.exit(1)
-    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o
+    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o particles=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/particles.sqlite ptclSampling=1.24 kV=300 Cs=2.7 Q0=0.1
 
 if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
     usage()
@@ -83,12 +89,23 @@ for arg in sys.argv:
         TSAVG = float(arg.split("avgSampling=")[1])
     if arg.startswith('symmetry='):
         SYM = arg.split("symmetry=")[1]
+    if arg.startswith('particles='):
+        FNPARTICLES = arg.split("particles=")[1]
+    if arg.startswith('ptclSampling='):
+        TSPARTICLES = float(arg.split("ptclSampling=")[1])
+    if arg.startswith('kV='):
+        KV = float(arg.split("kV=")[1])
+    if arg.startswith('Cs='):
+        CS = float(arg.split("Cs=")[1])
+    if arg.startswith('Q0='):
+        Q0 = float(arg.split("Q0=")[1])
 
 # Detect level
 argsPresent = [x.split('=')[0] for x in sys.argv]
 LEVEL0 = ["map", "sampling", "threshold", "resolution"]
 LEVEL1 = ["map1", "map2"]
 LEVEL2 = ["avgs", "avgSampling", "symmetry"]
+LEVEL3 = ["particles", "ptclSampling", "kV", "Cs", "Q0"]
 
 def detectLevel(labels, args):
     retval = True
@@ -104,6 +121,8 @@ if detectLevel(LEVEL1, argsPresent):
     levels.append(1)
 if detectLevel(LEVEL2, argsPresent):
     levels.append(2)
+if detectLevel(LEVEL3, argsPresent):
+    levels.append(3)
 
 if len(levels)==0 or not 0 in levels:
     usage()
@@ -132,9 +151,14 @@ if 1 in levels:
                                             protImportMap, protCreateMask, skipAnalysis = True)
 
 # Level 2
-if 1 in levels:
+if 2 in levels:
     from validationLevel2 import level2
-    protImportAvgs = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM)
+    protImportAvgs = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM, skipAnalysis = True)
+
+# Level 3
+if 3 in levels:
+    from validationLevel3 import level3
+    protImportAvgs = level3(project, report, protImportMap, FNPARTICLES, TSPARTICLES, KV, CS, Q0)
 
 # Close report
 report.closeReport()
