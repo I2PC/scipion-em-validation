@@ -61,7 +61,7 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
     protResize1 = project.newProtocol(Prot,
                                       objLabel="Resize Avgs",
                                       doWindow=True,
-                                      windowOperation=1 if XdimAvgsp>XdimAvgs else 0,
+                                      windowOperation=1,
                                       windowSize=XdimAvgsp)
     protResize1.inputParticles.set(protImport.outputAverages)
     project.launchProtocol(protResize1, wait=True)
@@ -71,11 +71,11 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                       doResize=True,
                                       resizeSamplingRate=TsMap,
                                       doWindow=True,
-                                      windowOperation=1 if XdimMap>XdimAvgsp else 0,
+                                      windowOperation=1,
                                       windowSize=XdimMap)
     protResize2.inputParticles.set(protResize1.outputAverages)
     project.launchProtocol(protResize2, wait=True)
-    return protResize2
+    return protImport, protResize2
 
 
 def compareReprojections(project, report, protImportMap, protAvgs, symmetry):
@@ -172,11 +172,11 @@ The classes can be seen in Fig. \\ref{fig:classes2D}.\\\\
 
 def level2(project, report, protImportMap, fnAvgs, TsAvg, symmetry, skipAnalysis = False):
     # Import averages
-    protAvgs = importAvgs(project, "import averages", protImportMap, fnAvgs, TsAvg)
+    protImportAvgs, protAvgs = importAvgs(project, "import averages", protImportMap, fnAvgs, TsAvg)
     reportInput(project, report, fnAvgs, protAvgs)
 
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 2 analysis')
         compareReprojections(project, report, protImportMap, protAvgs, symmetry)
-    return protAvgs
+    return protImportAvgs, protAvgs

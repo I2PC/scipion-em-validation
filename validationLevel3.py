@@ -24,6 +24,7 @@
 # *
 # **************************************************************************
 
+import glob
 import math
 import numpy as np
 import os
@@ -36,7 +37,7 @@ import xmipp3
 
 from validationReport import reportHistogram, reportPlot
 
-def importParticles(project, label, protImportMap, fnParticles, TsParticles, kV, Cs, Q0):
+def importParticles(project, label, protImportMap, protImportClasses, fnParticles, TsParticles, kV, Cs, Q0):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportParticles', doRaise=True)
     protImport = project.newProtocol(Prot,
@@ -58,7 +59,6 @@ def importParticles(project, label, protImportMap, fnParticles, TsParticles, kV,
     project.launchProtocol(protImport, wait=True)
     if protImport.isFailed():
         raise Exception("Import averages did not work")
-    return protImport
 
     XdimMap = protImportMap.outputVolume.getDim()[0]
     TsMap = protImportMap.outputVolume.getSamplingRate()
@@ -66,37 +66,69 @@ def importParticles(project, label, protImportMap, fnParticles, TsParticles, kV,
 
     XdimPtcls = protImport.outputParticles.getDim()[0]
 
-    if XdimPtcls==XdimMap and TsAvg==TsMap:
-        return protImport
+    if XdimPtcls==XdimMap and TsParticles==TsMap:
+        protResizeMap = protImport
+    else:
+        XdimPtclsp = int(AMap/TsParticles)
+        Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                                'XmippProtCropResizeParticles', doRaise=True)
+        protResize1 = project.newProtocol(Prot,
+                                          objLabel="Resize Ptcls 1 ",
+                                          doWindow=True,
+                                          windowOperation=1,
+                                          windowSize=XdimPtclsp)
+        protResize1.inputParticles.set(protImport.outputParticles)
+        project.launchProtocol(protResize1, wait=True)
 
-    XdimPtclsp = int(AMap/TsParticles)
-    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
-                                            'XmippProtCropResizeParticles', doRaise=True)
-    protResize1 = project.newProtocol(Prot,
-                                      objLabel="Resize Ptcls",
-                                      doWindow=True,
-                                      windowOperation=1 if XdimPtclsp>XdimPtcls else 0,
-                                      windowSize=XdimPtclsp)
-    protResize1.inputParticles.set(protImport.outputParticles)
-    project.launchProtocol(protResize1, wait=True)
+        protResize2 = project.newProtocol(Prot,
+                                          objLabel="Resize and resample Ptcls 2",
+                                          doResize=True,
+                                          resizeSamplingRate=TsMap,
+                                          doWindow=True,
+                                          windowOperation=1,
+                                          windowSize=XdimMap)
+        protResize2.inputParticles.set(protResize1.outputParticles)
+        project.launchProtocol(protResize2, wait=True)
+        protResizeMap = protResize2
 
-    protResize2 = project.newProtocol(Prot,
-                                      objLabel="Resize and resample Ptcls",
-                                      doResize=True,
-                                      resizeSamplingRate=TsMap,
-                                      doWindow=True,
-                                      windowOperation=1 if XdimMap>XdimPtclsp else 0,
-                                      windowSize=XdimMap)
-    protResize2.inputParticles.set(protResize1.outputParticles)
-    project.launchProtocol(protResize2, wait=True)
-    return protResize2
+    XdimClasses = protImportClasses.outputAverages.getDim()[0]
+    TsClasses = protImportClasses.outputAverages.getSamplingRate()
 
-def classAnalysis(project, report, label, protParticles, protImportClasses):
+    if XdimPtcls==XdimClasses and TsParticles==TsClasses:
+        protResizeAvgs = protImport
+    else:
+        AClasses = XdimClasses * TsClasses
+
+        XdimPtclsp = int(AClasses/TsParticles)
+        Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                                'XmippProtCropResizeParticles', doRaise=True)
+        protResize1 = project.newProtocol(Prot,
+                                          objLabel="Resize Ptcls 3",
+                                          doWindow=True,
+                                          windowOperation=1,
+                                          windowSize=XdimPtclsp)
+        protResize1.inputParticles.set(protImport.outputParticles)
+        project.launchProtocol(protResize1, wait=True)
+
+        protResize2 = project.newProtocol(Prot,
+                                          objLabel="Resize and resample Ptcls 4",
+                                          doResize=True,
+                                          resizeSamplingRate=TsClasses,
+                                          doWindow=True,
+                                          windowOperation=1,
+                                          windowSize=XdimClasses)
+        protResize2.inputParticles.set(protResize1.outputParticles)
+        project.launchProtocol(protResize2, wait=True)
+        protResizeAvgs = protResize2
+
+    return protImport, protResizeMap, protResizeAvgs
+
+def classAnalysis(project, report, protParticles, protClasses):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtStrGpuCrrSimple', doRaise=True)
     protGL2D = project.newProtocol(Prot,
-                                   objLabel=label)
-    protGL2D.inputRefs.set(protImportClasses.outputAverages)
+                                   objLabel="3.ab GL2D")
+    protGL2D.inputRefs.set(protClasses.outputAverages)
     protGL2D.inputParticles.set(protParticles.outputParticles)
     project.launchProtocol(protGL2D, wait=True)
 
@@ -132,7 +164,7 @@ centroid of the class is larger than 3 \\cite{Sorzano2014}\\\\
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtCoreAnalysis', doRaise=True)
     protCore = project.newProtocol(Prot,
-                                   objLabel=label)
+                                   objLabel="3.ab Core analysis")
     protCore.inputClasses.set(protGL2D.outputClasses)
     project.launchProtocol(protCore, wait=True)
 
@@ -249,6 +281,57 @@ the FRC=0.5.
     testWarnings = False
     report.writeWarningsAndSummary(warnings, "3.b 2D Classification internal consistency", secLabel)
 
+def newClassification(project, report, protParticles, protClasses):
+    Prot = pwplugin.Domain.importFromPlugin('cryosparc2.protocols',
+                                            'ProtCryo2D', doRaise=True)
+    protClassif2D = project.newProtocol(Prot,
+                                        objLabel="3.c CryoSparc 2D",
+                                        numberOfClasses=protClasses.outputAverages.getSize())
+    protClassif2D.inputParticles.set(protParticles.outputParticles)
+    project.launchProtocol(protClassif2D, wait=True)
+
+    bblCitation = \
+"""\\bibitem[Punjani et~al., 2017]{Punjani2017b}
+Punjani, A., Brubaker, M.~A., and Fleet, D.~J. (2017).
+\\newblock Building proteins in a day: Efficient {3D} molecular structure
+  estimation with electron cryomicroscopy.
+\\newblock {\em {IEEE} Trans. Pattern Analysis \& Machine Intelligence},
+  39:706--718."""
+    report.addCitation("Punjani2017b", bblCitation)
+
+    secLabel = "sec:externalConsistency"
+    msg = \
+"""
+\\subsection{Level 3.c Classification external consistency}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+The input particles were classified with CryoSparc \\cite{Punjani2017b} using the same number of classes
+as the ones provided by the user. Except for the difference in number of particles between the original classification
+and the number of particles available to the server, the new classes should resemble the old ones\\\\
+\\textbf{Results:}\\\\
+Fig. \\ref{fig:newClassification} shows the new classification. The classification provided by the user is in Fig. 
+\\ref{fig:classes2D}.
+\\\\
+
+""" % (secLabel)
+    report.write(msg)
+
+    if protClassif2D.isFailed():
+        report.writeSummary("3.c Classification external consistency", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return protClassif2D
+
+    fileList = glob.glob(protClassif2D._getExtraPath("cryosparc_*_class_averages_scaled.mrcs"))
+    if len(fileList)==0:
+        report.writeSummary("3.c Classification external consistency", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: Cannot find the output classes.}}\\\\ \n")
+        return protClassif2D
+
+    report.setOfImages(fileList[0], xmipp3.MDL_IMAGE, "Set of 2D classes calculated by CryoSparc. "\
+                       "These should be compared to those in Fig. \\ref{fig:classes2D}.",
+                       "fig:newClassification", os.path.join(report.getReportDir(),"newAvg2D_"), "1.5cm", 8)
+
+
 def reportInput(project, report, fnParticles, protParticles):
     particlesStack = os.path.join(report.getReportDir(),"particles.xmd")
     writeSetOfParticles(protParticles.outputParticles, particlesStack)
@@ -265,13 +348,16 @@ The first 32 can be seen in Fig. \\ref{fig:particles}.\\\\
                        "fig:particles", os.path.join(report.getReportDir(),"particles_"), "1.5cm", 8, imgMax=31)
     cleanPath(particlesStack)
 
-def level3(project, report, protImportMap, protImportClasses, fnParticles, TsParticles, kV, Cs, Q0, skipAnalysis = False):
+def level3(project, report, protImportMap, protClasses, fnParticles, TsParticles, kV, Cs, Q0,
+           skipAnalysis = False):
     # Import particles
-    protParticles = importParticles(project, "import particles", protImportMap, fnParticles, TsParticles, kV, Cs, Q0)
+    protParticles, protResizeMap, protResizeAvgs = importParticles(project, "import particles", protImportMap,
+                                                                   protClasses, fnParticles, TsParticles, kV, Cs, Q0)
     reportInput(project, report, fnParticles, protParticles)
 
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 3 analysis')
-        classAnalysis(project, report, "3.ab GL2D", protParticles, protImportClasses)
-    return protParticles
+        # classAnalysis(project, report, protResizeAvgs, protClasses)
+        newClassification(project, report, protResizeAvgs, protClasses)
+    return protParticles, protResizeMap, protResizeAvgs
