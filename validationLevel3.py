@@ -35,7 +35,7 @@ from pyworkflow.utils.path import cleanPath
 from xmipp3.convert import writeSetOfParticles
 import xmipp3
 
-from validationReport import reportHistogram, reportPlot
+from validationReport import reportHistogram, reportPlot, reportMultiplePlots, readStack
 
 def importParticles(project, label, protImportMap, protImportClasses, fnParticles, TsParticles, kV, Cs, Q0):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -309,10 +309,6 @@ The input particles were classified with CryoSparc \\cite{Punjani2017b} using th
 as the ones provided by the user. Except for the difference in number of particles between the original classification
 and the number of particles available to the server, the new classes should resemble the old ones\\\\
 \\textbf{Results:}\\\\
-Fig. \\ref{fig:newClassification} shows the new classification. The classification provided by the user is in Fig. 
-\\ref{fig:classes2D}.
-\\\\
-
 """ % (secLabel)
     report.write(msg)
 
@@ -327,10 +323,128 @@ Fig. \\ref{fig:newClassification} shows the new classification. The classificati
         report.write("{\\color{red} \\textbf{ERROR: Cannot find the output classes.}}\\\\ \n")
         return protClassif2D
 
+    fnDensity = os.path.join(report.getReportDir(),"corrDensity.png")
+    msg = \
+"""
+Fig. \\ref{fig:newClassification} shows the new classification. The classification provided by the user is in Fig. 
+\\ref{fig:classes2D}.
+
+"""
+    report.write(msg)
+
     report.setOfImages(fileList[0], xmipp3.MDL_IMAGE, "Set of 2D classes calculated by CryoSparc. "\
                        "These should be compared to those in Fig. \\ref{fig:classes2D}.",
                        "fig:newClassification", os.path.join(report.getReportDir(),"newAvg2D_"), "1.5cm", 8)
 
+    avgStack = os.path.join(report.getReportDir(),"avgs.xmd")
+    writeSetOfParticles(protClasses.outputAverages, avgStack)
+    classesOld = readStack(os.path.join(report.getReportDir(),"avgs.xmd"))
+    cleanPath(avgStack)
+
+    classesNew = xmipp3.Image(fileList[0]+":mrc").getData()
+
+    def arrayToList(classes):
+        C = []
+        Z,_,_ = classes.shape
+        for i in range(Z):
+            I = xmipp3.Image()
+            I.setData(classes[i,:,:])
+            C.append(I)
+        return C
+
+    classesOld = arrayToList(classesOld)
+    classesNew = arrayToList(classesNew)
+
+    def locateMatch(I,classes):
+        bestCorr = -1e38
+        besti = None
+        for i in range(len(classes)):
+            corr = I.correlationAfterAlignment(classes[i])
+            if corr>bestCorr:
+                bestCorr = corr
+                besti = i
+        return bestCorr, besti
+
+    def compareC1C2(report, C1, C2, C1label, C2label, show):
+        msg = None
+        if show:
+            msg=\
+    """The following table shows for each class in %s which is the best match in %s and its correlation coefficient.
+    \\begin{longtable}{ccc}
+      \\centering
+      \\textbf{%s class} & \\textbf{%s class} & \\textbf{Correlation} \\\\ 
+    """%(C1label, C2label, C1label, C2label)
+
+        corr = []
+        newIdx = []
+        for i in range(len(C1)):
+            bestCorr, besti = locateMatch(C1[i], C2)
+
+            if show:
+                img1 = os.path.join(report.getReportDir(),"classes_%s_%s_%d.jpg"%(C1label,C2label,i))
+                img2 = os.path.join(report.getReportDir(),"classes_%s_%s_%d_match.jpg"%(C1label,C2label,i))
+                C1[i].write(img1)
+                C2[besti].write(img2)
+                bestCorrText = "%5.3f"%bestCorr
+                if bestCorr<0.8:
+                    bestCorrText="{\\color{red} %s}"%bestCorrText
+                msg+="  \includegraphics[width=2cm]{%s} & \includegraphics[width=2cm]{%s} & %s \\\\ \n"%\
+                     (img1, img2, bestCorrText)
+
+            corr.append(bestCorr)
+            newIdx.append(besti)
+        if show:
+            msg += \
+"""\\end{longtable}
+
+"""
+        return corr, msg
+
+    corrOld, table = compareC1C2(report, classesOld, classesNew, "User", "New", True)
+    corrNew, _     = compareC1C2(report, classesNew, classesOld, "New", "User", False)
+
+    from scipy.stats import gaussian_kde, ks_2samp
+    densityOld = gaussian_kde(corrOld)
+    densityNew = gaussian_kde(corrNew)
+    densityOld.covariance_factor = lambda: .25
+    densityOld._compute_covariance()
+    densityNew.covariance_factor = lambda: .25
+    densityNew._compute_covariance()
+    allCorrs = corrOld+corrNew
+
+    fnDensity = os.path.join(report.getReportDir(), "corrDensity.png")
+    corraxis = np.linspace(np.min(allCorrs),np.max(allCorrs),200)
+    reportMultiplePlots(corraxis, [densityOld(corraxis), densityNew(corraxis)], 'Correlation', 'Prob. Density Function',
+                        fnDensity, ['User vs New', 'New vs User'])
+
+    D, pvalue = ks_2samp(corrOld, corrNew)
+    msg = \
+"""
+Fig. \\ref{fig:correlationDensity} shows the probability density function of the correlation of the user classes
+compared to the newly computed and viceversa. Ideally, these two distributions should be similar. We compared these
+two distributions with a Kolmogorov-Smirnov (KS) two-sample test. The KS statistic was %f and the p-value %f.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Probability density function of the correlation of the user classes compared to the newly computed and
+    viceversa.}
+    \\label{fig:correlationDensity}
+\\end{figure}
+
+%s
+"""%(D, pvalue, fnDensity,table)
+    report.write(msg)
+
+    warnings=[]
+    testWarnings = False
+    if np.min(corrOld)<0.8 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{Some user classes correlate less than 0.8 with the newly calculated "\
+                        "classes}}")
+    if pvalue<0.05 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The equality of the two correlation " \
+                        "distributions (user vs new, new vs user) was rejected with a p-value of %f}}"%pvalue)
+    report.writeWarningsAndSummary(warnings, "3.c 2D Classification external consistency", secLabel)
 
 def reportInput(project, report, fnParticles, protParticles):
     particlesStack = os.path.join(report.getReportDir(),"particles.xmd")
@@ -358,6 +472,6 @@ def level3(project, report, protImportMap, protClasses, fnParticles, TsParticles
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 3 analysis')
-        # classAnalysis(project, report, protResizeAvgs, protClasses)
+        classAnalysis(project, report, protResizeAvgs, protClasses)
         newClassification(project, report, protResizeAvgs, protClasses)
     return protParticles, protResizeMap, protResizeAvgs

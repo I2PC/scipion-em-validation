@@ -148,12 +148,12 @@ protImportMap, protCreateMask = level0(project, report, FNMAP, FNMAP1, FNMAP2, T
 if 1 in levels:
     from validationLevel1 import level1
     protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION,
-                                            protImportMap, protCreateMask, skipAnalysis = True)
+                                            protImportMap, protCreateMask, skipAnalysis = False)
 
 # Level 2
 if 2 in levels:
     from validationLevel2 import level2
-    protImportAvgs, protAvgsResizeMap = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM, skipAnalysis = True)
+    protImportAvgs, protAvgsResizeMap = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM, skipAnalysis = False)
 
 # Level 3
 if 3 in levels:

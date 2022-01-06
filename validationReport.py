@@ -18,6 +18,19 @@ import xmipp3
 def readMap(fnMap):
     return xmipp3.Image(fnMap)
 
+def readStack(fnXmd):
+    md = xmipp3.MetaData(fnXmd)
+    S = None
+    i=0
+    for objId in md:
+        I = xmipp3.Image(md.getValue(xmipp3.MDL_IMAGE, objId))
+        Xdim, Ydim, Zdim, Ndim = I.getDimensions()
+        if S is None:
+            S=np.zeros((md.size(), Ydim, Xdim))
+        S[i,:,:]=I.getData()
+        i+=1
+    return S
+
 def writeImage(I, fnOut, scale=True):
     if scale:
         I = I.astype(np.float)
