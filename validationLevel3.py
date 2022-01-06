@@ -28,12 +28,13 @@ import math
 import numpy as np
 import os
 
+from pwem.emlib.metadata import iterRows
 import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPath
 from xmipp3.convert import writeSetOfParticles
 import xmipp3
 
-from validationReport import reportHistogram
+from validationReport import reportHistogram, reportPlot
 
 def importParticles(project, label, protImportMap, fnParticles, TsParticles, kV, Cs, Q0):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -90,6 +91,164 @@ def importParticles(project, label, protImportMap, fnParticles, TsParticles, kV,
     project.launchProtocol(protResize2, wait=True)
     return protResize2
 
+def classAnalysis(project, report, label, protParticles, protImportClasses):
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtStrGpuCrrSimple', doRaise=True)
+    protGL2D = project.newProtocol(Prot,
+                                   objLabel=label)
+    protGL2D.inputRefs.set(protImportClasses.outputAverages)
+    protGL2D.inputParticles.set(protParticles.outputParticles)
+    project.launchProtocol(protGL2D, wait=True)
+
+    bblCitation = \
+"""\\bibitem[Sorzano et~al., 2014]{Sorzano2014}
+Sorzano, C. O.~S., Vargas, J., de~la Rosa-Trev\\'{\i}n, J.~M.,
+  Zald\\'{\i}var-Peraza, A., Ot{\\'o}n, J., Abrishami, V., Foche, I., Marabini,
+  R., Caffarena, G., and Carazo, J.~M. (2014).
+\\newblock Outlier detection for single particle analysis in electron
+  microscopy.
+\\newblock In {\em Proc. Intl. Work-Conference on Bioinformatics and Biomedical
+  Engineering, IWBBIO}, page 950."""
+    report.addCitation("Sorzano2014", bblCitation)
+
+    secLabel = "sec:outlierDetection"
+    msg = \
+"""
+\\subsection{Level 3.a Outlier detection}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+The set of particles is classified into the input set of 2D classes of Level 2. The number of particles that are
+considered to be outliers in those classes is reported. A particle is an outlier if its Mahalanobis distance to the
+centroid of the class is larger than 3 \\cite{Sorzano2014}\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    if protGL2D.isFailed():
+        report.writeSummary("3.a Outlier detection", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return protGL2D
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtCoreAnalysis', doRaise=True)
+    protCore = project.newProtocol(Prot,
+                                   objLabel=label)
+    protCore.inputClasses.set(protGL2D.outputClasses)
+    project.launchProtocol(protCore, wait=True)
+
+    md = xmipp3.MetaData(protCore._getExtraPath(os.path.join("level_00","level_classes_core.xmd")))
+    md.sort(xmipp3.MDL_MODELFRAC)
+
+    fnFracHist = os.path.join(report.getReportDir(),"coreFracHist.png")
+    frac = md.getColumnValues(xmipp3.MDL_MODELFRAC)
+    reportHistogram(frac,'Core fraction',fnFracHist)
+
+    fnCountHist = os.path.join(report.getReportDir(),"class2DCountHist.png")
+    count = md.getColumnValues(xmipp3.MDL_CLASS_COUNT)
+    reportHistogram(count,'Image count',fnCountHist)
+
+    toWrite=\
+"""The following table shows the input classes, the number of particles assigned to them, and the fraction of these
+particles that are considered to be part of the core (the closer to 1, the better). Fig. \\ref{fig:coreFracHist}
+shows the histogram of the core fraction of the classes. Fig. \\ref{fig:classCountHist}
+shows the histogram of the size of the classes.
+ 
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Histogram of the core fraction of the 2D classes.}
+    \\label{fig:coreFracHist}
+\\end{figure}
+ 
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Histogram of the number of particles assigned to the 2D classes.}
+    \\label{fig:classCountHist}
+\\end{figure}
+
+"""%(fnFracHist, fnCountHist)
+    report.write(toWrite)
+
+    report.showj(md,
+                 [xmipp3.MDL_IMAGE, xmipp3.MDL_CLASS_COUNT, xmipp3.MDL_MODELFRAC],
+                 [True, False, False],
+                 ["", "%d ", "%4.3f "],
+                 ["2D Class", "No. Particles", "Core fraction"],
+                 os.path.join(report.getReportDir(), "core_"), "2cm")
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if np.sum(np.array(frac)<0.7)/len(frac)>0.2 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{A large fraction of the 2D classes are rather unstable. In particular, "\
+                        "%d classes have a core that is smaller than 70\\%% of the images assigned}}"%\
+                        (np.sum(np.array(frac)<0.7)))
+    report.writeWarningsAndSummary(warnings, "3.a Outlier detection", secLabel)
+
+    # 3.b internal consistency
+    Ts = protParticles.outputParticles.getSamplingRate()
+    f05 = np.array(md.getColumnValues(xmipp3.MDL_CLASSIFICATION_FRC_05))
+    R05 = Ts*np.reciprocal(f05[f05>0])
+    fnR05Hist = os.path.join(report.getReportDir(),"class2DFRC05Hist.png")
+    reportHistogram(R05,'Resolution at FRC=0.5 (A)',fnR05Hist)
+
+    fnR05 = os.path.join(report.getReportDir(),"class2DFRC05.png")
+    reportPlot(count, f05/Ts, "No. images in the class", "Freq. at which FRC=0.5 (A$^{-1}$)", fnR05,
+               plotType='scatter')
+    secLabel = "sec:internalConsistency"
+    msg = \
+"""
+\\subsection{Level 3.b Classification internal consistency}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+The input particles are classified in 2D clusters. The quality of the 2D clusters is assessed through Fourier Ring Correlation.\\\\
+\\textbf{Results:}\\\\
+Fig. \\ref{fig:classFRC05Hist} shows the histogram of the resolution of each one of the classes. This resolution
+strongly depends on the number of particles assigned to the class, and this server only sees a small fraction of the
+particles. Fig. \\ref{fig:classFRC05} shows a scatter plot of the resolution (in \\AA$^{-1}$ in the classes versus the 
+number of particles.
+\\\\
+The following table shows each class, the number of particles assigned to it, and its resolution as measured by
+the FRC=0.5.
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Histogram of the resolution at FRC=0.5 of the different classes.}
+    \\label{fig:classFRC05Hist}
+\\end{figure}
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Scatter plot of the frequency at which FRC=0.5 (\\AA$^{-1}$) vs the number of particles assigned to
+              each class.}
+    \\label{fig:classFRC05}
+\\end{figure}
+
+""" % (secLabel,fnR05Hist, fnR05)
+    report.write(msg)
+
+    for objId in md:
+        frc05 = md.getValue(xmipp3.MDL_CLASSIFICATION_FRC_05, objId)
+        if frc05>0:
+            md.setValue(xmipp3.MDL_CLASSIFICATION_FRC_05, Ts/frc05, objId)
+        else:
+            md.setValue(xmipp3.MDL_CLASSIFICATION_FRC_05, 999.0, objId)
+
+    md.sort(xmipp3.MDL_CLASSIFICATION_FRC_05)
+    report.showj(md,
+                 [xmipp3.MDL_IMAGE, xmipp3.MDL_CLASS_COUNT, xmipp3.MDL_CLASSIFICATION_FRC_05],
+                 [True, False, False],
+                 ["", "%d ", "%5.1f "],
+                 ["2D Class", "No. Particles", "Resolution (\\AA)"],
+                 os.path.join(report.getReportDir(), "classfrc_"), "2cm")
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    report.writeWarningsAndSummary(warnings, "3.b 2D Classification internal consistency", secLabel)
+
 def reportInput(project, report, fnParticles, protParticles):
     particlesStack = os.path.join(report.getReportDir(),"particles.xmd")
     writeSetOfParticles(protParticles.outputParticles, particlesStack)
@@ -106,7 +265,7 @@ The first 32 can be seen in Fig. \\ref{fig:particles}.\\\\
                        "fig:particles", os.path.join(report.getReportDir(),"particles_"), "1.5cm", 8, imgMax=31)
     cleanPath(particlesStack)
 
-def level3(project, report, protImportMap, fnParticles, TsParticles, kV, Cs, Q0, skipAnalysis = False):
+def level3(project, report, protImportMap, protImportClasses, fnParticles, TsParticles, kV, Cs, Q0, skipAnalysis = False):
     # Import particles
     protParticles = importParticles(project, "import particles", protImportMap, fnParticles, TsParticles, kV, Cs, Q0)
     reportInput(project, report, fnParticles, protParticles)
@@ -114,4 +273,5 @@ def level3(project, report, protImportMap, fnParticles, TsParticles, kV, Cs, Q0,
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 3 analysis')
+        classAnalysis(project, report, "3.ab GL2D", protParticles, protImportClasses)
     return protParticles

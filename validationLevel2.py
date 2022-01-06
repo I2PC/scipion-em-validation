@@ -141,6 +141,7 @@ reported resolution of the map.
                  [xmipp3.MDL_IMAGE, xmipp3.MDL_IMAGE_REF, xmipp3.MDL_IMAGE_RESIDUAL, xmipp3.MDL_IMAGE_COVARIANCE, \
                   xmipp3.MDL_MAXCC],
                  [True, True, True, True, False],
+                 ['', '', '', '', '%5.2f '],
                  ["2D Class","Reprojection","Residual","Covariance",'Correlation'],
                  os.path.join(report.getReportDir(),"reproj_"), "2cm")
 

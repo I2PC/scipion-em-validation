@@ -158,7 +158,7 @@ if 2 in levels:
 # Level 3
 if 3 in levels:
     from validationLevel3 import level3
-    protImportAvgs = level3(project, report, protImportMap, FNPARTICLES, TSPARTICLES, KV, CS, Q0)
+    protImportParticles = level3(project, report, protImportMap, protImportAvgs, FNPARTICLES, TSPARTICLES, KV, CS, Q0)
 
 # Close report
 report.closeReport()

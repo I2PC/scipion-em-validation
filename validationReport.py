@@ -109,6 +109,8 @@ def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear", grid=True, plotType=
         plt.plot(x,y)
     elif plotType=="bar":
         plt.bar(x,y,barWidth)
+    elif plotType=="scatter":
+        plt.scatter(x,y)
     plt.yscale(yscale)
     if invertXLabels:
         plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(formatInv))
@@ -468,7 +470,7 @@ class ValidationReport:
 """%(caption, label)
         self.write(toWrite)
 
-    def showj(self, md, mdLabelList, renderList, headers, fnRoot, width):
+    def showj(self, md, mdLabelList, renderList, formatList, headers, fnRoot, width):
         toWrite = \
 """\\begin{longtable}{%s}
   \\centering
@@ -486,7 +488,7 @@ class ValidationReport:
         idx=0
         for row in iterRows(md):
             i=0
-            for label, render in zip(mdLabelList, renderList):
+            for label, render, format in zip(mdLabelList, renderList, formatList):
                 content = row.getValue(label)
                 if i > 0:
                     toWrite += " & "
@@ -497,7 +499,7 @@ class ValidationReport:
                     idx+=1
                     toWrite += "\\includegraphics[width=%s]{%s} " % (width, fnOut)
                 else:
-                    toWrite+="%s "%content
+                    toWrite+=format%content
                 i+=1
             toWrite+="\\\\ \n"
 
