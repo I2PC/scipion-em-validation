@@ -321,9 +321,9 @@ the symmetry of the structure.
     # Warnings
     warnings=[]
     testWarnings = False
-    if p<0.05 or testWarnings:
+    if p<0.001 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The null hypothesis that the background mean is 0 has been rejected "\
-                        "because the p-value of the comparison is smaller than 0.05}}")
+                        "because the p-value of the comparison is smaller than 0.001}}")
     if cdf5Ratio>20 or testWarnings:
         warnings.append("{\\color{red} \\textbf{There is a significant proportion of outlier values in the background "\
                         "(cdf5 ratio=%5.2f})}"%cdf5Ratio)

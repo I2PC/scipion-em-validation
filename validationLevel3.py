@@ -439,7 +439,7 @@ two distributions with a Kolmogorov-Smirnov (KS) two-sample test. The KS statist
     if np.min(corrOld)<0.8 or testWarnings:
         warnings.append("{\\color{red} \\textbf{Some user classes correlate less than 0.8 with the newly calculated "\
                         "classes}}")
-    if pvalue<0.05 or testWarnings:
+    if pvalue<0.001 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The equality of the two correlation " \
                         "distributions (user vs new, new vs user) was rejected with a p-value of %f}}"%pvalue)
     report.writeWarningsAndSummary(warnings, "3.c 2D Classification external consistency", secLabel)

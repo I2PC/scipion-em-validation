@@ -150,9 +150,140 @@ plot and the dependence of the cross-correlation with the defocus.\\\\
     # Warnings
     report.writeWarningsAndSummary(None, "4.a Similarity criteria", secLabel)
 
+def alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry):
+    bblCitation = \
+"""\\bibitem[M{\\'e}ndez et~al., 2021]{Mendez2021b}
+M{\\'e}ndez, J., Gardu{\\~n}o, E., Carazo, J.~M., and Sorzano, C. O.~S. (2021).
+\\newblock Identification of incorrectly oriented particles in {Cryo-EM} single
+  particle analysis.
+\\newblock {\em J. Structural Biology}, 213:107771."""
+    report.addCitation("Mendez2021b", bblCitation)
+
+    secLabel = "sec:alignabilitySmoothness"
+    msg = \
+"""
+\\subsection{Level 4.b Alignability smoothness}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+This algorithm \\cite{Mendez2021b} analyzes the smoothness of the correlation function over the projection sphere and
+the stability of its maximum.\\\\
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+
+    report.writeSummary("4.b Alignability smoothness", secLabel, "{\\color{red} Not in Scipion}")
+    report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+
+def multirefAlignability(project, report, protMap, protMask, protParticles, symmetry):
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtMultiRefAlignability', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="4.c Alignability",
+                               useGpu=False,
+                               symmetryGroup=symmetry,
+                               numberOfMpi=8)
+    prot.inputVolumes.set(protMap.outputVolume)
+    prot.inputParticles.set(protParticles.outputParticles)
+    project.launchProtocol(prot, wait=True)
+
+    bblCitation = \
+"""\\bibitem[Vargas et~al., 2017]{Vargas2017}
+Vargas, J., Melero, R., G{\\'o}mez-Blanco, J., Carazo, J.~M., and Sorzano, C.
+  O.~S. (2017).
+\\newblock Quantitative analysis of {3D} alignment quality: its impact on
+  soft-validation, particle pruning and homogeneity analysis.
+\\newblock {\em Scientific Reports}, 7:6307."""
+    report.addCitation("Vargas2017", bblCitation)
+
+    bblCitation = \
+"""\\bibitem[Vargas et~al., 2016]{Vargas2016}
+Vargas, J., Ot{\\'o}n, J., Marabini, R., Carazo, J.~M., and Sorzano, C. O.~S.
+  (2016).
+\\newblock Particle alignment reliability in single particle electron
+  cryomicroscopy: a general approach.
+\\newblock {\em Scientific Reports}, 6:21626."""
+    report.addCitation("Vargas2016", bblCitation)
+
+    secLabel = "sec:multirefAlignability"
+    msg = \
+"""
+\\subsection{Level 4.b Alignability}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+Alignability precision and accuracy. The precision \\cite{Vargas2016} analyzes the orientation distribution of the
+best matching reprojections from the reference volume. If the high values are clustered around the same orientation,
+then the precision is close to 1. Otherwise, it is closer to -1. Below 0.5 the best directions tend to be scattered.
+The alignability accuracy \\cite{Vargas2017} compares the final angular assignment with the result of a new angular 
+assignment. The similarity between both is again encoded between -1 and 1.
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    if prot.isFailed():
+        report.writeSummary("4.c Alignability", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    md=xmipp3.MetaData(prot._getExtraPath("vol001_pruned_particles_alignability.xmd"))
+    prec = np.array(md.getColumnValues(xmipp3.MDL_SCORE_BY_ALIGNABILITY_PRECISION))
+    acc = np.array(md.getColumnValues(xmipp3.MDL_SCORE_BY_ALIGNABILITY_ACCURACY))
+    idxPrec = np.logical_and(prec>=-1, prec<=1)
+    idxAcc = np.logical_and(acc>=-1, acc<=1)
+    idx = np.logical_and(idxPrec, idxAcc)
+
+    prec = prec[idx]
+    acc = acc[idx]
+
+    fnPrecHist = os.path.join(report.getReportDir(),"alignabilityPrecisionHist.png")
+    reportHistogram(prec,'Precision',fnPrecHist)
+
+    fnAccHist = os.path.join(report.getReportDir(),"alignabilityAccuracyHist.png")
+    reportHistogram(acc,'Accuracy',fnAccHist)
+
+    fnAccPrec = os.path.join(report.getReportDir(),"alignabilityAccuracyPrecision.png")
+
+    reportPlot(prec, acc, "Precision", "Accuracy", fnAccPrec, plotType='scatter')
+
+    avgAcc = np.mean(acc)
+    avgPrec = np.mean(prec)
+
+    fAcc = np.sum(acc<0.5)/acc.size*100
+    fPrec = np.sum(prec<0.5)/prec.size*100
+
+    msg=\
+"""Fig. \\ref{fig:multirefAlignability} shows the histograms of the accuracy and precision, and a joint scatter
+plot. The average accuracy was %4.3f and the average precision %4.3f. The percentage of images whose accuracy
+is below 0.5 is %4.1f\\%%, and the percentage of images whose precision is below 0.5 is %4.1f\\%%.\\\\
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=6.5cm]{%s}
+    \includegraphics[width=6.5cm]{%s} \\\\
+    \includegraphics[width=9cm]{%s}
+    \\caption{Top: Histogram of the accuracy and precision. Bottom: Scatter plot of both measures.}
+    \\label{fig:multirefAlignability}
+\\end{figure}
+"""%(avgAcc, avgPrec, fAcc, fPrec, fnAccHist, fnPrecHist, fnAccPrec)
+    report.write(msg)
+
+    warnings=[]
+    testWarnings = False
+    if fAcc>30 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The percentage of images with low alignability accuracy is too high, "\
+                        "%4.1f\\%%}}"%fAcc)
+    if fPrec>30 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The percentage of images with low alignability precision is too high, "\
+                        "%4.1f\\%%}}"%fPrec)
+    report.writeWarningsAndSummary(warnings, "4.c Alignability", secLabel)
+
 
 def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, skipAnalysis = False):
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 4 analysis')
-        similarityMeasures(project, report, protMap, protMask, protParticles, symmetry, resolution)
+        # similarityMeasures(project, report, protMap, protMask, protParticles, symmetry, resolution)
+        alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry)
+        multirefAlignability(project, report, protMap, protMask, protParticles, symmetry)

@@ -412,7 +412,7 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
     # Warnings
     warnings=[]
     testWarnings = False
-    if resolutionP<0.05 or testWarnings:
+    if resolutionP<0.001 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
                         "to the local resolution distribution. It occupies the %5.2f percentile}}"%\
                         (resolution,resolutionP*100))
@@ -537,7 +537,7 @@ Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is
     # Warnings
     warnings=[]
     testWarnings = False
-    if p<0.05 or testWarnings:
+    if p<0.001 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The distribution of best resolution is not uniform in all directions. "\
                         "The associated p-value is %f.}}"%p)
     if resolution<0.8*avgDirResolution or testWarnings:
