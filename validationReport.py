@@ -283,13 +283,17 @@ class ValidationReport:
         self.fh.write(msg)
 
     def writeWarningsAndSummary(self, warnings, section, secLabel):
-        if len(warnings) > 0:
-            countWarnings = len(warnings)
-            toWrite = "\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n" % (countWarnings, latexEnumerate(warnings))
-            self.writeSummary(section, secLabel, "{\\color{red} %d warnings}" % countWarnings)
+        if warnings is None:
+            toWrite = "\\textbf{STATUS}: {\\color{brown} Cannot be automatically evaluated}\\\\ \n"
+            self.writeSummary(section, secLabel, "{\\color{brown} Cannot be automated}")
         else:
-            toWrite = "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
-            self.writeSummary(section, secLabel, "{\\color{blue} OK}")
+            if len(warnings) > 0:
+                countWarnings = len(warnings)
+                toWrite = "\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n" % (countWarnings, latexEnumerate(warnings))
+                self.writeSummary(section, secLabel, "{\\color{red} %d warnings}" % countWarnings)
+            else:
+                toWrite = "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
+                self.writeSummary(section, secLabel, "{\\color{blue} OK}")
         self.write(toWrite)
 
     def writeSummary(self, test, sec, msg):

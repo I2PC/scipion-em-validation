@@ -277,9 +277,7 @@ the FRC=0.5.
                  os.path.join(report.getReportDir(), "classfrc_"), "2cm")
 
     # Warnings
-    warnings=[]
-    testWarnings = False
-    report.writeWarningsAndSummary(warnings, "3.b 2D Classification internal consistency", secLabel)
+    report.writeWarningsAndSummary(None, "3.b 2D Classification internal consistency", secLabel)
 
 def newClassification(project, report, protParticles, protClasses):
     Prot = pwplugin.Domain.importFromPlugin('cryosparc2.protocols',
