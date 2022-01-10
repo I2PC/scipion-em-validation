@@ -28,6 +28,7 @@ import glob
 import math
 import numpy as np
 import os
+import scipy
 
 from pwem.emlib.metadata import iterRows
 import pyworkflow.plugin as pwplugin
@@ -279,11 +280,314 @@ is below 0.5 is %4.1f\\%%, and the percentage of images whose precision is below
                         "%4.1f\\%%}}"%fPrec)
     report.writeWarningsAndSummary(warnings, "4.c Alignability", secLabel)
 
+def compareAlignment(project, report, refmap, protRefParticles, protReconstruction, symmetry, label, fnRoot):
+    Ts = refmap.getSamplingRate()
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtAlignVolumeParticles', doRaise=True)
+    protAlign = project.newProtocol(Prot,
+                                    objLabel="4.d"+label+" align",
+                                    symmetryGroup=symmetry)
+    protAlign.inputReference.set(refmap)
+    protAlign.inputVolume.set(protReconstruction.outputVolume)
+    protAlign.inputParticles.set(protReconstruction.outputParticles)
+    project.launchProtocol(protAlign, wait=True)
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtCompareAngles', doRaise=True)
+    protCompare = project.newProtocol(Prot,
+                                    objLabel="4.d"+label+" compare",
+                                    symmetryGroup=symmetry)
+    protCompare.inputParticles1.set(protRefParticles.outputParticles)
+    protCompare.inputParticles2.set(protReconstruction.outputParticles)
+    project.launchProtocol(protCompare, wait=True)
+
+    allShiftDiffs = []
+    allAngleDiffs = []
+    for particle in protCompare.outputParticles:
+        allShiftDiffs.append(Ts*particle.getAttributeValue("_xmipp_shiftDiff"))
+        allAngleDiffs.append(particle.getAttributeValue("_xmipp_angleDiff"))
+    allShiftDiffs.sort()
+    allAngleDiffs.sort()
+
+    medShift = np.median(allShiftDiffs)
+    medAngle = np.median(allAngleDiffs)
+    madShift = scipy.stats.median_absolute_deviation(allShiftDiffs)
+    madAngle = scipy.stats.median_absolute_deviation(allAngleDiffs)
+
+    thresholdShift = 5 # medShift+3*madShift
+    thresholdAngle = 5 # medAngle+3*madAngle
+
+    outliersShift = np.sum(np.array(allShiftDiffs)>thresholdShift)/len(allShiftDiffs)*100
+    outliersAngles = np.sum(np.array(allAngleDiffs)>thresholdAngle)/len(allAngleDiffs)*100
+
+    fnShift = os.path.join(report.getReportDir(),fnRoot+"_shiftDiff.png")
+    fnAngles = os.path.join(report.getReportDir(),fnRoot+"_anglesDiff.png")
+
+    nparticles = [x+1 for x in range(len(allShiftDiffs))]
+    reportPlot(nparticles, allShiftDiffs, "Particle No.", "Shift difference (A)", fnShift)
+    reportPlot(nparticles, allAngleDiffs, "Particle No.", "Angular difference difference (degrees)", fnAngles)
+
+    simplifiedLabel = label.split()[-1]
+    msg=\
+"""Fig. \\ref{fig:comparison%s} shows the shift and angular difference between the alignment given by the user
+and the one calculated by %s. The median shift difference was %4.1f\\AA, and the median angular difference
+%5.1f degrees. Their corresponding median absolute deviations were %4.1f and %4.1f, respectively. Particles
+with a shift difference larger than 5\\AA~or an angular difference larger than 5 degrees would be considered as 
+incorrectly assigned in one of the two assignments (the user's or the new one). %4.1f\\%% particles were considered 
+to have an uncertain shifts, and %4.1f\\%% particles were considered to have an uncertain alignment. 
+\\\\
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \includegraphics[width=9cm]{%s}
+    \\caption{Top: Shift difference between the alignment given by the user and the one calculated by %s. Bottom:
+    Angular difference. The X-axis represents all particles sorted by their difference.}
+    \\label{fig:comparison%s}
+\\end{figure}
+"""%(simplifiedLabel, simplifiedLabel, medShift, medAngle, madShift, madAngle, outliersShift, outliersAngles,
+     fnShift, fnAngles, simplifiedLabel, simplifiedLabel)
+    report.write(msg)
+
+    return outliersShift, outliersAngles
+
+def relionAlignment(project, report, protMap, protMask, protParticles, symmetry):
+    Xdim = protMap.outputVolume.getDim()[0]
+    Ts = protMap.outputVolume.getSamplingRate()
+    AMap = Xdim * Ts
+
+    TsTarget = 3.0
+    Xdimp = AMap/TsTarget
+    Xdimp = int(2*math.floor(Xdimp/2))
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtCropResizeParticles', doRaise=True)
+    protResizeParticles = project.newProtocol(Prot,
+                                              objLabel="Resize Ptcls Ts=3",
+                                              doResize=True,
+                                              resizeSamplingRate=TsTarget,
+                                              doWindow=True,
+                                              windowOperation=1,
+                                              windowSize=Xdimp)
+    protResizeParticles.inputParticles.set(protParticles.outputParticles)
+    project.launchProtocol(protResizeParticles, wait=True)
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtCropResizeVolumes', doRaise=True)
+    protResizeMap = project.newProtocol(Prot,
+                                        objLabel="Resize Volume Ts=3",
+                                        doResize=True,
+                                        resizeSamplingRate=TsTarget,
+                                        doWindow=True,
+                                        windowOperation=1,
+                                        windowSize=Xdimp)
+    protResizeMap.inputVolumes.set(protMap.outputVolume)
+    project.launchProtocol(protResizeMap, wait=True)
+
+    protResizeMask = project.newProtocol(Prot,
+                                         objLabel="Resize Mask Ts=3",
+                                         doResize=True,
+                                         resizeSamplingRate=TsTarget,
+                                         doWindow=True,
+                                         windowOperation=1,
+                                         windowSize=Xdimp)
+    protResizeMask.inputVolumes.set(protMask.outputMask)
+    project.launchProtocol(protResizeMask, wait=True)
+
+    Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
+                                            'ProtRelionRefine3D', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="4.d Relion Refine",
+                               initialLowPassFilterA=3,
+                               symmetryGroup=symmetry
+                               )
+    prot.referenceVolume.set(protResizeMap.outputVol)
+    prot.inputParticles.set(protResizeParticles.outputParticles)
+    prot.referenceMask.set(protResizeMask.outputVol)
+    project.launchProtocol(prot, wait=True)
+
+    bblCitation = \
+        """\\bibitem[Scheres, 2012]{Scheres2012}
+Scheres, S. H.~W. (2012).
+\\newblock A {B}ayesian view on cryo-{EM} structure determination.
+\\newblock {\em J. {M}olecular {B}iology}, 415:406--418."""
+    report.addCitation("Scheres2012", bblCitation)
+
+    secLabel = "sec:relionAlignment"
+    msg = \
+"""
+\\subsection{Level 4.d1 Relion alignment}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+We have performed an independent angular assignment using Relion autorefine \\cite{Scheres2012}. Images were
+downsampled to a pixel size of 3\\AA. Then, we measured the difference between the angular assignment of the 
+particles given by the user and the one done by Relion.
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    if prot.isFailed():
+        report.writeSummary("4.d1 Relion alignment", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return protResizeParticles, protResizeMap, protResizeMask
+
+def cryosparcAlignment(project, report, protMap, protMask, protParticles, symmetry):
+    Prot = pwplugin.Domain.importFromPlugin('cryosparc2.protocols',
+                                            'ProtCryoSparcNonUniformRefine3D', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="4.d Cryosparc Refine")
+    prot.referenceVolume.set(protMap.outputVol)
+    prot.inputParticles.set(protParticles.outputParticles)
+    prot.refMask.set(protMask.outputVol)
+    if symmetry[0]=="c":
+        prot.symmetryGroup.set(0)
+        prot.symmetryOrder.set(int(symmetry[1:]))
+    elif symmetry[0]=="d":
+        prot.symmetryGroup.set(1)
+        prot.symmetryOrder.set(int(symmetry[1:]))
+    elif symmetry[0]=="o":
+        prot.symmetryGroup.set(3)
+    elif symmetry=="i1":
+        prot.symmetryGroup.set(4)
+    elif symmetry=="i2":
+        prot.symmetryGroup.set(5)
+    project.launchProtocol(prot, wait=True)
+
+    bblCitation = \
+        """\\bibitem[Punjani et~al., 2017]{Punjani2017b}
+Punjani, A., Brubaker, M.~A., and Fleet, D.~J. (2017).
+\\newblock Building proteins in a day: Efficient {3D} molecular structure
+  estimation with electron cryomicroscopy.
+\\newblock {\em {IEEE} Trans. Pattern Analysis \& Machine Intelligence},
+  39:706--718."""
+    report.addCitation("Punjani2017b", bblCitation)
+
+    secLabel = "sec:cryosparcAlignment"
+    msg = \
+"""
+\\subsection{Level 4.d2 CryoSparc alignment}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+We have performed an independent angular assignment using CryoSparc non-homogeneous refinement \\cite{Punjani2017b}.
+Images were downsampled to a pixel size of 3\\AA.  Then, we measured the difference between the angular assignment
+of the particles given by the user and the one done by CryoSparc.
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    if prot.isFailed():
+        report.writeSummary("4.d2 CryoSparc alignment", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    shiftOutliers, angleOutliers = compareAlignment(project, report, protMap.outputVol, protParticles, prot, symmetry,
+                                                    "2. Cryosparc", "alignmentCryosparc")
+    warnings = []
+    testWarnings = False
+    if shiftOutliers>20 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The percentage of images with uncertain shift is larger than 20\\%}}")
+    if angleOutliers>20 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The percentage of images with uncertain angles is larger than 20\\%}}")
+    report.writeWarningsAndSummary(warnings, "4.d2 CryoSparc alignment", secLabel)
+
+def relionClassification(project, report, protMap, protMask, protParticles, symmetry):
+    Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
+                                            'ProtRelionClassify3D', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="4.e Relion classify",
+                               copyAlignment=True,
+                               initialLowPassFilterA=3,
+                               symmetryGroup=symmetry,
+                               numberOfClasses=2,
+                               doImageAlignment=False,
+                               doGpu=False,
+                               numberOfMpi=8)
+    prot.referenceVolume.set(protMap.outputVol)
+    prot.inputParticles.set(protParticles.outputParticles)
+    prot.referenceMask.set(protMask.outputVol)
+    project.launchProtocol(prot, wait=True)
+
+    bblCitation = \
+        """\\bibitem[Scheres, 2012]{Scheres2012}
+Scheres, S. H.~W. (2012).
+\\newblock A {B}ayesian view on cryo-{EM} structure determination.
+\\newblock {\em J. {M}olecular {B}iology}, 415:406--418."""
+    report.addCitation("Scheres2012", bblCitation)
+
+    secLabel = "sec:relionClassification"
+    msg = \
+"""
+\\subsection{Level 4.e Classification without alignment}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+We have performed a 3D classification of the input particles in two classes without aligning them using Relion
+\\cite{Scheres2012}. Images were downsampled to a pixel size of 3\\AA. A valid result would be: 1) a class attracting
+most particles and an almost empty class, 2) two classes with an arbitrary number of images in each one, but without
+any significant structural difference between the two.
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    if prot.isFailed():
+        report.writeSummary("4.e Classification without alignment", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+def validateOverfitting(project, report, protMap, protMask, protParticles, symmetry, resolution):
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtValidateOverfitting', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="4.f Overfitting detection",
+                               doResize=True,
+                               numberOfMpi=8)
+
+    prot.referenceVolume.set(protMap.outputVol)
+    prot.inputParticles.set(protParticles.outputParticles)
+    prot.referenceMask.set(protMask.outputVol)
+    project.launchProtocol(prot, wait=True)
+
+    bblCitation = \
+        """\\bibitem[Scheres, 2012]{Scheres2012}
+Scheres, S. H.~W. (2012).
+\\newblock A {B}ayesian view on cryo-{EM} structure determination.
+\\newblock {\em J. {M}olecular {B}iology}, 415:406--418."""
+    report.addCitation("Scheres2012", bblCitation)
+
+    secLabel = "sec:relionClassification"
+    msg = \
+"""
+\\subsection{Level 4.e Classification without alignment}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+We have performed a 3D classification of the input particles in two classes without aligning them using Relion
+\\cite{Scheres2012}. Images were downsampled to a pixel size of 3\\AA. A valid result would be: 1) a class attracting
+most particles and an almost empty class, 2) two classes with an arbitrary number of images in each one, but without
+any significant structural difference between the two.
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    if prot.isFailed():
+        report.writeSummary("4.f Overfitting detection", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
 
 def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, skipAnalysis = False):
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 4 analysis')
         # similarityMeasures(project, report, protMap, protMask, protParticles, symmetry, resolution)
-        alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry)
-        multirefAlignability(project, report, protMap, protMask, protParticles, symmetry)
+        # alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry)
+        # multirefAlignability(project, report, protMap, protMask, protParticles, symmetry)
+        protResizeParticles, protResizeMap, protResizeMask = relionAlignment(project, report, protMap, protMask,
+                                                                             protParticles, symmetry)
+        cryosparcAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
+        # *** TODO: Comparison between relion and cryosparc
+        relionClassification(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
+        # validateOverfitting(project, report, protMap, protMask, protParticles, symmetry, resolution)
