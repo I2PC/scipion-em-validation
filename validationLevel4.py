@@ -281,8 +281,6 @@ is below 0.5 is %4.1f\\%%, and the percentage of images whose precision is below
     report.writeWarningsAndSummary(warnings, "4.c Alignability", secLabel)
 
 def compareAlignment(project, report, refmap, protRefParticles, protReconstruction, symmetry, label, fnRoot):
-    Ts = refmap.getSamplingRate()
-
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtAlignVolumeParticles', doRaise=True)
     protAlign = project.newProtocol(Prot,
@@ -305,7 +303,7 @@ def compareAlignment(project, report, refmap, protRefParticles, protReconstructi
     allShiftDiffs = []
     allAngleDiffs = []
     for particle in protCompare.outputParticles:
-        allShiftDiffs.append(Ts*particle.getAttributeValue("_xmipp_shiftDiff"))
+        allShiftDiffs.append(particle.getAttributeValue("_xmipp_shiftDiff"))
         allAngleDiffs.append(particle.getAttributeValue("_xmipp_angleDiff"))
     allShiftDiffs.sort()
     allAngleDiffs.sort()
@@ -352,19 +350,19 @@ to have an uncertain shifts, and %4.1f\\%% particles were considered to have an 
 
     return outliersShift, outliersAngles
 
-def relionAlignment(project, report, protMap, protMask, protParticles, symmetry):
+def relionAlignment(project, report, protMap, protMask, protParticles, symmetry, resolution):
     Xdim = protMap.outputVolume.getDim()[0]
     Ts = protMap.outputVolume.getSamplingRate()
     AMap = Xdim * Ts
 
-    TsTarget = 3.0
+    TsTarget = resolution/2
     Xdimp = AMap/TsTarget
     Xdimp = int(2*math.floor(Xdimp/2))
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtCropResizeParticles', doRaise=True)
     protResizeParticles = project.newProtocol(Prot,
-                                              objLabel="Resize Ptcls Ts=3",
+                                              objLabel="Resize Ptcls Ts=%2.1f"%TsTarget,
                                               doResize=True,
                                               resizeSamplingRate=TsTarget,
                                               doWindow=True,
@@ -376,7 +374,7 @@ def relionAlignment(project, report, protMap, protMask, protParticles, symmetry)
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtCropResizeVolumes', doRaise=True)
     protResizeMap = project.newProtocol(Prot,
-                                        objLabel="Resize Volume Ts=3",
+                                        objLabel="Resize Volume Ts=%2.1f"%TsTarget,
                                         doResize=True,
                                         resizeSamplingRate=TsTarget,
                                         doWindow=True,
@@ -386,7 +384,7 @@ def relionAlignment(project, report, protMap, protMask, protParticles, symmetry)
     project.launchProtocol(protResizeMap, wait=True)
 
     protResizeMask = project.newProtocol(Prot,
-                                         objLabel="Resize Mask Ts=3",
+                                         objLabel="Resize Mask Ts=%2.1f"%TsTarget,
                                          doResize=True,
                                          resizeSamplingRate=TsTarget,
                                          doWindow=True,
@@ -540,33 +538,40 @@ any significant structural difference between the two.
 def validateOverfitting(project, report, protMap, protMask, protParticles, symmetry, resolution):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtValidateOverfitting', doRaise=True)
+
+    Nptcls = protParticles.outputParticles.getSize()
+
+    samplePtcls=""
+    for x in [0.03, 0.1]: # [0.03, 0.1, 0.3, 0.75, 1.0]:
+        samplePtcls+="%d "%int(0.5*x*Nptcls)
     prot = project.newProtocol(Prot,
                                objLabel="4.f Overfitting detection",
-                               doResize=True,
-                               numberOfMpi=8)
+                               numberOfIterations=5,
+                               numberOfParticles=samplePtcls,
+                               doNoise=True,
+                               numberOfMpi=8,
+                               symmetry=symmetry)
 
-    prot.referenceVolume.set(protMap.outputVol)
+    prot.input3DReference.set(protMap.outputVol)
     prot.inputParticles.set(protParticles.outputParticles)
-    prot.referenceMask.set(protMask.outputVol)
     project.launchProtocol(prot, wait=True)
 
     bblCitation = \
-        """\\bibitem[Scheres, 2012]{Scheres2012}
-Scheres, S. H.~W. (2012).
-\\newblock A {B}ayesian view on cryo-{EM} structure determination.
-\\newblock {\em J. {M}olecular {B}iology}, 415:406--418."""
-    report.addCitation("Scheres2012", bblCitation)
+"""\\bibitem[Heymann, 2015]{Heymann2015}
+Heymann, B. (2015).
+\\newblock Validation of {3DEM} reconstructions: The phantom in the noise.
+\\newblock {\em AIMS Biophysics}, 2:21--35."""
+    report.addCitation("Heymann2015", bblCitation)
 
     secLabel = "sec:relionClassification"
     msg = \
 """
-\\subsection{Level 4.e Classification without alignment}
+\\subsection{Level 4.f Overfitting detection}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-We have performed a 3D classification of the input particles in two classes without aligning them using Relion
-\\cite{Scheres2012}. Images were downsampled to a pixel size of 3\\AA. A valid result would be: 1) a class attracting
-most particles and an almost empty class, 2) two classes with an arbitrary number of images in each one, but without
-any significant structural difference between the two.
+The detection of overfitting can be performed through a series of 5 reconstructions with an increasing number
+of experimental particles and the same number of pure noise particles \\cite{Heymann2015}. The resolution of
+the reconstructions with experimental particles should always be better than those from noise. \\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
@@ -577,6 +582,64 @@ any significant structural difference between the two.
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
+    def readResults(fn):
+        xVal = []
+        yVal = []
+        yErr = []
+        fileValues = open(fn,'r')
+        for line in fileValues:
+            values = line.split()
+            xVal.append(float(values[0]))
+            yVal.append(float(values[1]))
+            yErr.append(float(values[2]))
+        return xVal, yVal, yErr
+
+    x, y, ye = readResults(prot._defineResultsTxt())
+    xn, yn, yen = readResults(prot._defineResultsNoiseTxt())
+
+    fnPlot = os.path.join(report.getReportDir(),"overfitting.png")
+    reportMultiplePlots(x,[np.reciprocal(y), np.reciprocal(yn)], "No. Particles", "Resolution Freq. (1/A)", fnPlot,
+                        ['Experimental particles', 'Noise particles'])
+
+    overfitting = (np.sum(np.array(yn)<np.array(y))>0)
+    msg=\
+"""We tested with subsets of %s particles. Fig. \\ref{fig:overfitting} shows the inverse of the resolution as a function
+of the number of particles.
+"""%(', '.join(samplePtcls.split()))
+
+    if overfitting:
+        msg+="We have detected that the resolution of pure noise particles is sometimes better than the one of "\
+             "true particles."
+    msg+=\
+""""\\\\
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Inverse of the resolution as a function of the number of particles.}
+    \\label{fig:overfitting}
+\\end{figure}
+"""%fnPlot
+    report.write(msg)
+
+    warnings=[]
+    testWarnings = False
+    if overfitting>30 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{the resolution of pure noise particles is sometimes better than the "\
+                        "one of true particles.}}")
+    report.writeWarningsAndSummary(warnings, "4.f Overfitting detection", secLabel)
+
+def angularDistributionEfficiency(project, report, protResizeParticles, symmetry):
+    Prot = pwplugin.Domain.importFromPlugin('cryoef.protocols',
+                                            'ProtCryoEF', doRaise=True)
+
+    prot = project.newProtocol(Prot,
+                               objLabel="4.g CryoEF",
+                               symmetry=symmetry)
+
+    prot.input3DReference.set(protMap.outputVol)
+    prot.inputParticles.set(protParticles.outputParticles)
+    project.launchProtocol(prot, wait=True)
+
 
 def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, skipAnalysis = False):
     # Quality Measures
@@ -586,8 +649,9 @@ def level4(project, report, protMap, protMask, protParticles, symmetry, resoluti
         # alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry)
         # multirefAlignability(project, report, protMap, protMask, protParticles, symmetry)
         protResizeParticles, protResizeMap, protResizeMask = relionAlignment(project, report, protMap, protMask,
-                                                                             protParticles, symmetry)
-        cryosparcAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
+                                                                             protParticles, symmetry, resolution)
+        # cryosparcAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
         # *** TODO: Comparison between relion and cryosparc
-        relionClassification(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
-        # validateOverfitting(project, report, protMap, protMask, protParticles, symmetry, resolution)
+        # relionClassification(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
+        validateOverfitting(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
+        angularDistributionEfficiency(project, report, protResizeParticles, symmetry)
