@@ -148,7 +148,7 @@ report = ValidationReport(fnProjectDir, levels)
 
 # Level 0
 from validationLevel0 import level0
-protImportMap, protCreateMask = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION,
+protImportMap, protCreateMask, bfactor = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION,
                                        skipAnalysis = True)
 
 # Level 1
@@ -172,7 +172,8 @@ if 3 in levels:
 # Level 4
 if 4 in levels:
     from validationLevel4 import level4
-    level4(project, report, protImportMap, protCreateMask, protResizeMap, SYM, MAPRESOLUTION, skipAnalysis = False)
+    level4(project, report, protImportMap, protCreateMask, protResizeMap, SYM, MAPRESOLUTION, bfactor,
+           skipAnalysis = False)
 
 # Close report
 report.closeReport()

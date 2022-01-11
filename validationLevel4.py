@@ -38,6 +38,51 @@ import xmipp3
 
 from validationReport import reportHistogram, reportPlot, reportMultiplePlots
 
+def resizeProject(project, protMap, protMask, protParticles, resolution):
+    Xdim = protMap.outputVolume.getDim()[0]
+    Ts = protMap.outputVolume.getSamplingRate()
+    AMap = Xdim * Ts
+
+    TsTarget = resolution/2
+    Xdimp = AMap/TsTarget
+    Xdimp = int(2*math.floor(Xdimp/2))
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtCropResizeParticles', doRaise=True)
+    protResizeParticles = project.newProtocol(Prot,
+                                              objLabel="Resize Ptcls Ts=%2.1f"%TsTarget,
+                                              doResize=True,
+                                              resizeSamplingRate=TsTarget,
+                                              doWindow=True,
+                                              windowOperation=1,
+                                              windowSize=Xdimp)
+    protResizeParticles.inputParticles.set(protParticles.outputParticles)
+    project.launchProtocol(protResizeParticles, wait=True)
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtCropResizeVolumes', doRaise=True)
+    protResizeMap = project.newProtocol(Prot,
+                                        objLabel="Resize Volume Ts=%2.1f"%TsTarget,
+                                        doResize=True,
+                                        resizeSamplingRate=TsTarget,
+                                        doWindow=True,
+                                        windowOperation=1,
+                                        windowSize=Xdimp)
+    protResizeMap.inputVolumes.set(protMap.outputVolume)
+    project.launchProtocol(protResizeMap, wait=True)
+
+    protResizeMask = project.newProtocol(Prot,
+                                         objLabel="Resize Mask Ts=%2.1f"%TsTarget,
+                                         doResize=True,
+                                         resizeSamplingRate=TsTarget,
+                                         doWindow=True,
+                                         windowOperation=1,
+                                         windowSize=Xdimp)
+    protResizeMask.inputVolumes.set(protMask.outputMask)
+    project.launchProtocol(protResizeMask, wait=True)
+    return protResizeParticles, protResizeMap, protResizeMask
+
+
 def similarityMeasures(project, report, protMap, protMask, protParticles, symmetry, resolution):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtReconstructHighRes', doRaise=True)
@@ -46,7 +91,7 @@ def similarityMeasures(project, report, protMap, protMask, protParticles, symmet
                                symmetryGroup=symmetry,
                                alignmentMethod=1,
                                numberOfIterations=1,
-                               maximumTargetResolution=max(3,resolution),
+                               maximumTargetResolution=max(10,resolution),
                                contShift=False,
                                contAngles=False)
     prot.inputVolumes.set(protMap.outputVolume)
@@ -350,54 +395,12 @@ to have an uncertain shifts, and %4.1f\\%% particles were considered to have an 
 
     return outliersShift, outliersAngles
 
-def relionAlignment(project, report, protMap, protMask, protParticles, symmetry, resolution):
-    Xdim = protMap.outputVolume.getDim()[0]
-    Ts = protMap.outputVolume.getSamplingRate()
-    AMap = Xdim * Ts
-
-    TsTarget = resolution/2
-    Xdimp = AMap/TsTarget
-    Xdimp = int(2*math.floor(Xdimp/2))
-
-    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
-                                            'XmippProtCropResizeParticles', doRaise=True)
-    protResizeParticles = project.newProtocol(Prot,
-                                              objLabel="Resize Ptcls Ts=%2.1f"%TsTarget,
-                                              doResize=True,
-                                              resizeSamplingRate=TsTarget,
-                                              doWindow=True,
-                                              windowOperation=1,
-                                              windowSize=Xdimp)
-    protResizeParticles.inputParticles.set(protParticles.outputParticles)
-    project.launchProtocol(protResizeParticles, wait=True)
-
-    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
-                                            'XmippProtCropResizeVolumes', doRaise=True)
-    protResizeMap = project.newProtocol(Prot,
-                                        objLabel="Resize Volume Ts=%2.1f"%TsTarget,
-                                        doResize=True,
-                                        resizeSamplingRate=TsTarget,
-                                        doWindow=True,
-                                        windowOperation=1,
-                                        windowSize=Xdimp)
-    protResizeMap.inputVolumes.set(protMap.outputVolume)
-    project.launchProtocol(protResizeMap, wait=True)
-
-    protResizeMask = project.newProtocol(Prot,
-                                         objLabel="Resize Mask Ts=%2.1f"%TsTarget,
-                                         doResize=True,
-                                         resizeSamplingRate=TsTarget,
-                                         doWindow=True,
-                                         windowOperation=1,
-                                         windowSize=Xdimp)
-    protResizeMask.inputVolumes.set(protMask.outputMask)
-    project.launchProtocol(protResizeMask, wait=True)
-
+def relionAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution):
     Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
                                             'ProtRelionRefine3D', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel="4.d Relion Refine",
-                               initialLowPassFilterA=3,
+                               initialLowPassFilterA=10,
                                symmetryGroup=symmetry
                                )
     prot.referenceVolume.set(protResizeMap.outputVol)
@@ -429,7 +432,7 @@ particles given by the user and the one done by Relion.
     if prot.isFailed():
         report.writeSummary("4.d1 Relion alignment", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
-        return protResizeParticles, protResizeMap, protResizeMask
+        return prot
 
 def cryosparcAlignment(project, report, protMap, protMask, protParticles, symmetry):
     Prot = pwplugin.Domain.importFromPlugin('cryosparc2.protocols',
@@ -497,7 +500,7 @@ def relionClassification(project, report, protMap, protMask, protParticles, symm
     prot = project.newProtocol(Prot,
                                objLabel="4.e Relion classify",
                                copyAlignment=True,
-                               initialLowPassFilterA=3,
+                               initialLowPassFilterA=10,
                                symmetryGroup=symmetry,
                                numberOfClasses=2,
                                doImageAlignment=False,
@@ -542,7 +545,7 @@ def validateOverfitting(project, report, protMap, protMask, protParticles, symme
     Nptcls = protParticles.outputParticles.getSize()
 
     samplePtcls=""
-    for x in [0.03, 0.1]: # [0.03, 0.1, 0.3, 0.75, 1.0]:
+    for x in [0.03, 0.1, 0.3, 0.75, 1.0]:
         samplePtcls+="%d "%int(0.5*x*Nptcls)
     prot = project.newProtocol(Prot,
                                objLabel="4.f Overfitting detection",
@@ -611,7 +614,8 @@ of the number of particles.
         msg+="We have detected that the resolution of pure noise particles is sometimes better than the one of "\
              "true particles."
     msg+=\
-""""\\\\
+"""\\\\
+
 \\begin{figure}[H]
     \centering
     \includegraphics[width=9cm]{%s}
@@ -628,30 +632,99 @@ of the number of particles.
                         "one of true particles.}}")
     report.writeWarningsAndSummary(warnings, "4.f Overfitting detection", secLabel)
 
-def angularDistributionEfficiency(project, report, protResizeParticles, symmetry):
+def angularDistributionEfficiency(project, report, protResizeParticles, symmetry, resolution, bfactor):
+    Xdim = protResizeParticles.outputParticles.getDim()[0]
+    Ts = protResizeParticles.outputParticles.getSamplingRate()
+    APtcls = Xdim * Ts
+
     Prot = pwplugin.Domain.importFromPlugin('cryoef.protocols',
                                             'ProtCryoEF', doRaise=True)
 
     prot = project.newProtocol(Prot,
                                objLabel="4.g CryoEF",
-                               symmetry=symmetry)
+                               symmetryGroup=symmetry,
+                               diam=0.9*APtcls,
+                               FSCres=resolution,
+                               angAcc=10,
+                               Bfact=-bfactor)
 
-    prot.input3DReference.set(protMap.outputVol)
-    prot.inputParticles.set(protParticles.outputParticles)
+    prot.inputParticles.set(protResizeParticles.outputParticles)
     project.launchProtocol(prot, wait=True)
 
+    bblCitation = \
+"""\\bibitem[Naydenova and Russo, 2017]{Naydenova2017}
+Naydenova, K. and Russo, C.~J. (2017).
+\\newblock Measuring the effects of particle orientation to improve the
+  efficiency of electron cryomicroscopy.
+\\newblock {\em Nature communications}, 8:629."""
+    report.addCitation("Naydenova2017", bblCitation)
 
-def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, skipAnalysis = False):
+    secLabel = "sec:AngularDistributionEfficiency"
+    msg = \
+"""
+\\subsection{Level 4.g Angular distribution efficiency}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+This method \\cite{Naydenova2017} evaluates the ability of the angular distribution to fill the Fourier space. 
+It determines a resolution
+per direction based on the number of particles in each direction and reports the distribution efficiency, a 
+number between 0 (inefficient) and 1 (total efficiency).\\\\
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    if prot.isFailed():
+        report.writeSummary("4.g Angular distribution efficiency", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    fh=open(prot._getExtraPath("input_angles_PSFres.dat"))
+    R=[]
+    for line in fh.readlines():
+        R.append(float(line))
+    fh.close()
+    fnRHist = os.path.join(report.getReportDir(),"angEffHist.png")
+    reportHistogram(R,'Resolution (A)', fnRHist)
+
+    avgDirResolution=np.mean(R)
+    msg=\
+"""Fig. \\ref{fig:efficiency} shows the histogram of the measured resolutions per direction. The average resolution
+was %4.1f \\AA, and its range [%4.1f,%4.1f].
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Histogram of the directional resolution according to the angular distribution efficiency.}
+    \\label{fig:efficiency}
+\\end{figure}
+"""%(avgDirResolution, np.min(R), np.max(R), fnRHist)
+    report.write(msg)
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if resolution<0.8*avgDirResolution or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
+                        "smaller than the average directional resolution, %5.2f \\AA.}}" %\
+                        (resolution, avgDirResolution))
+    report.writeWarningsAndSummary(warnings, "4.g Angular distribution efficiency", secLabel)
+
+
+def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, bfactor, skipAnalysis = False):
+    # Resize to the given resolution
+    protResizeParticles, protResizeMap, protResizeMask = resizeProject(project, protMap, protMask, protParticles,
+                                                                       resolution)
+
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 4 analysis')
         # similarityMeasures(project, report, protMap, protMask, protParticles, symmetry, resolution)
         # alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry)
         # multirefAlignability(project, report, protMap, protMask, protParticles, symmetry)
-        protResizeParticles, protResizeMap, protResizeMask = relionAlignment(project, report, protMap, protMask,
-                                                                             protParticles, symmetry, resolution)
+        # relionAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
         # cryosparcAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
         # *** TODO: Comparison between relion and cryosparc
         # relionClassification(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
-        validateOverfitting(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
-        angularDistributionEfficiency(project, report, protResizeParticles, symmetry)
+        # validateOverfitting(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
+        angularDistributionEfficiency(project, report, protResizeParticles, symmetry, resolution, bfactor)

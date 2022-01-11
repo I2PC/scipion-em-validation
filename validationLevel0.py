@@ -28,9 +28,11 @@ import math
 import numpy as np
 import os
 import scipy
+import subprocess
 
+from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
-from validationReport import readMap, latexEnumerate, calculateSha256, reportPlot
+from validationReport import readMap, latexEnumerate, calculateSha256, reportPlot, reportMultiplePlots
 
 def importMap(project, label, fnMap, fnMap1, fnMap2, Ts):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -330,6 +332,92 @@ the symmetry of the structure.
     report.writeWarningsAndSummary(warnings, "0.c Background analysis", secLabel)
 
 
+def bFactorAnalysis(report, map, resolution):
+    fnIn = map.getFileName()
+    if fnIn.endswith(".mrc"):
+        fnIn+=":mrc"
+    fnOut = os.path.join(report.getReportDir(), "sharpenedMap.mrc")
+    Ts = map.getSamplingRate()
+    args = "-i %s -o %s --sampling %f --maxres %s --auto"%(fnIn, fnOut, Ts, resolution)
+
+    scipionHome = getScipionHome()
+    scipion3 = os.path.join(scipionHome,'scipion3')
+    output = subprocess.check_output([scipion3, 'run xmipp_volume_correct_bfactor %s'%args])
+
+    p = subprocess.Popen('%s run xmipp_volume_correct_bfactor %s'%(scipion3, args), shell=True, stderr=subprocess.PIPE)
+    outputLines = p.stderr.read().decode('utf-8').split('\n')
+    tokens = outputLines[0].split()
+    a = float(tokens[2])
+    b = float(tokens[4])
+
+    tokens = outputLines[1].split()
+    bfactor = float(tokens[3])
+
+    fh=open(fnOut+".guinier")
+    lineNo = 0
+    content = []
+    for line in fh.readlines():
+        if lineNo>0:
+            content.append([float(x) for x in line.split()])
+        lineNo+=1
+    X = np.array(content)
+    fh.close()
+
+    dinv2 = X[:,0]
+    lnF = X[:,1]
+    lnFc = X[:,3]
+    fitted = a*dinv2 + b
+    fnPlot = os.path.join(report.getReportDir(),'Bfactor.png')
+    reportMultiplePlots(dinv2, [lnF, fitted, lnFc], '1/Resolution^2 (1/A^2)', 'log Structure factor', fnPlot,
+                        ['Experimental', 'Fitted', 'Corrected'])
+
+    bblCitation = \
+        """\\bibitem[Rosenthal and Henderson, 2003]{Rosenthal2003}
+        Rosenthal, P.~B. and Henderson, R. (2003).
+        \\newblock Optimal determination of particle orientation, absolute hand, and
+          contrast loss in single particle electron-cryomicroscopy.
+        \\newblock {\em J. {M}olecular {B}iology}, 333:721--745."""
+    report.addCitation("Rosenthal2003", bblCitation)
+
+    secLabel = "sec:bfactor"
+    msg=\
+"""\\subsection{Level 0.d B-factor analysis}
+\\label{%s}
+\\textbf{Explanation:}\\\\
+The B-factor line \\cite{Rosenthal2003} fitted between 15\AA and the resolution reported should have a slope that 
+is between 0 and 300 \AA$^2$.
+\\\\
+\\\\
+\\textbf{Results:}\\\\
+Fig. \\ref{fig:Bfactor} shows the logarithm (in natural units) of the structure factor (the module squared of the
+Fourier transform) of the experimental map, its fitted line, and the corrected map. The estimated B-factor was
+%5.1f. The fitted line was $\\log(|F|^2)=%4.1f/R^2 + (%4.1f)$. 
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=10cm]{%s}
+    \\caption{Guinier plot. The X-axis is the square of the inverse of the resolution in \\AA.}
+    \\label{fig:Bfactor}
+\\end{figure}
+
+"""%(secLabel, bfactor, a, b, fnPlot)
+    report.write(msg)
+
+    msg = "\\underline{\\textbf{Orthogonal slices of maximum variance of the B-factor corrected map}}\\\\"\
+          "\\textbf{Results}:\\\\"\
+          "See Fig. \\ref{fig:maxVarBfactor}.\\\\"
+    report.orthogonalSlices("maxVarSlicesBfactor", "", "Slices of maximum variation in the three dimensions of the "\
+                            "B-factor corrected map", fnOut, "fig:maxVarBfactor", maxVar=True)
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if bfactor<-300 or bfactor>0 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The B-factor is out of the interval [-300,0]}}")
+    report.writeWarningsAndSummary(warnings, "0.d B-factor analysis", secLabel)
+
+    return bfactor
+
 def xmippDeepRes(project, report, label, map, mask):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtDeepRes', doRaise=True)
@@ -351,7 +439,7 @@ Ram\\'{\i}rez-Aportela, E., Mota, J., Conesa, P., Carazo, J.~M., and Sorzano, C.
     secLabel = "sec:deepres"
     msg = \
 """
-\\subsection{Level 0.d Local resolution with DeepRes}
+\\subsection{Level 0.e Local resolution with DeepRes}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 DeepRes \\cite{Ramirez2019} measures the local resolution using a neural network that has been trained on 
@@ -364,7 +452,7 @@ input map to the appearance of the atomic structures a local resolution label ca
     report.write(msg)
 
     if prot.isFailed():
-        report.writeSummary("0.d DeepRes", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("0.e DeepRes", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
@@ -383,7 +471,7 @@ Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
     secLabel = "sec:locbfactor"
     msg = \
 """
-\\subsection{Level 0.e Local B-factor}
+\\subsection{Level 0.f Local B-factor}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 LocBfactor \\cite{Kaur2021} estimates a local resolution B-factor by decomposing the input map into a 
@@ -393,7 +481,7 @@ local magnitude and phase term using the spiral transform.\\\\
 \\\\
 """ % secLabel
     report.write(msg)
-    report.writeSummary("0.e LocBfactor", secLabel, "{\\color{red} Not in Scipion}")
+    report.writeSummary("0.f LocBfactor", secLabel, "{\\color{red} Not in Scipion}")
     report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
 
 def locOccupancy(project, report, label, map, mask):
@@ -409,7 +497,7 @@ Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
     secLabel = "sec:locOccupancy"
     msg = \
 """
-\\subsection{Level 0.f Local Occupancy}
+\\subsection{Level 0.g Local Occupancy}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromolecule.\\\\
@@ -418,14 +506,14 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
 \\\\
 """ % secLabel
     report.write(msg)
-    report.writeSummary("0.f LocOccupancy", secLabel, "{\\color{red} Not in Scipion}")
+    report.writeSummary("0.g LocOccupancy", secLabel, "{\\color{red} Not in Scipion}")
     report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
 
 def deepHand(project, report, label, resolution, map, mask):
     secLabel = "sec:deepHand"
     msg = \
 """
-\\subsection{Level 0.g Hand correction}
+\\subsection{Level 0.h Hand correction}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 Deep Hand determines the correction of the hand for those maps with a resolution smaller than 5\\AA\\\\
@@ -439,9 +527,9 @@ Deep Hand determines the correction of the hand for those maps with a resolution
         toWrite="This method cannot be applied to maps whose resolution is worse than 5\AA.\\\\"\
                 "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
         report.write(toWrite)
-        report.writeSummary("0.g Deep hand", secLabel, "{\\color{blue} OK}")
+        report.writeSummary("0.h Deep hand", secLabel, "{\\color{blue} OK}")
     else:
-        report.writeSummary("0.g Deep hand", secLabel, "{\\color{red} Not in Scipion}")
+        report.writeSummary("0.h Deep hand", secLabel, "{\\color{red} Not in Scipion}")
         report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
 
 def reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateMask):
@@ -509,13 +597,15 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, sk
     reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateMask)
 
     # Quality Measures
+    report.writeSection('Level 0 analysis')
+    massAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts)
+    maskAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts, threshold)
+    backgroundAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask)
+    bfactor=bFactorAnalysis(report, protImportMap.outputVolume, resolution)
+
     if not skipAnalysis:
-        report.writeSection('Level 0 analysis')
-        massAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts)
-        maskAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts, threshold)
-        backgroundAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask)
-        xmippDeepRes(project, report, "0.d deepRes", protImportMap.outputVolume, protCreateMask.outputMask)
-        locBfactor(project, report, "0.e locBfactor", protImportMap.outputVolume, protCreateMask.outputMask)
-        locOccupancy(project, report, "0.f locOccupancy", protImportMap.outputVolume, protCreateMask.outputMask)
-        deepHand(project, report, "0.g deepHand", resolution, protImportMap.outputVolume, protCreateMask.outputMask)
-    return protImportMap, protCreateMask
+        xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateMask.outputMask)
+        locBfactor(project, report, "0.f locBfactor", protImportMap.outputVolume, protCreateMask.outputMask)
+        locOccupancy(project, report, "0.g locOccupancy", protImportMap.outputVolume, protCreateMask.outputMask)
+        deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, protCreateMask.outputMask)
+    return protImportMap, protCreateMask, bfactor
