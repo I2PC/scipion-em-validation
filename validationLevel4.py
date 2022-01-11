@@ -80,7 +80,19 @@ def resizeProject(project, protMap, protMask, protParticles, resolution):
                                          windowSize=Xdimp)
     protResizeMask.inputVolumes.set(protMask.outputMask)
     project.launchProtocol(protResizeMask, wait=True)
-    return protResizeParticles, protResizeMap, protResizeMask
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtPreprocessVolumes', doRaise=True)
+    protPreprocessMask = project.newProtocol(Prot,
+                                             objLabel="Binarize",
+                                             doThreshold=True,
+                                             thresholdType=1,
+                                             threshold=0.5,
+                                             fillType=1)
+    protPreprocessMask.inputVolumes.set(protResizeMask.outputVol)
+    project.launchProtocol(protPreprocessMask, wait=True)
+
+    return protResizeParticles, protResizeMap, protPreprocessMask
 
 
 def similarityMeasures(project, report, protMap, protMask, protParticles, symmetry, resolution):
@@ -325,7 +337,8 @@ is below 0.5 is %4.1f\\%%, and the percentage of images whose precision is below
                         "%4.1f\\%%}}"%fPrec)
     report.writeWarningsAndSummary(warnings, "4.c Alignability", secLabel)
 
-def compareAlignment(project, report, refmap, protRefParticles, protReconstruction, symmetry, label, fnRoot):
+def compareAlignment(project, report, refmap, protRefParticles, protReconstruction, symmetry, label, fnRoot,
+                     generateSlices=True):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtAlignVolumeParticles', doRaise=True)
     protAlign = project.newProtocol(Prot,
@@ -372,13 +385,26 @@ def compareAlignment(project, report, refmap, protRefParticles, protReconstructi
     reportPlot(nparticles, allAngleDiffs, "Particle No.", "Angular difference difference (degrees)", fnAngles)
 
     simplifiedLabel = label.split()[-1]
+
+    if generateSlices:
+        msg=\
+    """Fig. \\ref{fig:check%s} shows some representative slices of the reconstruction performed by %s for checking its
+    correctness. """%(simplifiedLabel, simplifiedLabel)
+        fnMap = protReconstruction.outputVolume.getFileName()
+        if fnMap.endswith(".mrc"):
+            fnMap+=":mrc"
+        report.orthogonalSlices("check%s"%simplifiedLabel, msg,
+                                "Slices of maximum variation in the three dimensions of the "\
+                                "map reconstructed by %s"%simplifiedLabel, fnMap,
+                                "fig:check%s"%simplifiedLabel, maxVar=True)
+
     msg=\
 """Fig. \\ref{fig:comparison%s} shows the shift and angular difference between the alignment given by the user
 and the one calculated by %s. The median shift difference was %4.1f\\AA, and the median angular difference
 %5.1f degrees. Their corresponding median absolute deviations were %4.1f and %4.1f, respectively. Particles
 with a shift difference larger than 5\\AA~or an angular difference larger than 5 degrees would be considered as 
 incorrectly assigned in one of the two assignments (the user's or the new one). %4.1f\\%% particles were considered 
-to have an uncertain shifts, and %4.1f\\%% particles were considered to have an uncertain alignment. 
+to have an uncertain shift, and %4.1f\\%% particles were considered to have an uncertain alignment. 
 \\\\
 
 \\begin{figure}[H]
@@ -434,6 +460,18 @@ particles given by the user and the one done by Relion.
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
+    shiftOutliers, angleOutliers = compareAlignment(project, report, protResizeMap.outputVol,
+                                                    protResizeParticles, prot, symmetry,
+                                                    "1. Relion", "alignmentRelion")
+    warnings = []
+    testWarnings = False
+    if shiftOutliers>20 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The percentage of images with uncertain shift is larger than 20\\%}}")
+    if angleOutliers>20 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The percentage of images with uncertain angles is larger than 20\\%}}")
+    report.writeWarningsAndSummary(warnings, "4.d1 Relion alignment", secLabel)
+    return prot
+
 def cryosparcAlignment(project, report, protMap, protMask, protParticles, symmetry):
     Prot = pwplugin.Domain.importFromPlugin('cryosparc2.protocols',
                                             'ProtCryoSparcNonUniformRefine3D', doRaise=True)
@@ -486,6 +524,7 @@ of the particles given by the user and the one done by CryoSparc.
 
     shiftOutliers, angleOutliers = compareAlignment(project, report, protMap.outputVol, protParticles, prot, symmetry,
                                                     "2. Cryosparc", "alignmentCryosparc")
+
     warnings = []
     testWarnings = False
     if shiftOutliers>20 or testWarnings:
@@ -493,6 +532,37 @@ of the particles given by the user and the one done by CryoSparc.
     if angleOutliers>20 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The percentage of images with uncertain angles is larger than 20\\%}}")
     report.writeWarningsAndSummary(warnings, "4.d2 CryoSparc alignment", secLabel)
+
+    return prot
+
+def compareRelionAndCryosparc(project, report, protRelion, protCryoSparc, symmetry):
+    secLabel = "sec:relionCryosparc"
+    msg = \
+"""
+\\subsection{Level 4.d3 Relion/CryoSparc alignments}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+In Secs. \\ref{sec:relionAlignment} and \\ref{sec:cryosparcAlignment} we compared the angular assignment given by
+the user to the angular assignment of Relion and CryoSparc, respectively. We now compare these two alignments as a way
+to measure the ``intrinsic'' uncertainty in the angular assignment. This comparison gives an estimate of the 
+alignability of the input images.
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+
+    shiftOutliers, angleOutliers = compareAlignment(project, report, protRelion.outputVolume, protRelion, protCryoSparc,
+                                                    symmetry, "3. Relion/Cryosparc", "alignmentRelionCryosparc",
+                                                    False)
+
+    warnings = []
+    testWarnings = False
+    if shiftOutliers>20 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The percentage of images with uncertain shift is larger than 20\\%}}")
+    if angleOutliers>20 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The percentage of images with uncertain angles is larger than 20\\%}}")
+    report.writeWarningsAndSummary(warnings, "4.d3 Relion/CryoSparc alignments", secLabel)
 
 def relionClassification(project, report, protMap, protMask, protParticles, symmetry):
     Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
@@ -537,6 +607,8 @@ any significant structural difference between the two.
         report.writeSummary("4.e Classification without alignment", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
+
+
 
 def validateOverfitting(project, report, protMap, protMask, protParticles, symmetry, resolution):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -722,9 +794,9 @@ def level4(project, report, protMap, protMask, protParticles, symmetry, resoluti
         # similarityMeasures(project, report, protMap, protMask, protParticles, symmetry, resolution)
         # alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry)
         # multirefAlignability(project, report, protMap, protMask, protParticles, symmetry)
-        # relionAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
-        # cryosparcAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
-        # *** TODO: Comparison between relion and cryosparc
-        # relionClassification(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
+        # protRelion = relionAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
+        # protCryoSparc = cryosparcAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
+        # compareRelionAndCryosparc(project, report, protRelion, protCryoSparc, symmetry)
+        relionClassification(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
         # validateOverfitting(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
-        angularDistributionEfficiency(project, report, protResizeParticles, symmetry, resolution, bfactor)
+        # angularDistributionEfficiency(project, report, protResizeParticles, symmetry, resolution, bfactor)
