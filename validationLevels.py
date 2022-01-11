@@ -149,25 +149,25 @@ report = ValidationReport(fnProjectDir, levels)
 # Level 0
 from validationLevel0 import level0
 protImportMap, protCreateMask, bfactor = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION,
-                                       skipAnalysis = True)
+                                       skipAnalysis = False)
 
 # Level 1
 if 1 in levels:
     from validationLevel1 import level1
     protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION,
-                                            protImportMap, protCreateMask, skipAnalysis = True)
+                                            protImportMap, protCreateMask, skipAnalysis = False)
 
 # Level 2
 if 2 in levels:
     from validationLevel2 import level2
-    protImportAvgs, protAvgsResizeMap = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM, skipAnalysis = True)
+    protImportAvgs, protAvgsResizeMap = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM, skipAnalysis = False)
 
 # Level 3
 if 3 in levels:
     from validationLevel3 import level3
     protImportParticles, protResizeMap, protResizeAvgs = level3(project, report, protImportMap, protImportAvgs,
                                                                 FNPARTICLES, TSPARTICLES, KV, CS, Q0,
-                                                                skipAnalysis = True)
+                                                                skipAnalysis = False)
 
 # Level 4
 if 4 in levels:

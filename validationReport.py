@@ -132,6 +132,7 @@ def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear", grid=True, plotType=
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.savefig(fnOut)
+    plt.clf()
 
 def reportHistogram(y, ylabel, fnOut):
     matplotlib.use('Agg')
@@ -141,6 +142,7 @@ def reportHistogram(y, ylabel, fnOut):
     plt.xlabel(ylabel)
     plt.ylabel("Count")
     plt.savefig(fnOut)
+    plt.clf()
 
 def reportMultiplePlots(x,yList, xlabel, ylabel, fnOut, legends, invertXLabels=False):
     matplotlib.use('Agg')

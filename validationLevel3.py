@@ -450,10 +450,10 @@ def reportInput(project, report, fnParticles, protParticles):
     toWrite = \
 """
 \\section{Particles}
-Set of Particles classes: %s \\\\
+Set of Particles: %s \\\\
 \\\\
-The first 32 can be seen in Fig. \\ref{fig:particles}.\\\\
-""" % (fnParticles.replace('_','\_').replace('/','/\-'))
+%d images were provided by the user. The first 32 can be seen in Fig. \\ref{fig:particles}.\\\\
+""" % (fnParticles.replace('_','\_').replace('/','/\-'), protParticles.outputParticles.getSize())
     report.write(toWrite)
 
     report.setOfImages(particlesStack, xmipp3.MDL_IMAGE, "First particles of the set of particles provided by the user",
