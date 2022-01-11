@@ -60,6 +60,7 @@ set bgColor white
 open %s
 volume #1 level %f
 volume #1 color #4e9a06
+lighting soft
 turn x %f
 turn y %f
 turn z %f
