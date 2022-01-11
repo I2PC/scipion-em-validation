@@ -608,7 +608,41 @@ any significant structural difference between the two.
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
+    totalImgs = protParticles.outputParticles.getSize()
+    Nimgs = []
+    representative = []
+    for cls in prot.outputClasses.iterItems():
+        Nimgs.append(len(cls.getIdSet()))
+        representative.append(cls.getRepresentative().getFileName())
+    warnings = None
+    if len(Nimgs)==0:
+        report.write("{\\color{red} The classification did not produce any output}")
+        report.writeSummary("4.e Classification without alignment", secLabel, "{\\color{red} Could not be measured}\\\\")
+        return prot
+    elif len(Nimgs)==1:
+        report.write("The classification converged to a single class with %d out of %d images in it.\\\\"%\
+                     (Nimgs[0], totalImgs))
+        warnings = []
+    elif len(Nimgs)==2:
+        V1 = xmipp3.Image(representative[0]+":mrc")
+        V2 = xmipp3.Image(representative[1]+":mrc")
+        Vdiff = V1-V2
+        msg=\
+"""The classification converged to two classses with %d and %d images, out of a total of %d input images. To allow for 
+visual inspection we show Class 1 in Fig. \\ref{fig:class1}, Class2 in Fig. \\ref{fig:class2}, and their difference in
+Fig. \\ref{fig:classDiff}. There should not be any difference between both classes, the slices of the difference volume
+should be just noise without any visible structure related to the macromolecule.\\\\"""%(Nimgs[0], Nimgs[1], totalImgs)
+        report.write(msg)
 
+        report.orthogonalSlices("class1", "",
+                                "Slices of maximum variation in Class 1.", V1, "fig:class1", maxVar=True)
+        report.orthogonalSlices("class2", "",
+                                "Slices of maximum variation in Class 2.", V2, "fig:class2", maxVar=True)
+        report.orthogonalSlices("classDiff", "",
+                                "Slices of maximum variation in Class 1-Class 2", Vdiff, "fig:classDiff", maxVar=True)
+
+    report.writeWarningsAndSummary(warnings, "4.e Classification without alignment", secLabel)
+    return prot
 
 def validateOverfitting(project, report, protMap, protMask, protParticles, symmetry, resolution):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -782,6 +816,30 @@ was %4.1f \\AA, and its range [%4.1f,%4.1f].
                         (resolution, avgDirResolution))
     report.writeWarningsAndSummary(warnings, "4.g Angular distribution efficiency", secLabel)
 
+def samplingCompensationFactor(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry):
+    bblCitation = \
+"""\\bibitem[Baldwin and Lyumkis, 2020]{Baldwin2020}
+Baldwin, P.~R. and Lyumkis, D. (2020).
+\\newblock Non-uniformity of projection distributions attenuates resolution in
+  {Cryo-EM}.
+\\newblock {\em Progress in Biophysics and Molecular Biology}, 150:160--183."""
+    report.addCitation("Baldwin2020", bblCitation)
+
+    secLabel = "sec:SCF"
+    msg = \
+        """
+        \\subsection{Level 4.h Sampling compensation factor}
+        \\label{%s}
+        \\textbf{Explanation}:\\\\ 
+        SCF \\cite{Baldwin2020} measures the ability of the angular distribution to fill the Fourier space.\\\\
+        \\\\
+        \\textbf{Results:}\\\\
+        \\\\
+        """ % secLabel
+    report.write(msg)
+    report.writeSummary("4.h SCF", secLabel, "{\\color{red} Not in Scipion}")
+    report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+
 
 def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, bfactor, skipAnalysis = False):
     # Resize to the given resolution
@@ -797,6 +855,7 @@ def level4(project, report, protMap, protMask, protParticles, symmetry, resoluti
         # protRelion = relionAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
         # protCryoSparc = cryosparcAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
         # compareRelionAndCryosparc(project, report, protRelion, protCryoSparc, symmetry)
-        relionClassification(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
+        # relionClassification(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
         # validateOverfitting(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
         # angularDistributionEfficiency(project, report, protResizeParticles, symmetry, resolution, bfactor)
+        samplingCompensationFactor(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)

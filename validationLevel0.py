@@ -574,7 +574,7 @@ Resolution estimated by user: %f \\\\
           "In these views there should not be many artifacts or noise blobs around the map.\\\\ \\\\" \
           "\\textbf{Results}:\\\\"\
           "See Fig. \\ref{fig:isoInput}.\\\\"
-    report.isoSurfaces("isoInput", msg, "Isosurface at threshold=%f"%threshold,
+    report.isoSurfaces("isoInput", msg, "Isosurface at threshold=%f."%threshold,
                        fnImportMap, threshold, "fig:isoInput")
 
     fnMask = os.path.join(project.getPath(),protCreateMask.outputMask.getFileName())
