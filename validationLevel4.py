@@ -837,7 +837,7 @@ Baldwin, P.~R. and Lyumkis, D. (2020).
         \\\\
         """ % secLabel
     report.write(msg)
-    report.writeSummary("4.h SCF", secLabel, "{\\color{red} Not in Scipion}")
+    report.writeSummary("4.h Sampling compensation factor", secLabel, "{\\color{red} Not in Scipion}")
     report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
 
 
