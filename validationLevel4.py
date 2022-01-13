@@ -827,19 +827,155 @@ Baldwin, P.~R. and Lyumkis, D. (2020).
 
     secLabel = "sec:SCF"
     msg = \
-        """
-        \\subsection{Level 4.h Sampling compensation factor}
-        \\label{%s}
-        \\textbf{Explanation}:\\\\ 
-        SCF \\cite{Baldwin2020} measures the ability of the angular distribution to fill the Fourier space.\\\\
-        \\\\
-        \\textbf{Results:}\\\\
-        \\\\
-        """ % secLabel
+"""
+\\subsection{Level 4.h Sampling compensation factor}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+SCF \\cite{Baldwin2020} measures the ability of the angular distribution to fill the Fourier space.\\\\
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
     report.write(msg)
     report.writeSummary("4.h Sampling compensation factor", secLabel, "{\\color{red} Not in Scipion}")
     report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
 
+def ctfEstability(project, report, protRefinement, protResizeParticles, protResizeMask):
+    Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
+                                            'ProtRelionPostprocess', doRaise=True)
+
+    protPostprocess = project.newProtocol(Prot,
+                                          objLabel="4.i PostProcess")
+    protPostprocess.protRefine.set(protRefinement)
+    protPostprocess.solventMask.set(protResizeMask.outputVol)
+    project.launchProtocol(protPostprocess, wait=True)
+
+    secLabel = "sec:ctfEstability"
+    msg = \
+"""
+\\subsection{Level 4.i CTF estability}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+We estimated the per-particle defocus, B-factor, astigmatism, and phase shift using Relion's ctf refine. Ideally,
+the differences in defoci cannot be larger than the ice thickness. We also estimated the local magnification offsets 
+(which should be around 0) and the B-factor.\\\\
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+    if protPostprocess.isFailed():
+        report.writeSummary("4.i CTF estability", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return protPostprocess
+
+    Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
+                                            'ProtRelionCtfRefinement', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="4.i CTF Refinement",
+                               doCtfFitting=True,
+                               fitDefocus=2,
+                               fitAstig=2,
+                               fitBfactor=2,
+                               fitPhaseShift=2,
+                               numberOfMpi=8)
+    prot.inputParticles.set(protResizeParticles.outputParticles)
+    prot.inputPostprocess.set(protPostprocess)
+    project.launchProtocol(prot, wait=True)
+
+    md1 = xmipp3.MetaData("particles@"+prot._getPath("input_particles.star"))
+    md2 = xmipp3.MetaData("particles@"+prot._getExtraPath("particles_ctf_refine.star"))
+    md1.sort(xmipp3.RLN_PARTICLE_ID)
+    md2.sort(xmipp3.RLN_PARTICLE_ID)
+
+    du1=md1.getColumnValues(xmipp3.RLN_CTF_DEFOCUSU)
+    dv1=md1.getColumnValues(xmipp3.RLN_CTF_DEFOCUSV)
+    d1=0.5*(np.array(du1)+np.array(dv1))
+    a1=np.abs(np.array(du1)-np.array(dv1))
+
+    du2=md2.getColumnValues(xmipp3.RLN_CTF_DEFOCUSU)
+    dv2=md2.getColumnValues(xmipp3.RLN_CTF_DEFOCUSV)
+    d2 = 0.5 * (np.array(du2) + np.array(dv2))
+    a2 = np.abs(np.array(du2) - np.array(dv2))
+
+    ddiff = d1-d2
+    adiff = a1-a2
+
+    phase=md2.getColumnValues(xmipp3.RLN_CTF_PHASESHIFT)
+    B=md2.getColumnValues(xmipp3.RLN_CTF_BFACTOR)
+    s=md2.getColumnValues(xmipp3.RLN_CTF_SCALEFACTOR)
+
+    pDdiff = np.percentile(ddiff,[2.5, 50, 97.5])
+    pAdiff = np.percentile(adiff,[2.5, 50, 97.5])
+    pPhase = np.percentile(phase,[2.5, 50, 97.5])
+    pB = np.percentile(B,[2.5, 50, 97.5])
+    pS = np.percentile(s,[2.5, 50, 97.5])
+
+    msg=\
+"""The median and confidence intervals for the following parameters were observed (ideally they should all
+concentrate around 0, except for the phase shift that must be centered around its true value):
+
+\\begin{center}
+    \\begin{tabular}{cccc}
+        \\textbf{Parameter} & \\textbf{Median} & \\textbf{95\\%% Confidence interval} & \\textbf{Histogram} \\\\
+        \\hline
+        Defocus difference (\\AA) & %5.2f & [%5.1f,%5.1f] & Fig. \\ref{fig:ddiffHist} \\\\
+        Astigmatism difference (\\AA) & %5.2f & [%5.1f,%5.1f] & Fig. \\ref{fig:adiffHist} \\\\
+        Phase shift (degrees) & %5.2f & [%5.1f,%5.1f] & Fig. \\ref{fig:phaseHist} \\\\
+        B-factor (\\AA$^2$) & %5.2f & [%5.1f,%5.1f] & Fig. \\ref{fig:BHist} \\\\
+        Scale factor & %5.3f & [%5.3f,%5.3f] & Fig. \\ref{fig:SHist} \\\\
+    \\end{tabular}
+\\end{center}
+
+"""%(pDdiff[1], pDdiff[0], pDdiff[2],
+     pAdiff[1], pAdiff[0], pAdiff[2],
+     pPhase[1], pPhase[0], pPhase[2],
+     pB[1], pB[0], pB[2],
+     pS[1], pS[0], pS[2])
+
+    def addHistogram(report, y, ylabel, fnHist, caption, figLabel):
+        fnHist = os.path.join(report.getReportDir(),fnHist)
+        reportHistogram(y, ylabel, fnHist)
+        msg = \
+"""
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=7cm]{%s}
+    \\caption{%s}
+    \\label{%s}
+\\end{figure}
+
+"""%(fnHist, caption, figLabel)
+        return msg
+
+    msg += addHistogram(report, ddiff, "Defocus difference", "localDdiffHist.png",
+                        "Histogram of the difference in defocus (\\AA).", "fig:ddiffHist")
+    msg += addHistogram(report, adiff, "Astigmatism difference", "localAdiffHist.png",
+                        "Histogram of the difference in astigmatism (\\AA).", "fig:adiffHist")
+    msg += addHistogram(report, phase, "CTF Phase shift (degrees)", "localPhaseHist.png",
+                        "Histogram of the CTF phase shift (degrees).", "fig:phaseHist")
+    msg += addHistogram(report, B, "B-factor (\\AA$^2$)", "localBHist.png",
+                        "Histogram of the B-factor (\\AA$^2$).", "fig:BHist")
+    msg += addHistogram(report, S, "Scale factor", "localSHist.png",
+                        "Histogram of the Scale factor.", "fig:SHist")
+    report.write(msg)
+
+    warnings = []
+    def addWarning(p, ylabel, lowerLimit, upperLimit, check0=True):
+        if p[0]<lowerLimit:
+            warnings.append("{\\color{red} \\textbf{The lower limit of %s is smaller than accepted lower bound "\
+                            "(%5.1f), it is %5.1f.}}"%(ylabel, p[0],lowerLimit))
+        if p[2]>upperLimit:
+            warnings.append("{\\color{red} \\textbf{The upper limit of %s is smaller than accepted upper bound "\
+                            "(%5.1f), it is %5.1f.}}"%(ylabel, p[2],upperLimit))
+        if check0 and (p[0]>0 or p[2]<0):
+            warnings.append("{\\color{red} \\textbf{The 95\\%% confidence interval of %s is not centered.}}"%ylabel)
+    addWarning(pDdiff, "defocus difference", -5000, 5000)
+    addWarning(pAdiff, "astigmatism difference", -5000, 5000)
+    addWarning(pB, "B-factor", -5, 5)
+    addWarning(pS, "scale factor", -0.1, 0.1)
+    report.writeWarningsAndSummary(warnings, "1.e MonoRes", secLabel)
+    return prot
 
 def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, bfactor, skipAnalysis = False):
     # Resize to the given resolution
@@ -849,13 +985,14 @@ def level4(project, report, protMap, protMask, protParticles, symmetry, resoluti
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 4 analysis')
-        similarityMeasures(project, report, protMap, protMask, protParticles, symmetry, resolution)
-        alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry)
-        multirefAlignability(project, report, protMap, protMask, protParticles, symmetry)
-        protRelion = relionAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
+        # similarityMeasures(project, report, protMap, protMask, protParticles, symmetry, resolution)
+        # alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry)
+        # multirefAlignability(project, report, protMap, protMask, protParticles, symmetry)
+        # protRelion = relionAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
         protCryoSparc = cryosparcAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
-        compareRelionAndCryosparc(project, report, protRelion, protCryoSparc, symmetry)
-        relionClassification(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
-        validateOverfitting(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
-        angularDistributionEfficiency(project, report, protResizeParticles, symmetry, resolution, bfactor)
-        samplingCompensationFactor(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
+        # compareRelionAndCryosparc(project, report, protRelion, protCryoSparc, symmetry)
+        # relionClassification(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
+        # validateOverfitting(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
+        # angularDistributionEfficiency(project, report, protResizeParticles, symmetry, resolution, bfactor)
+        # samplingCompensationFactor(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
+        ctfEstability(project, report, protCryoSparc, protResizeParticles, protResizeMask)

@@ -183,7 +183,7 @@ if 3 in levels:
 if 4 in levels:
     from validationLevel4 import level4
     level4(project, report, protImportMap, protCreateMask, protResizeMap, SYM, MAPRESOLUTION, bfactor,
-           skipAnalysis = True)
+           skipAnalysis = False)
 
 # Level 5
 if 5 in levels:

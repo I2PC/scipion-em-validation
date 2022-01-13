@@ -137,7 +137,7 @@ def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear", grid=True, plotType=
 def reportHistogram(y, ylabel, fnOut):
     matplotlib.use('Agg')
     plt.figure()
-    plt.hist(y)
+    plt.hist(y, bins=25)
     plt.grid(True)
     plt.xlabel(ylabel)
     plt.ylabel("Count")
