@@ -905,6 +905,8 @@ the differences in defoci cannot be larger than the ice thickness. We also estim
     B=md2.getColumnValues(xmipp3.RLN_CTF_BFACTOR)
     s=md2.getColumnValues(xmipp3.RLN_CTF_SCALEFACTOR)
 
+    pD = np.percentile(d2,[2.5, 50, 97.5])
+    pA = np.percentile(a2,[2.5, 50, 97.5])
     pDdiff = np.percentile(ddiff,[2.5, 50, 97.5])
     pAdiff = np.percentile(adiff,[2.5, 50, 97.5])
     pPhase = np.percentile(phase,[2.5, 50, 97.5])
@@ -912,13 +914,18 @@ the differences in defoci cannot be larger than the ice thickness. We also estim
     pS = np.percentile(s,[2.5, 50, 97.5])
 
     msg=\
-"""The median and confidence intervals for the following parameters were observed (ideally they should all
+"""Figs. \\ref{fig:defocus} and \\ref{fig:astigmatism} shows the histogram of the defocus and astigmatism. Ideally, the 
+defoci should cover a range
+of values, so that the zeroes of the CTF are spread over the Fourier spectrum, and the astigmatism should be as close
+to 0 as possible. The median and confidence intervals for the following parameters were observed (ideally they should all
 concentrate around 0, except for the phase shift that must be centered around its true value):
 
 \\begin{center}
     \\begin{tabular}{cccc}
         \\textbf{Parameter} & \\textbf{Median} & \\textbf{95\\%% Confidence interval} & \\textbf{Histogram} \\\\
         \\hline
+        Defocus (\\AA) & %5.2f & [%5.1f,%5.1f] & Fig. \\ref{fig:defocus} \\\\
+        Astigmatism (\\AA) & %5.2f & [%5.1f,%5.1f] & Fig. \\ref{fig:astigmatism} \\\\
         Defocus difference (\\AA) & %5.2f & [%5.1f,%5.1f] & Fig. \\ref{fig:ddiffHist} \\\\
         Astigmatism difference (\\AA) & %5.2f & [%5.1f,%5.1f] & Fig. \\ref{fig:adiffHist} \\\\
         Phase shift (degrees) & %5.2f & [%5.1f,%5.1f] & Fig. \\ref{fig:phaseHist} \\\\
@@ -927,7 +934,9 @@ concentrate around 0, except for the phase shift that must be centered around it
     \\end{tabular}
 \\end{center}
 
-"""%(pDdiff[1], pDdiff[0], pDdiff[2],
+"""%(pD[1], pD[0], pD[2],
+     pA[1], pA[0], pA[2],
+     pDdiff[1], pDdiff[0], pDdiff[2],
      pAdiff[1], pAdiff[0], pAdiff[2],
      pPhase[1], pPhase[0], pPhase[2],
      pB[1], pB[0], pB[2],
@@ -948,15 +957,19 @@ concentrate around 0, except for the phase shift that must be centered around it
 """%(fnHist, caption, figLabel)
         return msg
 
+    msg += addHistogram(report, d2, "Defocus", "localDHist.png",
+                        "Histogram of the defocus after local refinement (\\AA).", "fig:defocus")
+    msg += addHistogram(report, a2, "Astigmatism", "localAHist.png",
+                        "Histogram of the astigmatism after local refinement (\\AA).", "fig:astigmatism")
     msg += addHistogram(report, ddiff, "Defocus difference", "localDdiffHist.png",
-                        "Histogram of the difference in defocus (\\AA).", "fig:ddiffHist")
+                        "Histogram of the difference in defocus after local refinement (\\AA).", "fig:ddiffHist")
     msg += addHistogram(report, adiff, "Astigmatism difference", "localAdiffHist.png",
-                        "Histogram of the difference in astigmatism (\\AA).", "fig:adiffHist")
+                        "Histogram of the difference in astigmatism after local refinement (\\AA).", "fig:adiffHist")
     msg += addHistogram(report, phase, "CTF Phase shift (degrees)", "localPhaseHist.png",
                         "Histogram of the CTF phase shift (degrees).", "fig:phaseHist")
     msg += addHistogram(report, B, "B-factor (\\AA$^2$)", "localBHist.png",
                         "Histogram of the B-factor (\\AA$^2$).", "fig:BHist")
-    msg += addHistogram(report, S, "Scale factor", "localSHist.png",
+    msg += addHistogram(report, s, "Scale factor", "localSHist.png",
                         "Histogram of the Scale factor.", "fig:SHist")
     report.write(msg)
 
@@ -970,6 +983,7 @@ concentrate around 0, except for the phase shift that must be centered around it
                             "(%5.1f), it is %5.1f.}}"%(ylabel, p[2],upperLimit))
         if check0 and (p[0]>0 or p[2]<0):
             warnings.append("{\\color{red} \\textbf{The 95\\%% confidence interval of %s is not centered.}}"%ylabel)
+    addWarning(pA, "astigmatism", -5000, 5000, check0=False)
     addWarning(pDdiff, "defocus difference", -5000, 5000)
     addWarning(pAdiff, "astigmatism difference", -5000, 5000)
     addWarning(pB, "B-factor", -5, 5)
