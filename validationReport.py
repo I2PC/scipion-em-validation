@@ -131,7 +131,7 @@ def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear", grid=True, plotType=
     plt.grid(grid)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.savefig(fnOut)
+    plt.savefig(fnOut, bbox_inches='tight')
     plt.clf()
 
 def reportHistogram(y, ylabel, fnOut):
@@ -141,7 +141,7 @@ def reportHistogram(y, ylabel, fnOut):
     plt.grid(True)
     plt.xlabel(ylabel)
     plt.ylabel("Count")
-    plt.savefig(fnOut)
+    plt.savefig(fnOut, bbox_inches='tight')
     plt.clf()
 
 def reportMultiplePlots(x,yList, xlabel, ylabel, fnOut, legends, invertXLabels=False):
@@ -155,7 +155,8 @@ def reportMultiplePlots(x,yList, xlabel, ylabel, fnOut, legends, invertXLabels=F
     plt.grid(True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.savefig(fnOut)
+    plt.savefig(fnOut, bbox_inches='tight')
+    plt.clf()
 
 def radialPlot(thetas, radii, weights, fnOut, plotType="points"):
     max_w = max(weights)
@@ -189,7 +190,7 @@ def radialPlot(thetas, radii, weights, fnOut, plotType="points"):
     ax.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
     ax.grid(True)
 
-    plt.savefig(fnOut)
+    plt.savefig(fnOut, bbox_inches='tight')
 
 def calculateSha256(fn):
     sha256_hash = hashlib.sha256()
@@ -221,6 +222,28 @@ def CDFpercentile(x,F,xp=None,Fp=None):
             return [f(Fpp) for Fpp in Fp]
         return f(Fp)
     return None
+
+def plotMicrograph(fnMic, fnOut, coords=None, boxSize=0, Ts=0):
+    I = xmipp3.Image()
+    I.read(fnMic)
+    Xdim, Ydim, _, _ = I.getDimensions()
+    I.readPreviewSmooth(fnMic, 800)
+    Xdimp, Ydimp, _, _ = I.getDimensions()
+    boxSizep = int(boxSize*Ts/float(Xdim)*Xdimp)
+    matplotlib.use('Agg')
+    plt.figure()
+    plt.imshow(I.getData(), cmap='gray')
+    plt.axis('off')
+    Kx = float(Xdimp)/Xdim
+    Ky = float(Ydimp)/Ydim
+    if coords is not None:
+        for x,y in coords:
+            xp = int(x*Kx)
+            yp = int(y*Ky)
+            circle = plt.Circle((xp, yp), boxSizep, color='green', fill=False)
+            plt.gca().add_artist(circle)
+    plt.savefig(fnOut, bbox_inches='tight')
+    plt.clf()
 
 class ValidationReport:
 
