@@ -55,11 +55,14 @@ def usage(message=''):
           "\n            Q0:  0.1"
           "\n         LEVEL 4 ====="
           "\n            hasAngles:  yes"
+          "\n         LEVEL 5 ====="
+          '\n            micrographs:  dir/*.mrc'
+          '\n            micSampling:  1 [A]'
           )
     message = "\n\n  >>  %s\n" % message if message != '' else ''
     print(message)
     sys.exit(1)
-    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o particles=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/particles.sqlite ptclSampling=0.74 kV=300 Cs=2.7 Q0=0.1 hasAngles=yes
+    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o particles=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/particles.sqlite ptclSampling=0.74 kV=300 Cs=2.7 Q0=0.1 hasAngles=yes micrographs="/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/006458_XmippProtMovieCorr/extra/*mic.mrc" micSampling=0.49
 
 if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
     usage()
@@ -103,6 +106,10 @@ for arg in sys.argv:
         Q0 = float(arg.split("Q0=")[1])
     if arg.startswith('hasAngles='):
         HASANGLES = arg.split("hasAngles=")[1]
+    if arg.startswith('micrographs='):
+        MICPATTERN = arg.split("micrographs=")[1]
+    if arg.startswith('micSampling='):
+        TSMIC = float(arg.split("micSampling=")[1])
 
 # Detect level
 argsPresent = [x.split('=')[0] for x in sys.argv]
@@ -111,6 +118,7 @@ LEVEL1 = ["map1", "map2"]
 LEVEL2 = ["avgs", "avgSampling", "symmetry"]
 LEVEL3 = ["particles", "ptclSampling", "kV", "Cs", "Q0"]
 LEVEL4 = ["hasAngles"]
+LEVEL5 = ["micrographs", "micSampling"]
 
 def detectLevel(labels, args):
     retval = True
@@ -130,6 +138,8 @@ if detectLevel(LEVEL3, argsPresent):
     levels.append(3)
 if detectLevel(LEVEL4, argsPresent):
     levels.append(4)
+if detectLevel(LEVEL5, argsPresent):
+    levels.append(5)
 
 if len(levels)==0 or not 0 in levels:
     usage()
@@ -173,7 +183,12 @@ if 3 in levels:
 if 4 in levels:
     from validationLevel4 import level4
     level4(project, report, protImportMap, protCreateMask, protResizeMap, SYM, MAPRESOLUTION, bfactor,
-           skipAnalysis = False)
+           skipAnalysis = True)
+
+# Level 5
+if 5 in levels:
+    from validationLevel5 import level5
+    level5(project, report, protImportParticles, KV, CS, Q0, MICPATTERN, TSMIC, skipAnalysis = True)
 
 # Close report
 report.closeReport()
