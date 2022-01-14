@@ -50,6 +50,31 @@ def importModel(project, label, protImportMap, FNMODEL):
 
     return protImport
 
+def mapq(project, report, protImportMap, protAtom):
+    bblCitation = \
+"""\\bibitem[Pintilie and Chiu, 2021]{Pintilie2021}
+Pintilie, G. and Chiu, W. (2021).
+\\newblock Validation, analysis and annotation of cryo-{EM} structures.
+\\newblock {\em Acta Crystallographica D, Struct. Biol.}, 77:1142--1152.
+"""
+    report.addCitation("Pintilie2021", bblCitation)
+
+    secLabel = "sec:mapq"
+    msg = \
+        """
+        \\subsection{Level 6.a MAP-Q}
+        \\label{%s}
+        \\textbf{Explanation}:\\\\ 
+        MAP-Q \\cite{Pintilie2021} computes the local correlation between the map and each one of its atoms assumed to
+        have a Gaussian shape.\\\\
+        \\\\
+        \\textbf{Results:}\\\\
+        \\\\
+        """ % secLabel
+    report.write(msg)
+    report.writeSummary("6.a MAP-Q", secLabel, "{\\color{red} Not in Scipion}")
+    report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+
 def reportInput(project, report, FNMODEL):
     msg = \
 """
@@ -69,3 +94,4 @@ def level6(project, report, protImportMap, FNMODEL, skipAnalysis=False):
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 6 analysis')
+        mapq(project, report, protImportMap, protAtom)
