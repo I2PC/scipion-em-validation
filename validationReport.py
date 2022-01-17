@@ -31,6 +31,22 @@ def readStack(fnXmd):
         i+=1
     return S
 
+def readGuinier(fnGuinier):
+    fh = open(fnGuinier)
+    lineNo = 0
+    content = []
+    for line in fh.readlines():
+        if lineNo > 0:
+            content.append([float(x) for x in line.split()])
+        lineNo += 1
+    X = np.array(content)
+    fh.close()
+
+    dinv2 = X[:, 0]
+    lnF = X[:, 1]
+    lnFc = X[:, 3]
+    return dinv2, lnF, lnFc
+
 def writeImage(I, fnOut, scale=True):
     if scale:
         I = I.astype(np.float)

@@ -32,7 +32,7 @@ import subprocess
 
 from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
-from validationReport import readMap, latexEnumerate, calculateSha256, reportPlot, reportMultiplePlots
+from validationReport import readMap, readGuinier, latexEnumerate, calculateSha256, reportPlot, reportMultiplePlots
 
 def importMap(project, label, fnMap, fnMap1, fnMap2, Ts):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -353,19 +353,7 @@ def bFactorAnalysis(report, map, resolution):
     tokens = outputLines[1].split()
     bfactor = float(tokens[3])
 
-    fh=open(fnOut+".guinier")
-    lineNo = 0
-    content = []
-    for line in fh.readlines():
-        if lineNo>0:
-            content.append([float(x) for x in line.split()])
-        lineNo+=1
-    X = np.array(content)
-    fh.close()
-
-    dinv2 = X[:,0]
-    lnF = X[:,1]
-    lnFc = X[:,3]
+    dinv2, lnF, lnFc = readGuinier(fnOut+".guinier")
     fitted = a*dinv2 + b
     fnPlot = os.path.join(report.getReportDir(),'Bfactor.png')
     reportMultiplePlots(dinv2, [lnF, fitted, lnFc], '1/Resolution^2 (1/A^2)', 'log Structure factor', fnPlot,
