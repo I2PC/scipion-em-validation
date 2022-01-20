@@ -141,12 +141,15 @@ def formatInv(value, pos):
         inv = 1 / value
     return "1/%0.2f" % inv
 
-def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear", grid=True, plotType="plot", barWidth=1,
-               invertXLabels=False):
+def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear",grid=True, plotType="plot", barWidth=1,
+               invertXLabels=False, addMean=False, title=""):
     matplotlib.use('Agg')
     plt.figure()
     if plotType=="plot":
         plt.plot(x,y)
+        if addMean:
+            ymean = np.mean(y)
+            plt.plot(x,ymean*np.ones(len(y)),'--')
     elif plotType=="bar":
         plt.bar(x,y,barWidth)
     elif plotType=="scatter":
@@ -157,6 +160,8 @@ def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear", grid=True, plotType=
     plt.grid(grid)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    if title!="":
+        plt.title(title)
     plt.savefig(fnOut, bbox_inches='tight')
     plt.clf()
 

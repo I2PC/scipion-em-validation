@@ -28,15 +28,28 @@ import glob
 import math
 import numpy as np
 import os
+import pickle
 import scipy
+import subprocess
 
+from scipion.utils import getScipionHome
 from pwem.emlib.metadata import iterRows
 import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPath
 from xmipp3.convert import writeSetOfParticles
 import xmipp3
 
-from validationReport import reportHistogram
+from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot
+
+def importMap(project, label, protImportMap):
+    Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
+                                            'ProtImportVolumes', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel=label,
+                               filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
+                               samplingRate=protImportMap.outputVolume.getSamplingRate())
+    project.launchProtocol(prot, wait=True)
+    return prot
 
 def importModel(project, label, protImportMap, FNMODEL):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -77,7 +90,20 @@ have a Gaussian shape.\\\\
     report.writeSummary("6.a MAP-Q", secLabel, "{\\color{red} Not in Scipion}")
     report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
 
-def fscq(project, report, protImportMap, protAtom):
+def convertPDB(project, protImportMap, protAtom):
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtConvertPdb', doRaise=True)
+    protConvert = project.newProtocol(Prot,
+                                      objLabel="Convert Pdb to map",
+                                      inputPdbData=1,
+                                      sampling=protImportMap.outputVolume.getSamplingRate(),
+                                      vol=True)
+    protConvert.pdbObj.set(protAtom.outputPdb)
+    protConvert.volObj.set(protImportMap.outputVolume)
+    project.launchProtocol(protConvert, wait=True)
+    return protConvert
+
+def fscq(project, report, protImportMap, protAtom, protConvert):
     bblCitation = \
 """\\bibitem[Ram{\\'i}rez-Aportela et~al., 2021]{Ramirez2021}
 Ram{\\'i}rez-Aportela, E., Maluenda, D., Fonseca, Y.~C., Conesa, P., Marabini,
@@ -101,17 +127,6 @@ half maps.\\\\
 \\\\
 """ % secLabel
     report.write(msg)
-
-    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
-                                            'XmippProtConvertPdb', doRaise=True)
-    protConvert = project.newProtocol(Prot,
-                                      objLabel="6.b Convert",
-                                      inputPdbData=1,
-                                      sampling=protImportMap.outputVolume.getSamplingRate(),
-                                      vol=True)
-    protConvert.pdbObj.set(protAtom.outputPdb)
-    protConvert.volObj.set(protImportMap.outputVolume)
-    project.launchProtocol(protConvert, wait=True)
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtValFit', doRaise=True)
@@ -183,12 +198,11 @@ the different local resolutions or local heterogeneity.\\\\
     report.writeSummary("6.c Multimodel", secLabel, "{\\color{red} Not in Scipion}")
     report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
 
-def guinierModel(project, report, protImportMap, protAtom, resolution):
+def guinierModel(project, report, protImportMap, protConvert, resolution):
     map = protImportMap.outputVolume
-    fnMap = map.getFileNamme()
     Ts = map.getSamplingRate()
 
-    fnAtom = protAtom.outputVolume.get()
+    fnAtom = protConvert.outputVolume.getFileName()
     fnOut = os.path.join(report.getReportDir(), "sharpenedModel.mrc")
     args = "-i %s -o %s --sampling %f --maxres %s --auto"%(fnAtom, fnOut, Ts, resolution)
 
@@ -199,10 +213,12 @@ def guinierModel(project, report, protImportMap, protAtom, resolution):
     p = subprocess.Popen('%s run xmipp_volume_correct_bfactor %s' % (scipion3, args), shell=True,
                          stderr=subprocess.PIPE)
 
-    dinv2, lnFMap, _ = readGuinier(os.path.join(report.getReportDir(), "sharpenedModel.mrc") + ".guinier")
+    dinv2, lnFMap, _ = readGuinier(os.path.join(report.getReportDir(), "sharpenedMap.mrc") + ".guinier")
     _, lnFAtom, _ = readGuinier(fnOut + ".guinier")
-    p = np.polyfit(lnFmap, lnfAtom, 1)
-    lnFMapp = p[0]*lnFMap+p[1]
+    lnFMapp = lnFMap+(np.mean(lnFAtom)-np.mean(lnFMap))
+
+    R = np.corrcoef(lnFMapp, lnFAtom)
+    R=R[0,1]
 
     fnPlot = os.path.join(report.getReportDir(), 'BfactorAtom.png')
     reportMultiplePlots(dinv2, [lnFAtom, lnFMapp], '1/Resolution^2 (1/A^2)', 'log Structure factor', fnPlot,
@@ -213,14 +229,13 @@ def guinierModel(project, report, protImportMap, protAtom, resolution):
 """\\subsection{Level 6.d Map-Model Guinier analysis}
 \\label{%s}
 \\textbf{Explanation:}\\\\
-We compared the Guinier plot \\cite{Rosenthal2003} of the atomic and the experimental map model. We made a 
-polynomial fitting between both to make sure that they had comparable scales. Ideally, this polynomial should be the 
-identity function. \\\\
+We compared the Guinier plot \\cite{Rosenthal2003} of the atomic model and the experimental map. We made the mean
+of both profiles to be equal (and equal to the mean of the atomic model) to make sure that they had comparable scales. 
+\\\\
 \\\\
 \\textbf{Results:}\\\\
 Fig. \\ref{fig:BfactorModel} shows the logarithm (in natural units) of the structure factor (the module squared of the
-Fourier transform) of the atom model and the experimental map. The polynomial that fits the experimental map into the
-atomic model was $lnF_{fittedMap}=%f lnF_{map} +(%f)$
+Fourier transform) of the atom model and the experimental map. The correlation between both profiles was %5.3f.
 
 \\begin{figure}[H]
     \centering
@@ -230,20 +245,17 @@ atomic model was $lnF_{fittedMap}=%f lnF_{map} +(%f)$
     \\label{fig:BfactorModel}
 \\end{figure}
 
-""" % (secLabel, p[0], p[1], fnPlot)
+""" % (secLabel, R, fnPlot)
     report.write(msg)
 
-def phenix(project, report, protImportMap, protAtom, resolution):
-    bblCitation = \
-"""\\bibitem[Barad et~al., 2015]{Barad2015}
-Barad, B.~A., Echols, N., Wang, R. Y.-R., Cheng, Y., DiMaio, F., Adams, P.~D.,
-  and Fraser, J.~S. (2015).
-\\newblock {EMR}inger: side chain-directed model and map validation for 3{D}
-  cryo-electron microscopy.
-\\newblock {\em Nature Methods}, 12(10):943--946.
-"""
-    report.addCitation("Barad2015", bblCitation)
+    warnings = []
+    testWarnings = False
+    if R<0.5 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The correlation is smaller than 0.5, it is %5.3f.}}"%R)
+    report.writeWarningsAndSummary(warnings, "6.d Map-Model Guinier", secLabel)
 
+
+def phenix(project, report, protImportMap, protAtom, resolution):
     bblCitation = \
 """\\bibitem[Afonine et~al., 2018]{Afonine2018}
 Afonine, P.~V., Klaholz, B.~P., Moriarty, N.~W., Poon, B.~K., Sobolev, O.~V.,
@@ -261,14 +273,261 @@ Afonine, P.~V., Klaholz, B.~P., Moriarty, N.~W., Poon, B.~K., Sobolev, O.~V.,
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 Phenix provides a number of tools to assess the agreement between the experimental map and its atomic model
-\\cite{Afonine2018}. Among them, EMringer \\cite{Barad2015} compares the side chains of the atomic model to the 
-CryoEM map.\\\\
+\\cite{Afonine2018}. There are several cross-correlations to assess the quality of the fitting:\\\\
+\\begin{itemize}
+    \\item CC (mask): Model map vs. experimental map correlation coefficient calculated considering map values inside 
+a mask calculated around the macromolecule. 
+    \\item CC (box): Model map vs. experimental map correlation coefficient calculated considering all grid points of the 
+box.
+    \\item CC (volume) and CC (peaks) compare only map regions with the highest density values and regions below a 
+    certain contouring threshold level are ignored. CC (volume): The map region considered is defined by
+    the N highest points inside the molecular mask. CC (peaks): In this case, calculations consider the union of 
+    regions defined by the N highest peaks in the model-calculated map and the N highest peaks in the experimental map.
+    \\item Local real-space correlation coefficients CC (main chain) and CC (side chain) involve main skeleton chain 
+and lateral chains, respectively.
+\\end{itemize}
+There are also multiple ways of measuring the resolution:
+\\begin{itemize}
+    \\item d99: Resolution cutoff beyond which Fourier map coefficients are negligibly small. Calculated from the 
+    full map.
+    \\item Overall B-iso: Overall isotropic B-value.
+    \\item d\_model: Resolution cutoff at which the model map is the most similar to the target (experimental)
+ map. For d\_model to be meaningful, model is expected to fit the map as good as possible. d\_model (B\ factors = 0) 
+ tries to avoid the blurring of the map.
+    \\item d\_FSC\_model; Resolution cutoff up to which the model and map Fourier coefficients are similar at FSC values 
+        of 0, 0.143, 0.5.
+\\end{itemize}
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+
+    Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
+                                            'PhenixProtRunValidationCryoEM', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="6.e Phenix",
+                               resolution=max(resolution,3.0))
+    prot.inputVolume.set(protImportMap.outputVolume)
+    prot.inputStructure.set(protAtom.outputPdb)
+    project.launchProtocol(prot, wait=True)
+
+    if prot.isFailed():
+        report.writeSummary("6.e Phenix", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    fnPkl = os.path.join(project.getPath(),prot._getExtraPath("validation_cryoem.pkl"))
+    fnPklOut = os.path.join(report.getReportDir(),"validation_cryoem.pkl")
+    phenixScript=\
+"""import pickle
+
+data=pickle.load(open("%s","r"))
+dataOut = {}
+
+# CC ----------------------------------------------------------------
+dataOut["cc_mask"]=data.model_vs_data.cc.cc_mask
+dataOut["cc_box"]=data.model_vs_data.cc.cc_box
+dataOut["cc_peaks"]=data.model_vs_data.cc.cc_peaks
+dataOut["cc_volume"]=data.model_vs_data.cc.cc_volume
+dataOut["cc_main_chain"]=data.model_vs_data.cc.cc_main_chain.cc
+try:
+    dataOut["cc_side_chain"]=data.model_vs_data.cc.cc_side_chain.cc
+except:
+    pass
+
+# CC per chain ------------------------------------------------------
+dataOut['chain_list'] = []
+chain_names = []
+for item in data.model_vs_data.cc.cc_per_chain:
+    if item.chain_id not in chain_names:
+        chain_names.append(item.chain_id)
+        dataOut['chain_list'].append((item.chain_id, item.cc))
+
+dataOut['resseq_list'] = {}
+for chain_name in chain_names:
+    resseq_list = []
+    residue_cc = []
+    for item in data.model_vs_data.cc.cc_per_residue:
+        if item.chain_id == chain_name:
+            resseq_list.append(item.resseq)
+            residue_cc.append(item.cc)
+    dataOut['resseq_list'][chain_name]=(resseq_list,residue_cc)
+
+# Resolutions ------------------------------------------------------
+dataOut['*d99_full_masked']=data.data.masked.d99
+dataOut["overall_b_iso_masked"]=data.data.masked.b_iso_overall
+dataOut['*dmodel_masked']=data.data.masked.d_model
+dataOut['d_model_b0_masked']=data.data.masked.d_model_b0
+dataOut['*dFSCmodel_0_masked']=data.data.masked.d_fsc_model_0
+dataOut['*dFSCmodel_0.143_masked']=data.data.masked.d_fsc_model_0143
+dataOut['*dFSCmodel_0.5_masked']=data.data.masked.d_fsc_model_05
+dataOut['mask_smoothing_radius']=data.data.masked.radius_smooth
+
+dataOut['*d99_full_unmasked']=data.data.unmasked.d99
+dataOut["overall_b_iso_unmasked"]=data.data.unmasked.b_iso_overall
+dataOut['*dmodel_unmasked']=data.data.unmasked.d_model
+dataOut['d_model_b0_unmasked']=data.data.unmasked.d_model_b0
+dataOut['*dFSCmodel_0_unmasked']=data.data.unmasked.d_fsc_model_0
+dataOut['*dFSCmodel_0.143_unmasked']=data.data.unmasked.d_fsc_model_0143
+dataOut['*dFSCmodel_0.5_unmasked']=data.data.unmasked.d_fsc_model_05
+
+# FSCs -------------------------------------------------------------
+if data.data.masked.fsc_curve_model.fsc is not None:
+    fsc_model_map_masked = []
+    d_inv_model_map_masked = []
+    for item in data.data.masked.fsc_curve_model.fsc:
+        fsc_model_map_masked.append(item)
+    dataOut['FSC_Model_Map_Masked'] = fsc_model_map_masked
+    for item in data.data.masked.fsc_curve_model.d_inv:
+        d_inv_model_map_masked.append(item)
+    dataOut['d_inv_Model_Map_Masked'] = d_inv_model_map_masked
+if data.data.unmasked.fsc_curve_model.fsc is not None:
+    fsc_model_map_unmasked = []
+    d_inv_model_map_unmasked = []
+    for item in data.data.unmasked.fsc_curve_model.fsc:
+        fsc_model_map_unmasked.append(item)
+    dataOut['FSC_Model_Map_Unmasked'] = fsc_model_map_unmasked
+    for item in data.data.unmasked.fsc_curve_model.d_inv:
+        d_inv_model_map_unmasked.append(item)
+    dataOut['d_inv_Model_Map_Unmasked'] = d_inv_model_map_unmasked
+        
+fh = open("%s",'wb')
+pickle.dump(dataOut,fh)
+fh.close()
+"""%(fnPkl, fnPklOut)
+    fnPhenixScript = os.path.join(report.getReportDir(),"validation_cryoem.py")
+    fhPhenixScript = open(fnPhenixScript,"w")
+    fhPhenixScript.write(phenixScript)
+    fhPhenixScript.close()
+
+    from phenix import Plugin
+    Plugin.runPhenixProgram('',fnPhenixScript)
+
+    data = pickle.load(open(fnPklOut, "rb"))
+
+    # CC
+    msg =\
+"""To avoid ringing in Fourier space a smooth mask with a radius of %5.1f \\AA~has been applied.  \\\\
+\\underline{Overall correlation coefficients}: \\\\
+\\begin{tabular}{rc}
+CC (mask) = & %5.3f\\\\
+CC (box) = & %5.3f\\\\
+CC (volume) = & %5.3f\\\\
+CC (peaks) = & %5.3f\\\\
+CC (main chain) = & %5.3f\\\\
+"""%(data['mask_smoothing_radius'], data['cc_mask'],data['cc_box'],data['cc_volume'],data['cc_peaks'],
+     data['cc_main_chain'])
+    if 'cc_side_chain' in data:
+        msg+="CC (side chain) = & %5.3f\\\\ \n"%data['cc_side_chain']
+    msg+="\\end{tabular}\n\\\\\n"
+
+    # CC per chain
+    msg+=\
+"""
+\\underline{Correlation coefficients per chain}:\\\\
+\\begin{tabular}{cc}
+    \\textbf{Chain} & \\textbf{Cross-correlation} \\\\
+"""
+    for chain_id, cc in data['chain_list']:
+        msg+="%s & %f\\\\ \n"%(chain_id, cc)
+    msg+="\\end{tabular}\n\n"
+
+    # CC per residues
+    def plotCCResidue(chain_id, reportDir):
+        fnPlot = os.path.join(reportDir, "ccresidue_%s.png"%chain_id)
+        resseq_list, residue_cc = data['resseq_list'][chain_id]
+        x = [x+1 for x in np.arange(0,len(residue_cc))]
+        print('x',x)
+        print('y',residue_cc)
+        reportPlot(x, residue_cc, 'Aminoacid no.', 'Cross-correlation', fnPlot, addMean=True, title="Chain %s"%chain_id)
+        return fnPlot
+
+    msg+="""We now show the correlation profiles of the different chain per residue.\n"""
+    for chain_id in data['resseq_list']:
+        fnPlot = plotCCResidue(chain_id, report.getReportDir())
+        msg+="""\\includegraphics[width=7cm]{%s}\n"""%fnPlot
+        
+    # Resolutions
+    msg+=\
+"""
+\\underline{Resolutions estimated from the model}:\\\\
+"""
+    report.write(msg)
+
+def emringer(project, report, protImportMap, protAtom):
+    bblCitation = \
+"""\\bibitem[Barad et~al., 2015]{Barad2015}
+Barad, B.~A., Echols, N., Wang, R. Y.-R., Cheng, Y., DiMaio, F., Adams, P.~D.,
+  and Fraser, J.~S. (2015).
+\\newblock {EMR}inger: side chain-directed model and map validation for 3{D}
+  cryo-electron microscopy.
+\\newblock {\em Nature Methods}, 12(10):943--946.
+"""
+    report.addCitation("Barad2015", bblCitation)
+
+    secLabel = "sec:emringer"
+    msg = \
+"""
+\\subsection{Level 6.f EMRinger validation}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+EMringer \\cite{Barad2015} compares the side chains of the atomic model to the CryoEM map.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
 """ % secLabel
     report.write(msg)
 
+    Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
+                                            'PhenixProtRunEMRinger', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="6.f EMRinger")
+    prot.inputVolume.set(protImportMap.outputVolume)
+    prot.inputStructure.set(protAtom.outputPdb)
+    project.launchProtocol(prot, wait=True)
+
+    if prot.isFailed():
+        report.writeSummary("6.f EMRinger", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+def daq(project, report, protImportMap, protAtom):
+    bblCitation = \
+"""\\bibitem[Terashi et~al., 2022]{Terashi2022}
+Terashi, G., Wang, X., Subramaniya, S.R.M.V., Tesmer, J.J.G. and Kihara, D. (2022).
+\\newblock Residue-Wise Local Quality Estimation for Protein Models from {Cryo-EM} Maps.
+\\newblock (submitted).
+"""
+    report.addCitation("Terashi2022", bblCitation)
+
+    secLabel = "sec:daq"
+    msg = \
+"""
+\\subsection{Level 6.g DAQ validation}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+DAQ \\cite{Terashi2022} DAQ is a computational tool using deep learning that can estimate the residue-wise local
+quality for protein models from cryo-Electron Microscopy (EM) maps. The method calculates the likelihood that a given
+density feature corresponds to an aminoacid, atom, and secondary structure. These likelihoods are combined into a
+ score that ranges from -1 (bad quality) to 1 (good quality). \\\\
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+
+    Prot = pwplugin.Domain.importFromPlugin('kiharalab.protocols',
+                                            'ProtDAQValidation', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="6.g DAQ")
+    prot.inputVolume.set(protImportMap.outputVolume)
+    prot.inputAtomStruct.set(protAtom.outputPdb)
+    project.launchProtocol(prot, wait=True)
+
+    if prot.isFailed():
+        report.writeSummary("6.f EMRinger", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
 
 def reportInput(project, report, FNMODEL):
     msg = \
@@ -282,6 +541,12 @@ Atomic model: %s \\\\
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
 
 def level6(project, report, protImportMap, FNMODEL, resolution, doMultimodel, skipAnalysis=False):
+    if protImportMap.outputVolume.hasHalfMaps():
+        protImportMapWOHalves = importMap(project, "Import map2", protImportMap)
+        protImportForPhenix = protImportMapWOHalves
+    else:
+        protImportForPhenix = protImportMap
+
     protAtom = importModel(project, "Import atomic", protImportMap, FNMODEL)
 
     reportInput(project, report, FNMODEL)
@@ -289,9 +554,12 @@ def level6(project, report, protImportMap, FNMODEL, resolution, doMultimodel, sk
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 6 analysis')
-        mapq(project, report, protImportMap, protAtom)
-        fscq(project, report, protImportMap, protAtom)
-        if doMultimodel:
-            multimodel(project, report, protImportMap, protAtom)
-        guinierModel(project, report, protImportMap, protAtom, resolution)
-        phenix(project, report, protImportMap, protAtom, resolution)
+        protConvert = convertPDB(project, protImportMap, protAtom)
+        # mapq(project, report, protImportMap, protAtom)
+        # fscq(project, report, protImportMap, protAtom, protConvert)
+        # if doMultimodel:
+        #     multimodel(project, report, protImportMap, protAtom)
+        # guinierModel(project, report, protImportMap, protConvert, resolution)
+        phenix(project, report, protImportForPhenix, protAtom, resolution)
+        # emringer(project, report, protImportForPhenix, protAtom)
+        # daq(project, report, protImportMap, protAtom)
