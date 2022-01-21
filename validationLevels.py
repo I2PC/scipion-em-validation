@@ -61,11 +61,13 @@ def usage(message=''):
           "\n         LEVEL 6 ====="
           '\n            atomicModel:  mymodel.pdb [or .cif]'
           '\n            doMultimodel:  yes # This method is computationally very expensive'
+          "\n         LEVEL W ====="
+          '\n            workflow:  workflow.json'
           )
     message = "\n\n  >>  %s\n" % message if message != '' else ''
     print(message)
     sys.exit(1)
-    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o particles=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/particles.sqlite ptclSampling=0.74 kV=300 Cs=2.7 Q0=0.1 hasAngles=yes micrographs="/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/006458_XmippProtMovieCorr/extra/*mic.mrc" micSampling=0.49 atomicModel=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/centered4V1W.pdb doMultimodel=yes
+    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o particles=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/particles.sqlite ptclSampling=0.74 kV=300 Cs=2.7 Q0=0.1 hasAngles=yes micrographs="/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/006458_XmippProtMovieCorr/extra/*mic.mrc" micSampling=0.49 atomicModel=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/centered4V1W.pdb doMultimodel=yes workflow=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/workflow.json
 
 if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
     usage()
@@ -117,6 +119,8 @@ for arg in sys.argv:
         FNMODEL = arg.split("atomicModel=")[1]
     if arg.startswith('doMultimodel='):
         doMultimodel = arg.split("doMultimodel=")[1]=="yes"
+    if arg.startswith('workflow='):
+        WORKFLOW = arg.split("workflow=")[1]
 
 # Detect level
 argsPresent = [x.split('=')[0] for x in sys.argv]
@@ -127,6 +131,7 @@ LEVEL3 = ["particles", "ptclSampling", "kV", "Cs", "Q0"]
 LEVEL4 = ["hasAngles"]
 LEVEL5 = ["micrographs", "micSampling"]
 LEVEL6 = ["atomicModel", "doMultimodel"]
+LEVELW = ["workflow"]
 
 def detectLevel(labels, args):
     retval = True
@@ -150,6 +155,8 @@ if detectLevel(LEVEL5, argsPresent):
     levels.append("5")
 if detectLevel(LEVEL6, argsPresent):
     levels.append("6")
+if detectLevel(LEVELW, argsPresent):
+    levels.append("W")
 
 if len(levels)==0 or not "0" in levels:
     usage()
@@ -203,7 +210,12 @@ if "5" in levels:
 # Level 6
 if "6" in levels:
     from validationLevel6 import level6
-    level6(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, skipAnalysis = False)
+    level6(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, skipAnalysis = True)
+
+# Level W
+if "W" in levels:
+    from validationLevelW import levelW
+    levelW(project, report, WORKFLOW, skipAnalysis = False)
 
 # Close report
 report.closeReport()

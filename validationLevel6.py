@@ -743,11 +743,11 @@ def level6(project, report, protImportMap, FNMODEL, resolution, doMultimodel, sk
     if not skipAnalysis:
         report.writeSection('Level 6 analysis')
         protConvert = convertPDB(project, protImportMap, protAtom)
-        # mapq(project, report, protImportMap, protAtom)
-        # fscq(project, report, protImportMap, protAtom, protConvert)
-        # if doMultimodel:
-        #     multimodel(project, report, protImportMap, protAtom)
-        # guinierModel(project, report, protImportMap, protConvert, resolution)
-        # phenix(project, report, protImportForPhenix, protAtom, resolution)
-        # emringer(project, report, protImportForPhenix, protAtom)
+        mapq(project, report, protImportMap, protAtom)
+        fscq(project, report, protImportMap, protAtom, protConvert)
+        if doMultimodel:
+            multimodel(project, report, protImportMap, protAtom)
+        guinierModel(project, report, protImportMap, protConvert, resolution)
+        phenix(project, report, protImportForPhenix, protAtom, resolution)
+        emringer(project, report, protImportForPhenix, protAtom)
         daq(project, report, protImportMap, protAtom)
