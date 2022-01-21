@@ -163,7 +163,7 @@ def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear",grid=True, plotType="
     if title!="":
         plt.title(title)
     plt.savefig(fnOut, bbox_inches='tight')
-    plt.clf()
+    plt.close('all')
 
 def reportHistogram(y, ylabel, fnOut):
     matplotlib.use('Agg')
@@ -173,7 +173,7 @@ def reportHistogram(y, ylabel, fnOut):
     plt.xlabel(ylabel)
     plt.ylabel("Count")
     plt.savefig(fnOut, bbox_inches='tight')
-    plt.clf()
+    plt.close('all')
 
 def reportMultiplePlots(x,yList, xlabel, ylabel, fnOut, legends, invertXLabels=False):
     matplotlib.use('Agg')
@@ -187,7 +187,7 @@ def reportMultiplePlots(x,yList, xlabel, ylabel, fnOut, legends, invertXLabels=F
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.savefig(fnOut, bbox_inches='tight')
-    plt.clf()
+    plt.close('all')
 
 def radialPlot(thetas, radii, weights, fnOut, plotType="points"):
     max_w = max(weights)
@@ -222,6 +222,7 @@ def radialPlot(thetas, radii, weights, fnOut, plotType="points"):
     ax.grid(True)
 
     plt.savefig(fnOut, bbox_inches='tight')
+    plt.close('all')
 
 def calculateSha256(fn):
     sha256_hash = hashlib.sha256()
@@ -274,7 +275,7 @@ def plotMicrograph(fnMic, fnOut, coords=None, boxSize=0, Ts=0):
             circle = plt.Circle((xp, yp), boxSizep, color='green', fill=False)
             plt.gca().add_artist(circle)
     plt.savefig(fnOut, bbox_inches='tight')
-    plt.clf()
+    plt.close('all')
 
 class ValidationReport:
 

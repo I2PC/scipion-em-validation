@@ -260,9 +260,9 @@ def phenix(project, report, protImportMap, protAtom, resolution):
 """\\bibitem[Afonine et~al., 2018]{Afonine2018}
 Afonine, P.~V., Klaholz, B.~P., Moriarty, N.~W., Poon, B.~K., Sobolev, O.~V.,
   Terwilliger, T.~C., Adams, P.~D., and Urzhumtsev, A. (2018).
-\newblock New tools for the analysis and validation of cryo-{EM} maps and
+\\newblock New tools for the analysis and validation of cryo-{EM} maps and
   atomic models.
-\newblock {\em Acta Crystallographica D, Struct. Biol.}, 74:814--840.
+\\newblock {\em Acta Crystallographica D, Struct. Biol.}, 74:814--840.
 """
     report.addCitation("Afonine2018", bblCitation)
 
@@ -409,6 +409,7 @@ fh.close()
     msg =\
 """To avoid ringing in Fourier space a smooth mask with a radius of %5.1f \\AA~has been applied.  \\\\
 \\underline{Overall correlation coefficients}: \\\\
+\\begin{center}
 \\begin{tabular}{rc}
 CC (mask) = & %5.3f\\\\
 CC (box) = & %5.3f\\\\
@@ -420,39 +421,113 @@ CC (main chain) = & %5.3f\\\\
     if 'cc_side_chain' in data:
         msg+="CC (side chain) = & %5.3f\\\\ \n"%data['cc_side_chain']
     msg+="\\end{tabular}\n\\\\\n"
+    msg+="\\end{center}\n\n"
 
     # CC per chain
     msg+=\
 """
 \\underline{Correlation coefficients per chain}:\\\\
+\\begin{center}
 \\begin{tabular}{cc}
     \\textbf{Chain} & \\textbf{Cross-correlation} \\\\
 """
     for chain_id, cc in data['chain_list']:
         msg+="%s & %f\\\\ \n"%(chain_id, cc)
     msg+="\\end{tabular}\n\n"
+    msg+="\\end{center}\n\n\n"
 
     # CC per residues
-    def plotCCResidue(chain_id, reportDir):
+    allCCs = []
+    def plotCCResidue(chain_id, reportDir, allCCs):
         fnPlot = os.path.join(reportDir, "ccresidue_%s.png"%chain_id)
         resseq_list, residue_cc = data['resseq_list'][chain_id]
+        allCCs+=residue_cc
         x = [x+1 for x in np.arange(0,len(residue_cc))]
-        print('x',x)
-        print('y',residue_cc)
         reportPlot(x, residue_cc, 'Aminoacid no.', 'Cross-correlation', fnPlot, addMean=True, title="Chain %s"%chain_id)
         return fnPlot
 
     msg+="""We now show the correlation profiles of the different chain per residue.\n"""
-    for chain_id in data['resseq_list']:
-        fnPlot = plotCCResidue(chain_id, report.getReportDir())
+    for chain_id in sorted(data['resseq_list']):
+        fnPlot = plotCCResidue(chain_id, report.getReportDir(), allCCs)
         msg+="""\\includegraphics[width=7cm]{%s}\n"""%fnPlot
-        
+
+    fnCCHist = os.path.join(report.getReportDir(),"ccModelHist.png")
+    reportHistogram(allCCs, "Cross-correlation", fnCCHist)
+    badResidues = np.sum(np.array(allCCs)<0.5)/len(allCCs)*100
+
+    msg += \
+"""
+
+Fig. \\ref{fig:ccResidueHist} shows the histogram of all cross-correlations evaluated at the residues. The percentage
+of residues whose correlation is below 0.5 is %4.1f \\%%.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=10cm]{%s}
+    \\caption{Histogram of the cross-correlation between the map and model evaluated for all residuals.}
+    \\label{fig:ccResidueHist}
+\\end{figure}
+
+"""%(badResidues, fnCCHist)
+
     # Resolutions
     msg+=\
 """
 \\underline{Resolutions estimated from the model}:\\\\
-"""
+\\begin{center}
+\\begin{tabular}{rcc}
+    \\textbf{Resolution} (\\AA) & \\textbf{Masked} & \\textbf{Unmasked} \\\\
+    d99 & %4.1f & %4.1f \\\\
+    Overall B-iso & %4.1f & %4.1f \\\\
+    d\_model & %4.1f & %4.1f \\\\
+    d\_model (B-factor=0) & %4.1f & %4.1f \\\\
+    FSC\_model=0 & %4.1f & %4.1f \\\\
+    FSC\_model=0.143 & %4.1f & %4.1f \\\\
+    FSC\_model=0.5 & %4.1f & %4.1f \\\\
+\\end{tabular}
+\\end{center}
+
+"""%(data['*d99_full_masked'],data['*d99_full_unmasked'],
+     data["overall_b_iso_masked"],data["overall_b_iso_unmasked"],
+     data['*dmodel_masked'],data['*dmodel_unmasked'],
+     data['d_model_b0_masked'],data['d_model_b0_unmasked'],
+     data['*dFSCmodel_0_masked'],data['*dFSCmodel_0_unmasked'],
+     data['*dFSCmodel_0.143_masked'],data['*dFSCmodel_0.143_unmasked'],
+     data['*dFSCmodel_0.5_masked'],data['*dFSCmodel_0.5_unmasked'])
+
+    if 'FSC_Model_Map_Masked' in data and 'FSC_Model_Map_Unmasked' in data:
+        fnFSCModel = os.path.join(report.getReportDir(),"fscModel.png")
+        reportMultiplePlots(data['d_inv_Model_Map_Masked'],
+                            [data['FSC_Model_Map_Masked'], data['FSC_Model_Map_Unmasked'],
+                             0.5*np.ones(len(data['FSC_Model_Map_Masked']))],
+                            "Resolution (A)", "FSC", fnFSCModel,
+                            ['Masked','Unmasked','0.5 Threshold'], invertXLabels=True)
+        msg+=\
+"""Fig. \\ref{fig:fscModel} shows the FSC between the input map and the model.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=12cm]{%s}
+    \\caption{FSC between the input map and model with and without a mask constructed from the model.
+              The X-axis is the square of the inverse of the resolution in \\AA.}
+    \\label{fig:fscModel}
+\\end{figure}
+
+"""%fnFSCModel
     report.write(msg)
+
+    warnings = []
+    testWarnings = False
+    if badResidues > 10 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The percentage of residues that have a cross-correlation below 0.5 " \
+                        "is %4.1f, that is larger than 10\\%%}}" % badResidues)
+    if resolution<0.8*data['*dFSCmodel_0.5_masked'] or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %4.1f \\AA, is significantly " \
+                        "smaller than the resolution estimated between map and model (FSC=0.5), %4.1f \\AA}}" %\
+                        (resolution,data['*dFSCmodel_0.5_masked']))
+
+    report.writeWarningsAndSummary(warnings, "6.e Phenix validation", secLabel)
+
 
 def emringer(project, report, protImportMap, protAtom):
     bblCitation = \
