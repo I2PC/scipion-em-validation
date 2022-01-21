@@ -675,15 +675,47 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     Prot = pwplugin.Domain.importFromPlugin('kiharalab.protocols',
                                             'ProtDAQValidation', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel="6.g DAQ")
+                               objLabel="6.g DAQ",
+                               stride=3)
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputAtomStruct.set(protAtom.outputPdb)
     project.launchProtocol(prot, wait=True)
 
     if prot.isFailed():
-        report.writeSummary("6.f EMRinger", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("6.f DAQ", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
+
+    daqDic = prot.parseDAQScores(prot.outputAtomStruct.getFileName())
+    daqValues = list(daqDic.values())
+    fnDAQHist = os.path.join(report.getReportDir(),"daqHist.png")
+    reportHistogram(daqValues,"DAQ", fnDAQHist)
+    avgDaq = np.mean(daqValues)
+    stdDaq = np.std(daqValues)
+
+    msg =\
+"""Fig. \\ref{fig:daqHist} shows the histogram of the DAQ values. The average and standard deviation were %4.1f and
+%4.1f, respectively.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=10cm]{%s}
+    \\caption{Histogram of the DAQ values.}
+    \\label{fig:daqHist}
+\\end{figure}
+"""%(avgDaq, stdDaq, fnDAQHist)
+    report.write(msg)
+
+    msg="The atomic model colored by DAQ can be seen in Fig. \\ref{fig:daq}.\n\n"
+    report.atomicModel("daqView", msg, "Atomic model colored by DAQ",
+                       os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "fig:daq", True)
+
+    warnings = []
+    testWarnings = False
+    if stdDaq==0 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{Could not be measured.}}")
+
+    report.writeWarningsAndSummary(warnings, "6.g DAQ", secLabel)
 
 def reportInput(project, report, FNMODEL):
     msg = \
@@ -717,5 +749,5 @@ def level6(project, report, protImportMap, FNMODEL, resolution, doMultimodel, sk
         #     multimodel(project, report, protImportMap, protAtom)
         # guinierModel(project, report, protImportMap, protConvert, resolution)
         # phenix(project, report, protImportForPhenix, protAtom, resolution)
-        emringer(project, report, protImportForPhenix, protAtom)
-        # daq(project, report, protImportMap, protAtom)
+        # emringer(project, report, protImportForPhenix, protAtom)
+        daq(project, report, protImportMap, protAtom)
