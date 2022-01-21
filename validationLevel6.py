@@ -24,7 +24,9 @@
 # *
 # **************************************************************************
 
+import collections
 import glob
+import json
 import math
 import numpy as np
 import os
@@ -35,7 +37,7 @@ import subprocess
 from scipion.utils import getScipionHome
 from pwem.emlib.metadata import iterRows
 import pyworkflow.plugin as pwplugin
-from pyworkflow.utils.path import cleanPath
+from pyworkflow.utils.path import cleanPath, copyFile
 from xmipp3.convert import writeSetOfParticles
 import xmipp3
 
@@ -546,9 +548,16 @@ Barad, B.~A., Echols, N., Wang, R. Y.-R., Cheng, Y., DiMaio, F., Adams, P.~D.,
 \\subsection{Level 6.f EMRinger validation}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-EMringer \\cite{Barad2015} compares the side chains of the atomic model to the CryoEM map.\\\\
-\\\\
-\\textbf{Results:}\\\\
+EMringer \\cite{Barad2015} compares the side chains of the atomic model to the CryoEM map. The following features are
+reported:
+\\begin{itemize}
+    \\item Optimal Threshold: Electron potential map cutoff value at which the maximum EMRinger score was obtained.
+    \\item Rotamer Ratio: Fraction of rotameric residues at the Optimal threshold value.
+    \\item Max Zscore: Z-score computed to determine the significance of the distribution at the Optimal threshold value.
+    \\item Model Length: Total of non-gamma-branched, non-proline aminoacids with a non-H gamma atom used in global EMRinger score computation.
+    \\item EMRinger Score: Maximum EMRinger score calculated at the Optimal Threshold.
+\\end{itemize}
+\\textbf{Results:}
 \\\\
 """ % secLabel
     report.write(msg)
@@ -565,6 +574,78 @@ EMringer \\cite{Barad2015} compares the side chains of the atomic model to the C
         report.writeSummary("6.f EMRinger", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
+
+    dataDict=json.loads(str(prot.stringDataDict), object_pairs_hook=collections.OrderedDict)
+
+    maxScoreIndex = dataDict['_maxScoreIndex']
+    optimalThreshold = str("%0.3f" % dataDict['_thresholds'][maxScoreIndex])
+
+    fnScore = os.path.join(report.getReportDir(),"emringerThreshold_scan.png")
+    copyFile(os.path.join(project.getPath(),
+                          glob.glob(prot._getExtraPath("*_emringer_plots/Total.threshold_scan.png"))[0]),
+             fnScore)
+    fnResidueHist = os.path.join(report.getReportDir(),"residueHist.png")
+    copyFile(os.path.join(project.getPath(),
+                          glob.glob(prot._getExtraPath("*_emringer_plots/%s.histogram.png"%optimalThreshold))[0]),
+             fnResidueHist)
+
+    msg=\
+"""\\underline{General results}:\\\\
+\\begin{center}
+\\begin{tabular}{rc}
+    Optimal threshold & %f \\\\
+    Rotamer ratio & %4.3f \\\\
+    Max. Zscore & %5.2f \\\\
+    Model length & %d \\\\
+    EMRinger Score & %4.3f \\\\
+\\end{tabular}
+\\end{center}
+
+Fig. \\ref{fig:emringerThreshold} shows the EMRinger score and fraction of rotameric residues as a function of
+the map threshold. The optimal threshold was selected looking for the maximum EMRinger score in this plot.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=10cm]{%s}
+    \\caption{EMRinger score and fraction of rotameric residues as a function of the map threshold.}
+    \\label{fig:emringerThreshold}
+\\end{figure}
+
+Fig. \\ref{fig:emRingerPeaks} shows the histogram for rotameric (blue) and non-rotameric (red) residues at the 
+optimal threshold.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=12cm]{%s}
+    \\caption{Histogram for rotameric (blue) and non-rotameric (red) residues at the optimal threshold as a
+    function of the angle Chi1.}
+    \\label{fig:emRingerPeaks}
+\\end{figure}
+
+"""%(dataDict["Optimal Threshold"], dataDict["Rotamer-Ratio"], dataDict["Max Zscore"], dataDict["Model Length"],
+     dataDict["EMRinger Score"], fnScore, fnResidueHist)
+
+    msg+=\
+"""The following plots show the rolling window EMRinger analysis of the different chains to distinguish regions 
+of improved model quality. This analysis was performed on rolling sliding 21-residue windows along the primary 
+sequence of proteins.
+
+"""
+    for chain in sorted(dataDict['_chains']):
+        fnPlot = os.path.join(project.getPath(),
+                              glob.glob(prot._getExtraPath("*_emringer_plots/%s_rolling.png"%chain))[0])
+        msg += "\\includegraphics[width=7cm]{%s}\n" % fnPlot
+    msg+="\n"
+
+    report.write(msg)
+
+    warnings = []
+    testWarnings = False
+    if dataDict["EMRinger Score"] <0 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The EMRinger score is smaller than 0, it is %4.3f.}}"%\
+                        dataDict["EMRinger Score"])
+
+    report.writeWarningsAndSummary(warnings, "6.f EMRinger", secLabel)
 
 def daq(project, report, protImportMap, protAtom):
     bblCitation = \
@@ -635,6 +716,6 @@ def level6(project, report, protImportMap, FNMODEL, resolution, doMultimodel, sk
         # if doMultimodel:
         #     multimodel(project, report, protImportMap, protAtom)
         # guinierModel(project, report, protImportMap, protConvert, resolution)
-        phenix(project, report, protImportForPhenix, protAtom, resolution)
-        # emringer(project, report, protImportForPhenix, protAtom)
+        # phenix(project, report, protImportForPhenix, protAtom, resolution)
+        emringer(project, report, protImportForPhenix, protAtom)
         # daq(project, report, protImportMap, protAtom)
