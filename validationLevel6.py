@@ -668,7 +668,6 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
  score that ranges from -1 (bad quality) to 1 (good quality). \\\\
 \\\\
 \\textbf{Results:}\\\\
-\\\\
 """ % secLabel
     report.write(msg)
 
@@ -751,3 +750,5 @@ def level6(project, report, protImportMap, FNMODEL, resolution, doMultimodel, sk
         phenix(project, report, protImportForPhenix, protAtom, resolution)
         emringer(project, report, protImportForPhenix, protAtom)
         daq(project, report, protImportMap, protAtom)
+
+    return protAtom

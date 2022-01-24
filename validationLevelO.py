@@ -1,0 +1,209 @@
+# **************************************************************************
+# *
+# * Authors:     Carlos Oscar Sorzano (coss@cnb.csic.es)
+# *
+# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'scipion@cnb.csic.es'
+# *
+# **************************************************************************
+
+import glob
+import numpy as np
+import os
+
+import pyworkflow.plugin as pwplugin
+
+from validationReport import calculateSha256, reportMultiplePlots
+
+def xlmValidation(project, report, protAtom, XLM):
+    bblCitation = \
+"""\\bibitem[Sinnott et~al., 2020]{Sinnott2020}
+Sinnott, M., Malhotra, S., Madhusudhan, M.~S., Thalassinos, K., and Topf, M.
+(2020).
+\\newblock Combining information from crosslinks and monolinks in the modeling
+of protein structures.
+\\newblock {\em Structure}, 28:1061--1070.e3.
+
+"""
+    report.addCitation("Sinnott2020", bblCitation)
+
+    secLabel = "sec:xlm"
+    msg = \
+"""
+\\subsection{O.a Mass-spectroscopy}
+\\label{%s}
+
+\\textbf{Explanation}:\\\\ 
+The method in \\cite{Sinnott2020} uses information from cross- and mono-links to validate the atomic model.\\\\
+\\\\
+\\textbf{Results:}\\\\
+""" % (secLabel)
+    report.write(msg)
+
+    Prot = pwplugin.Domain.importFromPlugin('xlmtools.protocols',
+                                            'ProtWLM', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="O.a XLM",
+                               xlList=XLM)
+    prot.pdbs.set([protAtom.outputPdb])
+    project.launchProtocol(prot, wait=True)
+    if prot.isFailed():
+        report.writeSummary("O.a XLM", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return None
+
+    fileList = glob.glob(prot._getExtraPath("Jwalk_results/*.txt"))
+    if len(fileList)==0:
+        report.writeSummary("O.a XLM", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol did not produce any result.}}\\\\ \n")
+        return None
+
+    msg=\
+"""The user provided the following cross-link or mono-link constraints: 
+\\begin{enumerate}"""
+    fh = open(XLM)
+    lineNo = 0
+    for line in fh.readlines():
+        msg+="\\item "+line+"\n"
+        lineNo+=1
+    fh.close()
+    msg+="\\end{enumerate}\n\n"
+    Nconstraints = lineNo
+
+    msg+=\
+"""From these constraints, the program has validated the following ones:
+\\begin{enumerate}"""
+    fnResults = fileList[0]
+    fh = open(fnResults)
+    lineNo = 0
+    for line in fh.readlines():
+        if lineNo>0:
+            tokens = line.strip().split()
+            msg+="\\item Atom1: %s, Atom2: %s, SASD=%5.2f, Distance=%5.2f"%(tokens[2], tokens[3],
+                                                                            float(tokens[4]), float(tokens[5]))
+        lineNo+=1
+    fh.close()
+    msg+="\\end{enumerate}\n\n"
+    Nvalidated=lineNo
+
+    report.write(msg)
+    warnings=[]
+    testWarnings = False
+    if Nvalidated<0.5*Nconstraints:
+        warnings.append("{\\color{red} \\textbf{Less than half of the cross/mono-links were fulfilled by the atomic "\
+                        "model. Precisely, %d out of %d}}"%(Nvalidated,Nconstraints))
+    report.writeWarningsAndSummary(warnings, "O.a Mass spectroscopy", secLabel)
+
+def saxsValidation(project, report, protMap, protMask, SAXS):
+    bblCitation = \
+"""\\bibitem[Jim\\'enez et~al., 2019]{Jimenez2019}
+Jim\\'enez, A., Jonic, S., Majtner, T., O\\'on, J., Vilas, J.~L., Maluenda, D.,
+  Mota, J., Ram\\'irez-Aportela, E., Mart\\'inez, M., Rancel, Y., Segura, J.,
+  S\\'anchez-Garc\\'ia, R., Melero, R., {Del Ca\~no}, L., Conesa, P., Skjaerven,
+  L., Marabini, R., Carazo, J.~M., and Sorzano, C. O.~S. (2019).
+\\newblock Validation of electron microscopy initial models via small angle
+  {X}-ray scattering curves.
+\\newblock {\em Bioinformatics}, 35:2427--2433.
+"""
+    report.addCitation("Jimenez2019", bblCitation)
+
+    secLabel = "sec:saxs"
+    msg = \
+"""
+\\subsection{O.b SAXS}
+\\label{%s}
+SAXS file: %s \\\\
+SHA256 hash: %s \\\\ 
+
+\\textbf{Explanation}:\\\\ 
+The method in \\cite{Jimenez2019} compares the expected energy profile from the reconstructed map to the one 
+obtained by a SAXS experiment. \\\\
+\\\\
+\\textbf{Results:}\\\\
+""" % (secLabel, SAXS.replace('_', '\_').replace('/', '/\-'), calculateSha256(SAXS))
+    report.write(msg)
+
+    Prot = pwplugin.Domain.importFromPlugin('continuousflex.protocols',
+                                            'FlexProtConvertToPseudoAtoms', doRaise=True)
+    protPseudo = project.newProtocol(Prot,
+                                     objLabel="O.b Convert Map to Pseudo",
+                                     maskMode=2,
+                                     pseudoAtomRadius=1.5)
+    protPseudo.inputStructure.set(protMap.outputVolume)
+    protPseudo.volumeMask.set(protMask.outputMask)
+    project.launchProtocol(protPseudo, wait=True)
+    if protPseudo.isFailed():
+        report.writeSummary("O.b SAXS", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return None
+
+    Prot = pwplugin.Domain.importFromPlugin('atsas.protocols',
+                                            'AtsasProtConvertPdbToSAXS', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="O.b SAXS",
+                               experimentalSAXS=SAXS)
+    prot.inputStructure.set(protPseudo.outputPdb)
+    project.launchProtocol(prot, wait=True)
+    if prot.isFailed():
+        report.writeSummary("O.b SAXS", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return None
+
+    fnSummary = prot._getExtraPath("crysol_summary.txt")
+    fh = open(fnSummary)
+    for line in fh.readlines():
+        tokens = line.strip().split()
+        if len(tokens)>0 and tokens[0]=="Model:":
+            Rg = float(tokens[3])
+            chi2 = float(tokens[7])
+
+            fnSaxs = os.path.join(report.getReportDir(),"saxs.png")
+            fnResults = prot._getPath("pseudoatoms00.fit")
+            X = np.loadtxt(fnResults, skiprows=1)
+            reportMultiplePlots(X[:,0],[np.log10(X[:,1]), np.log10(X[:,3])], 'Frequency (A^-1)', 'log10(SAXS)',
+                                fnSaxs,['Simulated', 'Experimental'])
+
+            msg=\
+"""The radius of gyration was %5.1f \\AA. The $\\chi^2$ between the simulated curve and the experimental one was %4.1f.
+Fig. \\ref{fig:saxs} shows the two SAXS profiles for comparison.
+
+\\begin{figure}[H]
+  \\centering
+  \\includegraphics[width=10cm]{%s}
+  \\caption{Simulated and experimental SAXS curves.}
+  \\label{fig:saxs}
+\\end{figure}
+
+"""%(Rg, chi2, fnSaxs)
+            report.write(msg)
+            break
+    fh.close()
+    warnings=None
+    report.writeWarningsAndSummary(warnings, "O.b SAXS", secLabel)
+
+def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS, skipAnalysis=False):
+    msg ="\\section{Other experimental techniques}\n\n"
+    report.write(msg)
+
+    if not skipAnalysis:
+        if XLM is not None and protAtom is not None:
+            xlmValidation(project, report, protAtom, XLM)
+        if SAXS is not None:
+            saxsValidation(project, report, protMap, protMask, SAXS)

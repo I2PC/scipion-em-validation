@@ -63,11 +63,14 @@ def usage(message=''):
           '\n            doMultimodel:  yes # This method is computationally very expensive'
           "\n         LEVEL W ====="
           '\n            workflow:  workflow.json'
+          "\n         LEVEL O ====="
+          '\n            xlm:  xlm.txt'
+          '\n            saxs: saxsCurve.dat'
           )
     message = "\n\n  >>  %s\n" % message if message != '' else ''
     print(message)
     sys.exit(1)
-    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o particles=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/particles.sqlite ptclSampling=0.74 kV=300 Cs=2.7 Q0=0.1 hasAngles=yes micrographs="/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/006458_XmippProtMovieCorr/extra/*mic.mrc" micSampling=0.49 atomicModel=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/centered4V1W.pdb doMultimodel=yes workflow=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/workflow.json
+    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o particles=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/particles.sqlite ptclSampling=0.74 kV=300 Cs=2.7 Q0=0.1 hasAngles=yes micrographs="/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/006458_XmippProtMovieCorr/extra/*mic.mrc" micSampling=0.49 atomicModel=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/centered4V1W.pdb doMultimodel=yes workflow=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/workflow.json xlm=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/xlm.txt saxs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/SASDE55.dat
 
 if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
     usage()
@@ -78,6 +81,8 @@ manager = Manager()
 # Fixing some parameters depending on the arguments or taking the default ones
 FNMAP1 = None
 FNMAP2 = None
+XLM = None
+SAXS = None
 for arg in sys.argv:
     if arg.startswith('project='):
         PROJECT_NAME = arg.split('project=')[1]
@@ -121,6 +126,10 @@ for arg in sys.argv:
         doMultimodel = arg.split("doMultimodel=")[1]=="yes"
     if arg.startswith('workflow='):
         WORKFLOW = arg.split("workflow=")[1]
+    if arg.startswith('xlm='):
+        XLM = arg.split("xlm=")[1]
+    if arg.startswith('saxs='):
+        SAXS = arg.split("saxs=")[1]
 
 # Detect level
 argsPresent = [x.split('=')[0] for x in sys.argv]
@@ -132,6 +141,8 @@ LEVEL4 = ["hasAngles"]
 LEVEL5 = ["micrographs", "micSampling"]
 LEVEL6 = ["atomicModel", "doMultimodel"]
 LEVELW = ["workflow"]
+LEVELOa = ["xlm"]
+LEVELOb = ["saxs"]
 
 def detectLevel(labels, args):
     retval = True
@@ -157,6 +168,11 @@ if detectLevel(LEVEL6, argsPresent):
     levels.append("6")
 if detectLevel(LEVELW, argsPresent):
     levels.append("W")
+if detectLevel(LEVELOa, argsPresent):
+    levels.append("O")
+if detectLevel(LEVELOb, argsPresent):
+    if not "O" in levels:
+        levels.append("O")
 
 if len(levels)==0 or not "0" in levels:
     usage()
@@ -210,12 +226,19 @@ if "5" in levels:
 # Level 6
 if "6" in levels:
     from validationLevel6 import level6
-    level6(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, skipAnalysis = True)
+    protAtom = level6(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, skipAnalysis = True)
+else:
+    protAtom = None
 
 # Level W
 if "W" in levels:
     from validationLevelW import levelW
     levelW(project, report, WORKFLOW, skipAnalysis = False)
+
+# Level O
+if "O" in levels:
+    from validationLevelO import levelO
+    levelO(project, report, protImportMap, protCreateMask, protAtom, XLM, SAXS, skipAnalysis = False)
 
 # Close report
 report.closeReport()
