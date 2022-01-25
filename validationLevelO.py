@@ -87,21 +87,27 @@ The method in \\cite{Sinnott2020} uses information from cross- and mono-links to
     msg+="\\end{enumerate}\n\n"
     Nconstraints = lineNo
 
-    msg+=\
-"""From these constraints, the program has validated the following ones:
-\\begin{enumerate}"""
+    msg+="From these constraints, the program has validated the following ones:\n"
     fnResults = fileList[0]
     fh = open(fnResults)
     lineNo = 0
+    validated = []
     for line in fh.readlines():
         if lineNo>0:
             tokens = line.strip().split()
-            msg+="\\item Atom1: %s, Atom2: %s, SASD=%5.2f, Distance=%5.2f"%(tokens[2], tokens[3],
-                                                                            float(tokens[4]), float(tokens[5]))
+            validated.append((tokens[2], tokens[3], float(tokens[4]), float(tokens[5])))
         lineNo+=1
     fh.close()
-    msg+="\\end{enumerate}\n\n"
-    Nvalidated=lineNo
+    Nvalidated=len(validated)
+
+    if Nvalidated>0:
+        msg+="\\begin{center} \n \\begin{tabular}{cccc} \n"
+        msg+="\\textbf{Atom1} & \\textbf{Atom2} & \\textbf{SASD} & \\textbf{Distance (\\AA)} \\\\ \n"
+        for atom1, atom2, sasd, dist in validated:
+            msg+="   %s & %s & %4.1f & %4.1f \\\\ \n"%(atom1, atom2, sasd, dist)
+        msg+="\\end{tabular} \n \\end{center}\n\n"
+    else:
+        msg+="None of them\n"
 
     report.write(msg)
     warnings=[]
@@ -198,6 +204,34 @@ Fig. \\ref{fig:saxs} shows the two SAXS profiles for comparison.
     warnings=None
     report.writeWarningsAndSummary(warnings, "O.b SAXS", secLabel)
 
+def tiltPairValidation(project, report):
+    bblCitation = \
+"""\\bibitem[Henderson et~al., 2011]{Henderson2011}
+Henderson, R., Chen, S., Chen, J.~Z., Grigorieff, N., Passmore, L.~A.,
+  Ciccarelli, L., Rubinstein, J.~L., Crowther, R.~A., Stewart, P.~L., and
+  Rosenthal, P.~B. (2011).
+\\newblock Tilt-pair analysis of images from a range of different specimens in
+  single-particle electron cryomicroscopy.
+\\newblock {\em J. {M}olecular {B}iology}, 413(5):1028--1046.
+"""
+    report.addCitation("Henderson2011", bblCitation)
+
+    secLabel = "sec:tiltpair"
+    msg = \
+"""
+\\subsection{O.c Tilt pair}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+this method is capable of experimentally validating the hand of the reconstructed map by comparing the angular 
+assignment of two sets of particles related by a single-axis tilt \\cite{Henderson2011}.\\\\
+\\\\
+\\textbf{Results:}\\\\
+""" % (secLabel)
+    report.write(msg)
+
+    report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
+    report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+
 def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS, skipAnalysis=False):
     msg ="\\section{Other experimental techniques}\n\n"
     report.write(msg)
@@ -207,3 +241,4 @@ def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS, skipAnalysis
             xlmValidation(project, report, protAtom, XLM)
         if SAXS is not None:
             saxsValidation(project, report, protMap, protMask, SAXS)
+        tiltPairValidation(project, report)

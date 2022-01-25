@@ -307,6 +307,8 @@ class ValidationReport:
 \\usepackage{xcolor}
 \\usepackage[us,12hr]{datetime}
 \\usepackage{longtable}
+\\usepackage{enumitem}
+\\setlist{nosep}
 
 \\title{Validation report of Level(s)\\\\ %s}
 \\author{I$^2$PC Validation server}
