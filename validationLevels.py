@@ -65,12 +65,24 @@ def usage(message=''):
           '\n            workflow:  workflow.json'
           "\n         LEVEL O ====="
           '\n            xlm:  xlm.txt'
+          '\n'
           '\n            saxs: saxsCurve.dat'
+          '\n'
+          '\n            untiltedMic: untilted.mrc'
+          '\n            tiltedMic: tilted.mrc'
+          '\n            tiltkV: 300 [kV]'
+          '\n            tiltCs: 2.7 [mm]'
+          '\n            tiltQ0: 0.1'
+          '\n            tiltSampling: 1 [A]'
+          '\n            tiltAngle: 15 [degrees]'
+          '\n            untiltedCoords: coords [.xmd from Xmipp or .json from Eman]'
+          '\n            tiltedCoords: coords [.xmd from Xmipp or .json from Eman]'
+          '\n            boxSize: 256 [pixels]'
           )
     message = "\n\n  >>  %s\n" % message if message != '' else ''
     print(message)
     sys.exit(1)
-    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o particles=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/particles.sqlite ptclSampling=0.74 kV=300 Cs=2.7 Q0=0.1 hasAngles=yes micrographs="/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/006458_XmippProtMovieCorr/extra/*mic.mrc" micSampling=0.49 atomicModel=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/centered4V1W.pdb doMultimodel=yes workflow=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/workflow.json xlm=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/xlm.txt saxs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/SASDE55.dat
+    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o particles=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/particles.sqlite ptclSampling=0.74 kV=300 Cs=2.7 Q0=0.1 hasAngles=yes micrographs="/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/006458_XmippProtMovieCorr/extra/*mic.mrc" micSampling=0.49 atomicModel=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/centered4V1W.pdb doMultimodel=yes workflow=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/workflow.json xlm=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/xlm.txt saxs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/SASDE55.dat untiltedMic=/home/coss/scipion3/data/tests/eman/mics/ip3r10252011-0005_0-2.hdf tiltedMic=/home/coss/scipion3/data/tests/eman/mics/ip3r10252011-0005_10.hdf tiltkV=200 tiltCs=2 tiltQ0=0.1 tiltSampling=1.88 tiltAngle=60 untiltedCoords=/home/coss/scipion3/data/tests/eman/coords/ip3r10252011-0005_0-2_info.json tiltedCoords=/home/coss/scipion3/data/tests/eman/coords/ip3r10252011-0005_10_info.json
 
 if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
     usage()
@@ -83,6 +95,17 @@ FNMAP1 = None
 FNMAP2 = None
 XLM = None
 SAXS = None
+
+UNTILTEDMIC = None
+TILTEDMIC = None
+TILTKV = None
+TILTCS = None
+TILTQ0 = None
+TILTTS = None
+TILTANGLE = None
+UNTILTEDCOORDS = None
+TILTEDCOORDS = None
+
 for arg in sys.argv:
     if arg.startswith('project='):
         PROJECT_NAME = arg.split('project=')[1]
@@ -130,6 +153,24 @@ for arg in sys.argv:
         XLM = arg.split("xlm=")[1]
     if arg.startswith('saxs='):
         SAXS = arg.split("saxs=")[1]
+    if arg.startswith('untiltedMic='):
+        UNTILTEDMIC = arg.split("untiltedMic=")[1]
+    if arg.startswith('tiltedMic='):
+        TILTEDMIC = arg.split("tiltedMic=")[1]
+    if arg.startswith('tiltkV='):
+        TILTKV = float(arg.split("tiltkV=")[1])
+    if arg.startswith('tiltCs='):
+        TILTCS = float(arg.split("tiltCs=")[1])
+    if arg.startswith('tiltQ0='):
+        TILTQ0 = float(arg.split("tiltQ0=")[1])
+    if arg.startswith('tiltSampling='):
+        TILTTS = float(arg.split("tiltSampling=")[1])
+    if arg.startswith('tiltAngle='):
+        TILTANGLE = float(arg.split("tiltAngle=")[1])
+    if arg.startswith('untiltedCoords='):
+        UNTILTEDCOORDS = arg.split("untiltedCoords=")[1]
+    if arg.startswith('tiltedCoords='):
+        TILTEDCOORDS = arg.split("tiltedCoords=")[1]
 
 # Detect level
 argsPresent = [x.split('=')[0] for x in sys.argv]
@@ -143,6 +184,8 @@ LEVEL6 = ["atomicModel", "doMultimodel"]
 LEVELW = ["workflow"]
 LEVELOa = ["xlm"]
 LEVELOb = ["saxs"]
+LEVELOc = ["untiltedMic","tiltedMic","tiltkV","tiltCs","tiltQ0","tiltSampling","tiltAngle","untiltedCoords",
+           "tiltedCoords"]
 
 def detectLevel(labels, args):
     retval = True
@@ -171,6 +214,9 @@ if detectLevel(LEVELW, argsPresent):
 if detectLevel(LEVELOa, argsPresent):
     levels.append("O")
 if detectLevel(LEVELOb, argsPresent):
+    if not "O" in levels:
+        levels.append("O")
+if detectLevel(LEVELOc, argsPresent):
     if not "O" in levels:
         levels.append("O")
 
@@ -238,7 +284,9 @@ if "W" in levels:
 # Level O
 if "O" in levels:
     from validationLevelO import levelO
-    levelO(project, report, protImportMap, protCreateMask, protAtom, XLM, SAXS, skipAnalysis = False)
+    levelO(project, report, protImportMap, protCreateMask, protAtom, XLM, SAXS,
+           UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
+           skipAnalysis = False)
 
 # Close report
 report.closeReport()

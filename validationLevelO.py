@@ -25,12 +25,13 @@
 # **************************************************************************
 
 import glob
+import json
 import numpy as np
 import os
 
 import pyworkflow.plugin as pwplugin
 
-from validationReport import calculateSha256, reportMultiplePlots
+from validationReport import calculateSha256, reportMultiplePlots, radialPlot, reportHistogram
 
 def xlmValidation(project, report, protAtom, XLM):
     bblCitation = \
@@ -204,7 +205,8 @@ Fig. \\ref{fig:saxs} shows the two SAXS profiles for comparison.
     warnings=None
     report.writeWarningsAndSummary(warnings, "O.b SAXS", secLabel)
 
-def tiltPairValidation(project, report):
+def tiltPairValidation(project, report, protMap, UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE,
+                       UNTILTEDCOORDS, TILTEDCOORDS, SYM):
     bblCitation = \
 """\\bibitem[Henderson et~al., 2011]{Henderson2011}
 Henderson, R., Chen, S., Chen, J.~Z., Grigorieff, N., Passmore, L.~A.,
@@ -229,10 +231,131 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
 """ % (secLabel)
     report.write(msg)
 
-    report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
-    report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+    Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
+                                            'ProtImportMicrographsTiltPairs', doRaise=True)
+    protImport = project.newProtocol(Prot,
+                               objLabel="O.c Import tilt pairs",
+                               patternUntilted=UNTILTEDMIC,
+                               patternTilted=TILTEDMIC,
+                               voltage=TILTKV,
+                               ampContrast=TILTQ0,
+                               sphericalAberration=TILTCS,
+                               samplingRate=TILTTS)
+    project.launchProtocol(protImport, wait=True)
+    if protImport.isFailed():
+        report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return None
 
-def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS, skipAnalysis=False):
+    Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
+                                            'ProtImportCoordinatesPairs', doRaise=True)
+    x,y,z = protMap.outputVolume.getDimensions()
+    Ts = protMap.outputVolume.getSamplingRate()
+    dMap = x*Ts
+    boxSize = int(dMap/TILTTS)
+
+    protCoords = project.newProtocol(Prot,
+                                     objLabel="O.c Import paired coordinates",
+                                     patternUntilted=UNTILTEDCOORDS,
+                                     patternTilted=TILTEDCOORDS,
+                                     boxSize=boxSize)
+    if UNTILTEDCOORDS.endswith('.json'):
+        protCoords.importFrom.set(1)
+    protCoords.inputMicrographsTiltedPair.set(protImport.outputMicrographsTiltPair)
+    project.launchProtocol(protCoords, wait=True)
+    if protCoords.isFailed():
+        report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return None
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtExtractParticlesPairs', doRaise=True)
+    protExtract = project.newProtocol(Prot,
+                                      objLabel="O.c Extract pairs",
+                                      boxSize=boxSize,
+                                      doInvert=True)
+    protExtract.inputCoordinatesTiltedPairs.set(protCoords.outputCoordinatesTiltPair)
+    project.launchProtocol(protExtract, wait=True)
+    if protExtract.isFailed():
+        report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return None
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtCropResizeVolumes', doRaise=True)
+    protResize = project.newProtocol(Prot,
+                                      objLabel="Resize and resample Pair",
+                                      doResize=True,
+                                      resizeSamplingRate=TILTTS,
+                                      doWindow=True,
+                                      windowOperation=1,
+                                      windowSize=boxSize)
+    protResize.inputVolumes.set(protMap.outputVolume)
+    project.launchProtocol(protResize, wait=True)
+
+    Prot = pwplugin.Domain.importFromPlugin('eman2.protocols',
+                                            'EmanProtTiltValidate', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="O.c Tilt pair validation",
+                               symmetry=SYM,
+                               maxtilt=60,
+                               delta=5,
+                               doContourPlot=True)
+    if SYM=="o":
+        prot.symmetry.set("oct")
+    elif SYM=="i1":
+        prot.symmetry.set("icos")
+    prot.inputVolume.set(protResize.outputVol)
+    prot.inputTiltPair.set(protExtract.outputParticlesTiltPair)
+    project.launchProtocol(prot, wait=True)
+    if prot.isFailed():
+        report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return None
+
+    fnAngles = prot._getExtraPath("TiltValidate_01/perparticletilts.json")
+    with open(fnAngles) as jsonFile:
+        jsonDict = json.load(jsonFile)
+    tiltpairs = jsonDict["particletilt_list"]
+
+    r = []
+    theta = []
+    for tp in tiltpairs:
+        r.append(tp[1])
+        theta.append(tp[2])
+    fnTiltPair = os.path.join(report.getReportDir(),"tiltpair.png")
+    radialPlot(theta, r, [1]*len(theta), fnTiltPair)
+
+    fnTiltHist = os.path.join(report.getReportDir(),"tiltpairHist.png")
+    reportHistogram(theta, "Tilt angle", fnTiltHist)
+
+    meanTilt = np.mean(r)
+    diff = abs(meanTilt-TILTANGLE)
+
+    msg=\
+"""The average tilt of the dataset was %4.1f degrees. The experimental tilt angle of the validation was %4.1f. The
+difference is %4.1f. Fig. \\ref{fig:tiltpair} shows the radial plot of the angular assignment and the histogram
+of the tilts.
+
+\\begin{figure}[H]
+  \\centering
+  \\includegraphics[width=10cm]{%s}\\\\
+  \\includegraphics[width=10cm]{%s}\\\\
+  \\caption{Radial plot of the angular assignment and the histogram of the tilt angles.}
+  \\label{fig:tiltpair}
+\\end{figure}
+"""%(meanTilt, TILTANGLE, diff, fnTiltPair, fnTiltHist)
+    report.write(msg)
+    warnings=[]
+    testWarnings = False
+    if diff>15 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The difference between the estimated mean tilt angle and "\
+                        "the experimental one is larger than 15 degrees}}")
+    report.writeWarningsAndSummary(warnings, "O.c Tilt pair", secLabel)
+
+def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS,
+           UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
+           skipAnalysis=False):
     msg ="\\section{Other experimental techniques}\n\n"
     report.write(msg)
 
@@ -241,4 +364,5 @@ def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS, skipAnalysis
             xlmValidation(project, report, protAtom, XLM)
         if SAXS is not None:
             saxsValidation(project, report, protMap, protMask, SAXS)
-        tiltPairValidation(project, report)
+        tiltPairValidation(project, report, protMap, UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE,
+                           UNTILTEDCOORDS, TILTEDCOORDS, SYM)
