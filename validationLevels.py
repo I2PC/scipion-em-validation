@@ -77,7 +77,6 @@ def usage(message=''):
           '\n            tiltAngle: 15 [degrees]'
           '\n            untiltedCoords: coords [.xmd from Xmipp or .json from Eman]'
           '\n            tiltedCoords: coords [.xmd from Xmipp or .json from Eman]'
-          '\n            boxSize: 256 [pixels]'
           )
     message = "\n\n  >>  %s\n" % message if message != '' else ''
     print(message)
@@ -244,7 +243,7 @@ protImportMap, protCreateMask, bfactor = level0(project, report, FNMAP, FNMAP1, 
 if "1" in levels:
     from validationLevel1 import level1
     protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION,
-                                            protImportMap, protCreateMask, skipAnalysis = True)
+                                            protImportMap, protCreateMask, skipAnalysis = False)
 
 # Level 2
 if "2" in levels:
@@ -279,14 +278,14 @@ else:
 # Level W
 if "W" in levels:
     from validationLevelW import levelW
-    levelW(project, report, WORKFLOW, skipAnalysis = False)
+    levelW(project, report, WORKFLOW, skipAnalysis = True)
 
 # Level O
 if "O" in levels:
     from validationLevelO import levelO
     levelO(project, report, protImportMap, protCreateMask, protAtom, XLM, SAXS,
            UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
-           skipAnalysis = False)
+           skipAnalysis = True)
 
 # Close report
 report.closeReport()

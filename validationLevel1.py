@@ -238,7 +238,7 @@ The mean resolution between the three methods is %5.2f\AA~and its range is withi
 
     return prot
 
-def fscPermutation(project, report, label, map, mask):
+def fscPermutation(project, report, label, protImportMap1, protImportMap2, protMask, resolution):
     bblCitation = \
 """\\bibitem[Beckers and Sachse, 2020]{Beckers2020b}
 Beckers, M. and Sachse, C. (2020).
@@ -261,8 +261,59 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
 """ % secLabel
     report.write(msg)
 
-    report.writeSummary("1.b FSC permutation", secLabel, "{\\color{red} Not in Scipion}")
-    report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+    Prot = pwplugin.Domain.importFromPlugin('spoc.protocols',
+                                            'ProtFscFdrControl', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel=label)
+    prot.halfOne.set(protImportMap1.outputVolume)
+    prot.halfTwo.set(protImportMap2.outputVolume)
+    prot.mask.set(protMask.outputMask)
+
+    project.launchProtocol(prot, wait=True)
+    if prot.isFailed():
+        report.writeSummary("1.b FSC permutation", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    fh = open(prot._getPath("logs/run.stdout"))
+    FDRResolution = None
+    Bfactor = None
+    for line in fh.readlines():
+        if "FDR-FSC:" in line:
+            tokens = line.split()
+            FDRResolution = float(tokens[-2])
+        if "B-factor" in line:
+            tokens = line.split()
+            Bfactor = float(tokens[4])
+    fh.close()
+
+    if FDRResolution is None or Bfactor is None:
+        report.writeSummary("1.b FSC permutation", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    msg=\
+"""The resolution at 1\\%% of FDR was %4.1f. The estimated B-factor was %5.1f. Fig. \\ref{fig:fdrfsc} shows the
+estimated FSC and resolution.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{FSC and resolution estimated by a permutation test.}
+    \\label{fig:fdrfsc}
+\\end{figure}
+
+"""%(FDRResolution, Bfactor, os.path.join(project.getPath(),prot._getExtraPath("FSC.pdf")))
+    report.write(msg)
+
+    warnings=[]
+    testWarnings = False
+    if resolution<0.8/FDRResolution or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
+                        "to the resolution calculated by the FSC permutation, %5.2f \\AA}}"%(resolution,FDRResolution))
+    report.writeWarningsAndSummary(warnings, "1.b FSC permutation", secLabel)
+
+    return prot
 
 def blocres(project, report, label, map, mask):
     bblCitation = \
@@ -775,13 +826,14 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protC
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 1 analysis')
-        globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
-        fscPermutation(project, report, "1.b FSC permutation", protImportMap, protCreateMask)
-        blocres(project, report, "1.c Blocres", protImportMap, protCreateMask)
-        resmap(project, report, "1.d Resmap", protImportMap, protCreateMask)
-        monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
-        monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
-        fso(project, report, "1.g FSO", protImportMap, protCreateMask, resolution)
-        fsc3d(project, report, "1.h FSC3D", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
+        # globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
+        fscPermutation(project, report, "1.b FSC permutation", protImportMap1, protImportMap2, protCreateMask,
+                       resolution)
+        # blocres(project, report, "1.c Blocres", protImportMap, protCreateMask)
+        # resmap(project, report, "1.d Resmap", protImportMap, protCreateMask)
+        # monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
+        # monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
+        # fso(project, report, "1.g FSO", protImportMap, protCreateMask, resolution)
+        # fsc3d(project, report, "1.h FSC3D", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
 
     return protImportMap1, protImportMap2
