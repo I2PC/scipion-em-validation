@@ -32,7 +32,10 @@ import subprocess
 
 from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
-from validationReport import readMap, readGuinier, latexEnumerate, calculateSha256, reportPlot, reportMultiplePlots
+from validationReport import readMap, readGuinier, latexEnumerate, calculateSha256, reportPlot, reportMultiplePlots,\
+    reportHistogram
+
+import xmipp3
 
 def importMap(project, label, fnMap, fnMap1, fnMap2, Ts):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -406,7 +409,7 @@ Fourier transform) of the experimental map, its fitted line, and the corrected m
 
     return bfactor
 
-def xmippDeepRes(project, report, label, map, mask):
+def xmippDeepRes(project, report, label, map, mask, resolution):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtDeepRes', doRaise=True)
     prot = project.newProtocol(Prot,
@@ -443,6 +446,73 @@ input map to the appearance of the atomic structures a local resolution label ca
         report.writeSummary("0.e DeepRes", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
+
+    fnRes = os.path.join(project.getPath(), prot._getExtraPath("deepRes_resolution.vol"))
+    if not os.path.exists(fnRes):
+        report.writeSummary("0.e DeepRes", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return
+
+    Vres = xmipp3.Image(fnRes).getData()
+    R = Vres[Vres >0]
+    fnHist = os.path.join(report.getReportDir(), "deepresHist.png")
+
+    reportHistogram(R, "Local resolution (A)", fnHist)
+    Rpercentiles = np.percentile(R, [0.025, 0.25, 0.5, 0.75, 0.975] * 100)
+    resolutionP = np.sum(R < resolution) / R.size * 100
+
+    toWrite = \
+"""
+Fig. \\ref{fig:histDeepres} shows the histogram of the local resolution according to DeepRes. Some representative
+percentiles are:
+
+\\begin{center}
+    \\begin{tabular}{|c|c|}
+        \\hline
+        \\textbf{Percentile} & Resolution(\AA) \\\\
+        \\hline
+        2.5\\%% & %5.2f \\\\
+        \\hline
+        25\\%% & %5.2f \\\\
+        \\hline
+        50\\%% & %5.2f \\\\
+        \\hline
+        75\\%% & %5.2f \\\\
+        \\hline
+        97.5\\%% & %5.2f \\\\
+        \\hline
+    \\end{tabular}
+\\end{center}
+
+The reported resolution, %5.2f \AA, is at the percentile %4.1f. 
+Fig. \\ref{fig:deepresColor} shows some representative views of the local resolution.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=10cm]{%s}
+    \\caption{Histogram of the local resolution according to deepres.}
+    \\label{fig:histDeepres}
+\\end{figure}
+
+""" % (Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution,
+       resolutionP * 100,
+       fnHist)
+    report.write(toWrite)
+
+    Ts = map.getSamplingRate()
+    report.colorIsoSurfaces("", "Local resolution according to DeepRes.", "fig:deepresColor",
+                            project, "deepresViewer",
+                            os.path.join(project.getPath(), prot._getExtraPath("originalVolume.vol")), Ts,
+                            fnRes, Rpercentiles[0], Rpercentiles[-1])
+
+    # Warnings
+    warnings = []
+    testWarnings = False
+    if resolutionP < 0.001 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
+                        "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
+                        (resolution, resolutionP * 100))
+    report.writeWarningsAndSummary(warnings, "0.e DeepRes", secLabel)
 
     return prot
 
@@ -592,8 +662,8 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, sk
     bfactor=bFactorAnalysis(report, protImportMap.outputVolume, resolution)
 
     if not skipAnalysis:
-        xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateMask.outputMask)
-        locBfactor(project, report, "0.f locBfactor", protImportMap.outputVolume, protCreateMask.outputMask)
-        locOccupancy(project, report, "0.g locOccupancy", protImportMap.outputVolume, protCreateMask.outputMask)
-        deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, protCreateMask.outputMask)
+        xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
+        # locBfactor(project, report, "0.f locBfactor", protImportMap.outputVolume, protCreateMask.outputMask)
+        # locOccupancy(project, report, "0.g locOccupancy", protImportMap.outputVolume, protCreateMask.outputMask)
+        # deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, protCreateMask.outputMask)
     return protImportMap, protCreateMask, bfactor

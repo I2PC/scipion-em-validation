@@ -24,16 +24,20 @@
 # *
 # **************************************************************************
 
+import glob
 import math
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import scipy
+import subprocess
 
+from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPattern
+from pwem.emlib.image import ImageHandler
 from validationReport import readMap, latexEnumerate, calculateSha256, CDFFromHistogram, CDFpercentile, reportPlot, \
-    radialPlot, reportMultiplePlots
+    radialPlot, reportMultiplePlots, reportHistogram
 import xmipp3
 
 def importMap(project, label, fnMap, Ts):
@@ -298,7 +302,7 @@ estimated FSC and resolution.
 
 \\begin{figure}[H]
     \centering
-    \includegraphics[width=9cm]{%s}
+    \includegraphics[width=14cm]{%s}
     \\caption{FSC and resolution estimated by a permutation test.}
     \\label{fig:fdrfsc}
 \\end{figure}
@@ -315,7 +319,7 @@ estimated FSC and resolution.
 
     return prot
 
-def blocres(project, report, label, map, mask):
+def blocres(project, report, label, protImportMap, protImportMap1, protImportMap2, protMask, resolution):
     bblCitation = \
 """\\bibitem[Cardone et~al., 2013]{Cardone2013}
 Cardone, G., Heymann, J.~B., and Steven, A.~C. (2013).
@@ -337,10 +341,84 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
 """ % secLabel
     report.write(msg)
 
-    report.writeSummary("1.c Blocres", secLabel, "{\\color{red} Binary installation fails}")
-    report.write("{\\color{red} \\textbf{ERROR: Binary installation fails.}}\\\\ \n")
+    Prot = pwplugin.Domain.importFromPlugin('bsoft.protocols',
+                                            'BsoftProtBlocres', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel=label,
+                               fill=0)
+    prot.inputVolume.set(protImportMap1.outputVolume)
+    prot.inputVolume2.set(protImportMap2.outputVolume)
+    prot.mask.set(protMask.outputMask)
 
-def resmap(project, report, label, map, mask):
+    project.launchProtocol(prot, wait=True)
+    if prot.isFailed():
+        report.writeSummary("1.c Blocres", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    VblocRes = xmipp3.Image(prot._getExtraPath("resolutionMap.map:mrc")).getData()
+    R = VblocRes[VblocRes>0]
+    fnHist = os.path.join(report.getReportDir(),"blocRes.png")
+
+    reportHistogram(R, "Local resolution (A)", fnHist)
+    Rpercentiles = np.percentile(R, [0.025, 0.25, 0.5, 0.75, 0.975]*100)
+    resolutionP = np.sum(R<resolution)/R.size*100
+
+    toWrite = \
+"""
+Fig. \\ref{fig:histBlocres} shows the histogram of the local resolution according to Blocres. Some representative
+percentiles are:
+
+\\begin{center}
+    \\begin{tabular}{|c|c|}
+        \\hline
+        \\textbf{Percentile} & Resolution(\AA) \\\\
+        \\hline
+        2.5\\%% & %5.2f \\\\
+        \\hline
+        25\\%% & %5.2f \\\\
+        \\hline
+        50\\%% & %5.2f \\\\
+        \\hline
+        75\\%% & %5.2f \\\\
+        \\hline
+        97.5\\%% & %5.2f \\\\
+        \\hline
+    \\end{tabular}
+\\end{center}
+
+The reported resolution, %5.2f \AA, is at the percentile %4.1f. 
+Fig. \\ref{fig:blocresColor} shows some representative views of the local resolution.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=10cm]{%s}
+    \\caption{Histogram of the local resolution according to blocres.}
+    \\label{fig:histBlocres}
+\\end{figure}
+
+""" % (Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution,
+       resolutionP * 100,
+       fnHist)
+    report.write(toWrite)
+
+    Ts = protImportMap.outputVolume.getSamplingRate()
+    report.colorIsoSurfaces("", "Local resolution according to Blocres.", "fig:blocresColor",
+                            project, "blocresViewer",
+                            os.path.join(project.getPath(), protImportMap.outputVolume.getFileName()), Ts,
+                            os.path.join(project.getPath(), prot._getExtraPath("resolutionMap.map")),
+                            Rpercentiles[0], Rpercentiles[-1])
+
+    # Warnings
+    warnings = []
+    testWarnings = False
+    if resolutionP < 0.001 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
+                        "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
+                        (resolution, resolutionP * 100))
+    report.writeWarningsAndSummary(warnings, "1.c Blocres", secLabel)
+
+def resmap(project, report, label,  protImportMap, protImportMap1, protImportMap2, protMask, resolution):
     bblCitation = \
 """\\bibitem[Kucukelbir et~al., 2014]{Kucukelbir2014}
 Kucukelbir, A., Sigworth, F.~J., and Tagare, H.~D. (2014).
@@ -360,8 +438,95 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
 """ % secLabel
     report.write(msg)
 
-    report.writeSummary("1.d Resmap", secLabel, "{\\color{red} Not fully automatic}")
-    report.write("{\\color{red} \\textbf{ERROR: Not fully automatic.}}\\\\ \n")
+    fnVol1 = os.path.join(report.getReportDir(), "half1.mrc")
+    fnVol2 = os.path.join(report.getReportDir(), "half2.mrc")
+    ih = ImageHandler()
+    ih.convert(protImportMap1.outputVolume, fnVol1)
+    ih.convert(protImportMap2.outputVolume, fnVol2)
+    Ts = protImportMap1.outputVolume.getSamplingRate()
+    scipionHome = getScipionHome()
+    resmap = None
+    for file in  glob.glob(os.path.join(scipionHome, "software/em/resmap*/bin/ResMap*")):
+        if not file.endswith(".so"):
+            resmap = file
+            break
+    if resmap is None:
+        report.writeSummary("1.d Resmap", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: Cannot find the binary}}\\\\ \n")
+
+    fnMask = os.path.join(project.getPath(),protMask.outputMask.getFileName())
+    args = "--doBenchMarking --noguiSplit %s %s --vxSize=%f  --maskVol=%s"%(fnVol1, fnVol2, Ts, fnMask)
+    # output = subprocess.check_output([resmap, args])
+    print("Running: %s %s" % (resmap, args))
+    p = subprocess.Popen('%s %s' % (resmap, args), shell=True, stderr=subprocess.PIPE)
+    p.wait()
+
+    fnResMap = os.path.join(report.getReportDir(), "half1_ori_resmap.mrc")
+    if not os.path.exists(fnResMap):
+        report.writeSummary("1.d Resmap", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return
+
+    Vres = xmipp3.Image(fnResMap+":mrc").getData()
+    R = Vres[Vres<100]
+    fnHist = os.path.join(report.getReportDir(),"resmapHist.png")
+
+    reportHistogram(R, "Local resolution (A)", fnHist)
+    Rpercentiles = np.percentile(R, [0.025, 0.25, 0.5, 0.75, 0.975]*100)
+    resolutionP = np.sum(R<resolution)/R.size*100
+
+    toWrite = \
+"""
+Fig. \\ref{fig:histResmap} shows the histogram of the local resolution according to Resmap. Some representative
+percentiles are:
+
+\\begin{center}
+    \\begin{tabular}{|c|c|}
+        \\hline
+        \\textbf{Percentile} & Resolution(\AA) \\\\
+        \\hline
+        2.5\\%% & %5.2f \\\\
+        \\hline
+        25\\%% & %5.2f \\\\
+        \\hline
+        50\\%% & %5.2f \\\\
+        \\hline
+        75\\%% & %5.2f \\\\
+        \\hline
+        97.5\\%% & %5.2f \\\\
+        \\hline
+    \\end{tabular}
+\\end{center}
+
+The reported resolution, %5.2f \AA, is at the percentile %4.1f. 
+Fig. \\ref{fig:resmapColor} shows some representative views of the local resolution.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=10cm]{%s}
+    \\caption{Histogram of the local resolution according to Resmap.}
+    \\label{fig:histResmap}
+\\end{figure}
+
+""" % (Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution,
+       resolutionP * 100,
+       fnHist)
+    report.write(toWrite)
+
+    Ts = protImportMap.outputVolume.getSamplingRate()
+    report.colorIsoSurfaces("", "Local resolution according to Resmap.", "fig:resmapColor",
+                            project, "resmapViewer",
+                            os.path.join(project.getPath(), protImportMap.outputVolume.getFileName()), Ts,
+                            fnResMap, Rpercentiles[0], Rpercentiles[-1])
+
+    # Warnings
+    warnings = []
+    testWarnings = False
+    if resolutionP < 0.001 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
+                        "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
+                        (resolution, resolutionP * 100))
+    report.writeWarningsAndSummary(warnings, "1.d Resmap", secLabel)
 
 def monores(project, report, label, protImportMap, protCreateMask, resolution):
     Ts = protImportMap.outputVolume.getSamplingRate()
@@ -826,14 +991,14 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protC
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 1 analysis')
-        # globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
+        globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
         fscPermutation(project, report, "1.b FSC permutation", protImportMap1, protImportMap2, protCreateMask,
                        resolution)
-        # blocres(project, report, "1.c Blocres", protImportMap, protCreateMask)
-        # resmap(project, report, "1.d Resmap", protImportMap, protCreateMask)
-        # monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
-        # monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
-        # fso(project, report, "1.g FSO", protImportMap, protCreateMask, resolution)
-        # fsc3d(project, report, "1.h FSC3D", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
+        blocres(project, report, "1.c Blocres", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
+        resmap(project, report, "1.d Resmap", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
+        monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
+        monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
+        fso(project, report, "1.g FSO", protImportMap, protCreateMask, resolution)
+        fsc3d(project, report, "1.h FSC3D", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
 
     return protImportMap1, protImportMap2

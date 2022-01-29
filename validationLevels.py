@@ -237,13 +237,13 @@ report = ValidationReport(fnProjectDir, levels)
 # Level 0
 from validationLevel0 import level0
 protImportMap, protCreateMask, bfactor = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION,
-                                       skipAnalysis = True)
+                                       skipAnalysis = False)
 
 # Level 1
 if "1" in levels:
     from validationLevel1 import level1
     protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION,
-                                            protImportMap, protCreateMask, skipAnalysis = False)
+                                            protImportMap, protCreateMask, skipAnalysis = True)
 
 # Level 2
 if "2" in levels:
