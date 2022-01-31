@@ -216,6 +216,13 @@ shows the histogram of the size of the classes.
         warnings.append("{\\color{red} \\textbf{A large fraction of the 2D classes are rather unstable. In particular, "\
                         "%d classes have a core that is smaller than 70\\%% of the images assigned}}"%\
                         (np.sum(np.array(frac)<0.7)))
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the number of classes whose core is smaller than 70\\% of
+the size of the class is smaller than 20\\%.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "3.a Outlier detection", secLabel)
 
     # 3.b internal consistency
@@ -442,6 +449,14 @@ two distributions with a Kolmogorov-Smirnov (KS) two-sample test. The KS statist
     if pvalue<0.001 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The equality of the two correlation " \
                         "distributions (user vs new, new vs user) was rejected with a p-value of %f}}"%pvalue)
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if 1) no class from the user correlates less than 0.8 with 
+the newly computed classes, and 2) the equality of the two correlation distributions (user vs new, new vs user) cannot
+be rejected with a threshold for the p-value of 0.001.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "3.c 2D Classification external consistency", secLabel)
 
 def reportInput(project, report, fnParticles, protParticles):
