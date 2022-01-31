@@ -148,6 +148,15 @@ The center of mass is at (x,y,z)=(%6.2f,%6.2f,%6.2f). The decentering of the cen
         warnings.append("{\\color{red} \\textbf{The center of mass in Y may be significantly shifted.}}")
     if dcz>20 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The center of mass in Z may be significantly shifted.}}")
+
+    msg=\
+"""\\textbf{Automatic criteria}: The validation is OK if 1) the decentering and center of mass less than 20\\% of the map 
+dimensions in all directions, and 2) the extra space on each direction is more than 20\\% of the map dimensions.
+\\\\
+
+"""
+    report.write(msg)
+
     report.writeWarningsAndSummary(warnings, "0.a Mass analysis", secLabel)
 
 def maskAnalysis(report, volume, mask, Ts, threshold):
@@ -275,6 +284,15 @@ raw and constructed mask is %5.2f.\\\\
         warnings.append("{\\color{red} \\textbf{There might be a problem in the construction of the mask, because the "\
                         "overlap is smaller than 0.75. A common reason is that the suggested threshold causes too many "\
                         "disconnected components.}}")
+
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if 1) to keep 95\\% of the mass we need to keep at most 5
+connected components; and 2) the average volume of the blobs outside the given threshold has a size smaller than
+5\\AA$^3$; and 3) the overlap between the raw mask and the mask constructed for the analysis is larger than 75\\%.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "0.b Mask analysis", secLabel)
 
 def backgroundAnalysis(report, volume, mask):
@@ -316,12 +334,12 @@ the symmetry of the structure.
              "deviation is %5.2f \\%% (see Fig. \\ref{fig:sigma5}). The same percentage from a Gaussian would be "\
              "%f\\%% (ratio between the two percentages: %f).\\\\ \n\\\\ \n"%\
              (t,p,meanBg, stdBg,fractionLarge*100,cdf5*100,cdf5Ratio)
+    report.write(toWrite)
 
     Vshooting = np.where(np.logical_and(M, np.abs(V)>5*stdBg),V,0)
-    msg = "Slices of the background beyong 5*sigma can be seen in Fig. \\ref{fig:sigma5}.\\\\"
+    msg = "Slices of the background beyond 5*sigma can be seen in Fig. \\ref{fig:sigma5}.\\\\"
     report.orthogonalSlices("sigma5", msg, "Maximum variance slices in the three dimensions of the parts of the "\
                             "background beyond 5*sigma", Vshooting, "fig:sigma5", maxVar=True)
-    report.write(toWrite)
 
     # Warnings
     warnings=[]
@@ -332,6 +350,14 @@ the symmetry of the structure.
     if cdf5Ratio>20 or testWarnings:
         warnings.append("{\\color{red} \\textbf{There is a significant proportion of outlier values in the background "\
                         "(cdf5 ratio=%5.2f})}"%cdf5Ratio)
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if 1) the p-value of the null hypothesis that the background
+has 0 mean is larger than 0.001; and 2) the number of voxels above or below 5 sigma is smaller than 20 times the 
+amount expected for a Gaussian with the same standard deviation whose mean is 0.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "0.c Background analysis", secLabel)
 
 
@@ -405,8 +431,13 @@ Fourier transform) of the experimental map, its fitted line, and the corrected m
     testWarnings = False
     if bfactor<-300 or bfactor>0 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The B-factor is out of the interval [-300,0]}}")
-    report.writeWarningsAndSummary(warnings, "0.d B-factor analysis", secLabel)
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the B-factor is in the range [-300,0].
+\\\\
 
+"""
+    report.write(msg)
+    report.writeWarningsAndSummary(warnings, "0.d B-factor analysis", secLabel)
     return bfactor
 
 def xmippDeepRes(project, report, label, map, mask, resolution):
@@ -512,6 +543,13 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
                         (resolution, resolutionP * 100))
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the percentile of the user provided resolution is larger than
+0.1\\% of the percentile of the local resolution as estimated by DeepRes.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "0.e DeepRes", secLabel)
 
     return prot
@@ -663,7 +701,7 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, sk
 
     if not skipAnalysis:
         xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
-        # locBfactor(project, report, "0.f locBfactor", protImportMap.outputVolume, protCreateMask.outputMask)
-        # locOccupancy(project, report, "0.g locOccupancy", protImportMap.outputVolume, protCreateMask.outputMask)
-        # deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, protCreateMask.outputMask)
+        locBfactor(project, report, "0.f locBfactor", protImportMap.outputVolume, protCreateMask.outputMask)
+        locOccupancy(project, report, "0.g locOccupancy", protImportMap.outputVolume, protCreateMask.outputMask)
+        deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, protCreateMask.outputMask)
     return protImportMap, protCreateMask, bfactor

@@ -237,7 +237,7 @@ report = ValidationReport(fnProjectDir, levels)
 # Level 0
 from validationLevel0 import level0
 protImportMap, protCreateMask, bfactor = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION,
-                                       skipAnalysis = True)
+                                       skipAnalysis = False)
 
 # Level 1
 if "1" in levels:
@@ -278,7 +278,7 @@ else:
 # Level W
 if "W" in levels:
     from validationLevelW import levelW
-    levelW(project, report, WORKFLOW, skipAnalysis = False)
+    levelW(project, report, WORKFLOW, skipAnalysis = True)
 
 # Level O
 if "O" in levels:
