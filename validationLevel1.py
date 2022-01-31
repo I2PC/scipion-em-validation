@@ -238,6 +238,13 @@ The mean resolution between the three methods is %5.2f\AA~and its range is withi
     if resolution<0.8/fSSNR or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
                         "to the resolution calculated by the SSNR, %5.2f\\AA.}}"%(resolution,1.0/fSSNR))
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the user provided resolution is larger than 0.8 times the
+resolution estimated by 1) FSC, 2) DPR, and 3) SSNR.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.a Global resolution", secLabel)
 
     return prot
@@ -315,6 +322,13 @@ estimated FSC and resolution.
     if resolution<0.8/FDRResolution or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
                         "to the resolution calculated by the FSC permutation, %5.2f \\AA}}"%(resolution,FDRResolution))
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the user provided resolution is larger than 0.8 times the
+resolution estimated by FSC permutation.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.b FSC permutation", secLabel)
 
     return prot
@@ -416,6 +430,13 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
                         (resolution, resolutionP * 100))
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the percentile of the user provided resolution is larger than
+0.1\\% of the percentile of the local resolution as estimated by BlocRes.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.c Blocres", secLabel)
 
 def resmap(project, report, label,  protImportMap, protImportMap1, protImportMap2, protMask, resolution):
@@ -526,6 +547,13 @@ Fig. \\ref{fig:resmapColor} shows some representative views of the local resolut
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
                         (resolution, resolutionP * 100))
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the percentile of the user provided resolution is larger than
+0.1\\% of the percentile of the local resolution as estimated by Resmap.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.d Resmap", secLabel)
 
 def monores(project, report, label, protImportMap, protCreateMask, resolution):
@@ -632,6 +660,13 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
                         "to the local resolution distribution. It occupies the %5.2f percentile}}"%\
                         (resolution,resolutionP*100))
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the percentile of the user provided resolution is larger than
+0.1\\% of the percentile of the local resolution as estimated by MonoRes.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.e MonoRes", secLabel)
     return prot
 
@@ -759,6 +794,14 @@ Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is
     if resolution<0.8*avgDirResolution or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the average directional resolution, %5.2f \\AA.}}" % (resolution, avgDirResolution))
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if 1) the null hypothesis that the directional resolution is not
+uniform is not rejected with a threshold of 0.001 for the p-value, and 2) the resolution provided by the user is not 
+smaller than 0.8 the average directional resolution.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.f MonoDir", secLabel)
 
 def fso(project, report, label, protImportMap, protMask, resolution):
@@ -849,6 +892,13 @@ Fig. \\ref{fig:fsoContour}. %s
     if resolution<0.8/f05 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the resolution estimated by FSO, %5.2f \\AA.}}" % (resolution, 1/f05))
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the resolution provided by the user is not 
+smaller than 0.8 the resolution estimated by the first cross of FSO below 0.5.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.g FSO", secLabel)
 
     cleanPattern(os.path.join(project.getPath(),"fscDirection*.xmd"))
@@ -943,6 +993,13 @@ the map power in Fourier space. %s
     if resolution<0.8/fg or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the resolution estimated by FSC3D, %5.2f \\AA.}}" % (resolution, 1/fg))
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the resolution provided by the user is not 
+smaller than 0.8 the resolution estimated by the first cross of the global directional FSC below 0.143.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.h FSC3D", secLabel)
 
 
