@@ -172,6 +172,13 @@ whose FSC-Qr absolute value is beyond 1.5 is %5.1f \\%%.
     if f15>10 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The percentage of voxels that have a FSC-Qr larger than 1.5 in "\
                         "absolute value is %5.1f, that is larger than 10\\%%}}"%f15)
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the percentage of residues whose FSC-Q is larger than 1.5
+in absolute value is smaller than 10\\%.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "6.b FSC-Q", secLabel)
 
 def multimodel(project, report, protImportMap, protAtom):
@@ -254,8 +261,14 @@ Fourier transform) of the atom model and the experimental map. The correlation b
     testWarnings = False
     if R<0.5 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The correlation is smaller than 0.5, it is %5.3f.}}"%R)
-    report.writeWarningsAndSummary(warnings, "6.d Map-Model Guinier", secLabel)
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the correlation between the two Guinier profiles is larger
+than 0.5.
+\\\\
 
+"""
+    report.write(msg)
+    report.writeWarningsAndSummary(warnings, "6.d Map-Model Guinier", secLabel)
 
 def phenix(project, report, protImportMap, protAtom, resolution):
     bblCitation = \
@@ -528,6 +541,14 @@ of residues whose correlation is below 0.5 is %4.1f \\%%.
                         "smaller than the resolution estimated between map and model (FSC=0.5), %4.1f \\AA}}" %\
                         (resolution,data['*dFSCmodel_0.5_masked']))
 
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if 1) the percentage of residues whose correlation is
+smaller than 0.5 is smaller than 10\\%, and 2) the resolution reported by the user is larger than 0.8 times the
+resolution estimated between the map and model at FSC=0.5.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "6.e Phenix validation", secLabel)
 
 
@@ -644,6 +665,12 @@ sequence of proteins.
     if dataDict["EMRinger Score"] <0 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The EMRinger score is smaller than 0, it is %4.3f.}}"%\
                         dataDict["EMRinger Score"])
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the EMRinger score is non-negative.
+\\\\
+
+"""
+    report.write(msg)
 
     report.writeWarningsAndSummary(warnings, "6.f EMRinger", secLabel)
 
@@ -713,7 +740,14 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     testWarnings = False
     if stdDaq==0 or testWarnings:
         warnings.append("{\\color{red} \\textbf{Could not be measured.}}")
+    if avgDaq<0.5 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The average DAQ is smaller than 0.5.}}")
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the average DAQ score is larger than 0.5\\%.
+\\\\
 
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "6.g DAQ", secLabel)
 
 def reportInput(project, report, FNMODEL):

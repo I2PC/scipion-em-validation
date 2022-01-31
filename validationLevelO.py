@@ -116,6 +116,13 @@ The method in \\cite{Sinnott2020} uses information from cross- and mono-links to
     if Nvalidated<0.5*Nconstraints:
         warnings.append("{\\color{red} \\textbf{Less than half of the cross/mono-links were fulfilled by the atomic "\
                         "model. Precisely, %d out of %d}}"%(Nvalidated,Nconstraints))
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if more than 50\\% of the constraints are validated by the
+program.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "O.a Mass spectroscopy", secLabel)
 
 def saxsValidation(project, report, protMap, protMask, SAXS):
@@ -351,6 +358,13 @@ of the tilts.
     if diff>15 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The difference between the estimated mean tilt angle and "\
                         "the experimental one is larger than 15 degrees}}")
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the difference between the estimated mean tilt angle and
+the experimental one is smaller than 15 degrees.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "O.c Tilt pair", secLabel)
 
 def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS,
