@@ -335,6 +335,13 @@ is below 0.5 is %4.1f\\%%, and the percentage of images whose precision is below
     if fPrec>30 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The percentage of images with low alignability precision is too high, "\
                         "%4.1f\\%%}}"%fPrec)
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if less than 30\\% of the images have an 1) accuracy and 2)
+precision smaller than 0.5. 
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "4.c Alignability", secLabel)
 
 def compareAlignment(project, report, refmap, protRefParticles, protReconstruction, symmetry, label, fnRoot,
@@ -469,6 +476,13 @@ particles given by the user and the one done by Relion.
         warnings.append("{\\color{red} \\textbf{The percentage of images with uncertain shift is larger than 20\\%}}")
     if angleOutliers>20 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The percentage of images with uncertain angles is larger than 20\\%}}")
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if less than 20\\% of the images have 1) a shift difference
+larger than 5\\AA, and 2) an angular difference larger than 5 degrees.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "4.d1 Relion alignment", secLabel)
     return prot
 
@@ -531,6 +545,13 @@ of the particles given by the user and the one done by CryoSparc.
         warnings.append("{\\color{red} \\textbf{The percentage of images with uncertain shift is larger than 20\\%}}")
     if angleOutliers>20 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The percentage of images with uncertain angles is larger than 20\\%}}")
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if less than 20\\% of the images have 1) a shift difference
+larger than 5\\AA, and 2) an angular difference larger than 5 degrees.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "4.d2 CryoSparc alignment", secLabel)
 
     return prot
@@ -562,6 +583,13 @@ alignability of the input images.
         warnings.append("{\\color{red} \\textbf{The percentage of images with uncertain shift is larger than 20\\%}}")
     if angleOutliers>20 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The percentage of images with uncertain angles is larger than 20\\%}}")
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if less than 20\\% of the images have 1) a shift difference
+larger than 5\\AA, and 2) an angular difference larger than 5 degrees.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "4.d3 Relion/CryoSparc alignments", secLabel)
 
 def relionClassification(project, report, protMap, protMask, protParticles, symmetry):
@@ -623,6 +651,12 @@ any significant structural difference between the two.
         report.write("The classification converged to a single class with %d out of %d images in it.\\\\"%\
                      (Nimgs[0], totalImgs))
         warnings = []
+        msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the classification converged to a single class.
+\\\\
+
+"""
+        report.write(msg)
     elif len(Nimgs)==2:
         V1 = xmipp3.Image(representative[0]+":mrc")
         V2 = xmipp3.Image(representative[1]+":mrc")
@@ -733,9 +767,16 @@ of the number of particles.
 
     warnings=[]
     testWarnings = False
-    if overfitting>30 or testWarnings:
+    if overfitting or testWarnings:
         warnings.append("{\\color{red} \\textbf{the resolution of pure noise particles is sometimes better than the "\
                         "one of true particles.}}")
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the resolution of noise particles is never better than the
+resolution of true particles.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "4.f Overfitting detection", secLabel)
 
 def angularDistributionEfficiency(project, report, protResizeParticles, symmetry, resolution, bfactor):
@@ -814,6 +855,13 @@ was %4.1f \\AA, and its range [%4.1f,%4.1f].
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the average directional resolution, %5.2f \\AA.}}" %\
                         (resolution, avgDirResolution))
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the resolution reported by the user is larger than 0.8 times
+the average directional resolution.
+\\\\
+
+"""
+    report.write(msg)
     report.writeWarningsAndSummary(warnings, "4.g Angular distribution efficiency", secLabel)
 
 def samplingCompensationFactor(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry):
@@ -988,7 +1036,15 @@ concentrate around 0, except for the phase shift that must be centered around it
     addWarning(pAdiff, "astigmatism difference", -5000, 5000)
     addWarning(pB, "B-factor", -5, 5)
     addWarning(pS, "scale factor", -0.1, 0.1)
-    report.writeWarningsAndSummary(warnings, "1.e MonoRes", secLabel)
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if 1) astigmatism is between -5000 and 5000; 2) the defocus
+difference is between -5000 and 5000; 3) the astigmatism difference is between -5000 and 5000; 4) the B-factor is
+between -5 and 5; and 5) the scale factor is between -0.1 and 0.1. 
+\\\\
+
+"""
+    report.write(msg)
+    report.writeWarningsAndSummary(warnings, "4.i CTF stability", secLabel)
     return prot
 
 def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, bfactor, skipAnalysis = False):
