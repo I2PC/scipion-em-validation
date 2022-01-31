@@ -24,16 +24,61 @@
 # *
 # **************************************************************************
 
+import graphviz
+import json
+import os
+
 from validationReport import calculateSha256
 
 def levelW(project, report, WORKFLOW, skipAnalysis=False):
+    secLabel="sec:workflow"
     msg =\
 """
 \\section{Workflow}
+\\label{%s}
 Workflow file: %s \\\\
 SHA256 hash: %s \\\\ 
 \\\\
-
-{\\color{red} \\textbf{At this moment, Workflows cannot be displayed in the PDF yet.}}
-"""%(WORKFLOW.replace('_','\_').replace('/','/\-'),calculateSha256(WORKFLOW))
+"""%(secLabel, WORKFLOW.replace('_','\_').replace('/','/\-'),calculateSha256(WORKFLOW))
     report.write(msg)
+
+    fh = open(WORKFLOW)
+    workflow = json.load(fh)
+    fh.close()
+
+    dot = graphviz.Digraph()
+
+    # create nodes
+    for protocol in workflow:
+        dot.node(protocol['object.id'], protocol['object.label'])
+
+    # create edges
+    for protocol in workflow:
+        for key in protocol:
+            if 'input' in key:
+                source = protocol[key]
+                if isinstance(source, str):
+                    source = source.split('.')[0]
+                    dot.edge(source, protocol['object.id'])
+                if isinstance(source, list):
+                    for s in source:
+                        source = s.split('.')[0]
+                        dot.edge(source, protocol['object.id'])
+
+    fnGraph = os.path.join(report.getReportDir(),"workflow.png")
+    dot.render(outfile=fnGraph, view=False)
+
+    msg=\
+"""Fig. \\ref{fig:workflow} shows the image processing workflow followed in Scipion to achieve these results.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=15cm]{%s}
+    \\caption{Image processing workflow in Scipion to achieve these results.}
+    \\label{fig:workflow}
+\\end{figure}
+"""%fnGraph
+
+    report.write(msg)
+    report.writeWarningsAndSummary(None, "W Workflow", secLabel)
+
