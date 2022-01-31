@@ -160,6 +160,10 @@ reported resolution of the map.
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "2.a Reprojection consistency", secLabel)
 
+    if len(warnings)==0:
+        report.writeAbstract("The 2D classes provided by the user do not seem to correlate well with the "\
+                             "reprojections of the map (see Sec. \\ref{%s}). "%secLabel)
+
 
 def reportInput(project, report, fnAvgs, protAvgs):
     avgStack = os.path.join(report.getReportDir(),"avgs.xmd")

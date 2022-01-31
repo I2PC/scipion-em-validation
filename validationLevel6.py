@@ -180,6 +180,9 @@ in absolute value is smaller than 10\\%.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "6.b FSC-Q", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("According to FSC-Q, it seems that there is a mismatch between the map and its model "\
+                             "(see Sec. \\ref{%s}). "%secLabel)
 
 def multimodel(project, report, protImportMap, protAtom):
     bblCitation = \
@@ -269,6 +272,9 @@ than 0.5.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "6.d Map-Model Guinier", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("It seems that the Guinier plot of the map and its model do not match "\
+                             "(see Sec. \\ref{%s}). "%secLabel)
 
 def phenix(project, report, protImportMap, protAtom, resolution):
     bblCitation = \
@@ -550,6 +556,9 @@ resolution estimated between the map and model at FSC=0.5.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "6.e Phenix validation", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("According to phenix, it seems that there might be some mismatch between the map "\
+                             "and its model (see Sec. \\ref{%s}). "%secLabel)
 
 
 def emringer(project, report, protImportMap, protAtom):
@@ -673,6 +682,9 @@ sequence of proteins.
     report.write(msg)
 
     report.writeWarningsAndSummary(warnings, "6.f EMRinger", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("The EMRinger score is negative, it seems that the model side chains do not match the "\
+                            "map (see Sec. \\ref{%s}). "%secLabel)
 
 def daq(project, report, protImportMap, protAtom):
     bblCitation = \
@@ -749,6 +761,8 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "6.g DAQ", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("DAQ detects some mismatch between the map and its model (see Sec. \\ref{%s}). "%secLabel)
 
 def reportInput(project, report, FNMODEL):
     msg = \

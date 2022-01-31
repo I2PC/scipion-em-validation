@@ -791,6 +791,8 @@ Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is
     if p<0.001 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The distribution of best resolution is not uniform in all directions. "\
                         "The associated p-value is %f.}}"%p)
+        report.writeAbstract("The resolution does not seem to be uniform in all directions (see Sec. \\ref{%s}). "%\
+                             secLabel)
     if resolution<0.8*avgDirResolution or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the average directional resolution, %5.2f \\AA.}}" % (resolution, avgDirResolution))

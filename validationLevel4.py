@@ -344,6 +344,10 @@ precision smaller than 0.5.
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "4.c Alignability", secLabel)
 
+    if len(warnings)>0:
+        report.writeAbstract("It seems that the input particles cannot be easily aligned (see Sec. \\ref{%s}). "%\
+                             secLabel)
+
 def compareAlignment(project, report, refmap, protRefParticles, protReconstruction, symmetry, label, fnRoot,
                      generateSlices=True):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -484,6 +488,10 @@ larger than 5\\AA, and 2) an angular difference larger than 5 degrees.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "4.d1 Relion alignment", secLabel)
+
+    if len(warnings)>0:
+        report.writeAbstract("It seems that the angular assignment given by the user does not match with the one "\
+                             "produced by Relion (see Sec. \\ref{%s}). "%secLabel)
     return prot
 
 def cryosparcAlignment(project, report, protMap, protMask, protParticles, symmetry):
@@ -553,6 +561,9 @@ larger than 5\\AA, and 2) an angular difference larger than 5 degrees.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "4.d2 CryoSparc alignment", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("It seems that the angular assignment given by the user does not match with the one "\
+                             "produced by CryoSparc (see Sec. \\ref{%s}). "%secLabel)
 
     return prot
 
@@ -591,6 +602,10 @@ larger than 5\\AA, and 2) an angular difference larger than 5 degrees.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "4.d3 Relion/CryoSparc alignments", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("It seems that the angular assignment produced by Relion does not match with the one "\
+                             "produced by Cryosparc (see Sec. \\ref{%s}). This is probably a sign of the difficulty "\
+                             "to align these particles."%secLabel)
 
 def relionClassification(project, report, protMap, protMask, protParticles, symmetry):
     Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
@@ -778,6 +793,8 @@ resolution of true particles.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "4.f Overfitting detection", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("It seems that there might be some overfitting (see Sec. \\ref{%s}). "%secLabel)
 
 def angularDistributionEfficiency(project, report, protResizeParticles, symmetry, resolution, bfactor):
     Xdim = protResizeParticles.outputParticles.getDim()[0]
@@ -1045,6 +1062,8 @@ between -5 and 5; and 5) the scale factor is between -0.1 and 0.1.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "4.i CTF stability", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("It seems that there is some problem with the CTF (see Sec. \\ref{%s}). "%secLabel)
     return prot
 
 def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, bfactor, skipAnalysis = False):

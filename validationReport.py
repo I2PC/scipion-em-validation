@@ -287,10 +287,14 @@ class ValidationReport:
         makePath(self.fnReportDir)
         self.fnReport = os.path.join(self.fnReportDir,"report.tex")
         self.fh = open(self.fnReport,"w")
+        self.fnAbstract = os.path.join(self.fnReportDir,"abstract.tex")
+        self.fhAbstract = open(self.fnAbstract,"w")
         self.fnSummary = os.path.join(self.fnReportDir,"summary.tex")
         self.fhSummary = open(self.fnSummary,"w")
         self.citations = {}
         self.writePreamble(levels)
+
+        self.abstract = ""
 
     def getReportDir(self):
         return self.fnReportDir
@@ -321,6 +325,7 @@ class ValidationReport:
 \\end{titlepage}
 
 \\begin{abstract}
+\\input{abstract.tex}
 \\input{summary.tex}
 \\end{abstract}
 
@@ -359,6 +364,9 @@ class ValidationReport:
     def writeSummary(self, test, sec, msg):
         toWrite = "%s & Sec. \\ref{%s} & %s \\\\ \n"%(test,sec,msg)
         self.fhSummary.write(toWrite)
+
+    def writeAbstract(self, msg):
+        self.fhAbstract.write(msg)
 
     def addCitation(self, key, bblEntry):
         # Bibliographystyle: apalike
@@ -623,6 +631,9 @@ class ValidationReport:
         toWrite += "\\end{document}\n"
         self.fh.write(toWrite)
         self.fh.close()
+
+        self.fhAbstract.write('\n\n')
+        self.fhAbstract.close()
 
         toWrite = \
 """

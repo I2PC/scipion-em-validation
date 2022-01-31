@@ -158,6 +158,11 @@ dimensions in all directions, and 2) the extra space on each direction is more t
     report.write(msg)
 
     report.writeWarningsAndSummary(warnings, "0.a Mass analysis", secLabel)
+    if len(warnings)==0:
+        report.writeAbstract("The map seems to be well centered. ")
+    else:
+        report.writeAbstract("The map seems to have some problem in its centering or extra space (see Sec. "\
+                             "\\ref{%s}). "%secLabel)
 
 def maskAnalysis(report, volume, mask, Ts, threshold):
     V = readMap(volume.getFileName()).getData()
@@ -294,6 +299,11 @@ connected components; and 2) the average volume of the blobs outside the given t
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "0.b Mask analysis", secLabel)
+    if len(warnings)==0:
+        report.writeAbstract("There is no problem with the suggested threshold. ")
+    else:
+        report.writeAbstract("There seems to be a problem with the suggested threshold (see Sec. "\
+                             "\\ref{%s}). "%secLabel)
 
 def backgroundAnalysis(report, volume, mask):
     V = readMap(volume.getFileName()).getData()
@@ -359,6 +369,11 @@ amount expected for a Gaussian with the same standard deviation whose mean is 0.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "0.c Background analysis", secLabel)
+    if len(warnings)==0:
+        report.writeAbstract("There is no problem with its background. ")
+    else:
+        report.writeAbstract("There seems to be a problem with the map's background (see Sec. "\
+                             "\\ref{%s}). "%secLabel)
 
 
 def bFactorAnalysis(report, map, resolution):
@@ -438,6 +453,9 @@ Fourier transform) of the experimental map, its fitted line, and the corrected m
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "0.d B-factor analysis", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("There seems to be a problem with its B-factor (see Sec. \\ref{%s}). "%secLabel)
+
     return bfactor
 
 def xmippDeepRes(project, report, label, map, mask, resolution):
@@ -551,7 +569,6 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "0.e DeepRes", secLabel)
-
     return prot
 
 def locBfactor(project, report, label, map, mask):

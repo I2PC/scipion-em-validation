@@ -224,6 +224,9 @@ the size of the class is smaller than 20\\%.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "3.a Outlier detection", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("It seems that many of the particles supplied by the user are outliers in their 2D "\
+                             "classes (see Sec. \\ref{%s}. "%secLabel)
 
     # 3.b internal consistency
     Ts = protParticles.outputParticles.getSamplingRate()
@@ -458,6 +461,10 @@ be rejected with a threshold for the p-value of 0.001.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "3.c 2D Classification external consistency", secLabel)
+
+    if len(warnings)>0:
+        report.writeAbstract("It seems that the 2D classes provided by the user and calculated from the particles do "\
+                             "not match (see Sec. \\ref{%s}. "%secLabel)
 
 def reportInput(project, report, fnParticles, protParticles):
     particlesStack = os.path.join(report.getReportDir(),"particles.xmd")

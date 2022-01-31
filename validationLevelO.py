@@ -124,6 +124,8 @@ program.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "O.a Mass spectroscopy", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("It seems that many of the mass spectroscopy constraints are not met (see Sec. \\ref{%s}). "%secLabel)
 
 def saxsValidation(project, report, protMap, protMask, SAXS):
     bblCitation = \
@@ -366,6 +368,9 @@ the experimental one is smaller than 15 degrees.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "O.c Tilt pair", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("It seems that the map does not fulfill the tilt pair validation (see Sec. \\ref{%s}). "%\
+                             secLabel)
 
 def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS,
            UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
