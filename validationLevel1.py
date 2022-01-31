@@ -246,6 +246,9 @@ resolution estimated by 1) FSC, 2) DPR, and 3) SSNR.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.a Global resolution", secLabel)
+    report.addResolutionEstimate(1 / fFSC)
+    report.addResolutionEstimate(1 / fDPR)
+    report.addResolutionEstimate(1 / fSSNR)
 
     return prot
 
@@ -330,6 +333,7 @@ resolution estimated by FSC permutation.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.b FSC permutation", secLabel)
+    report.addResolutionEstimate(1 / FDRResolution)
 
     return prot
 
@@ -377,6 +381,7 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
     reportHistogram(R, "Local resolution (A)", fnHist)
     Rpercentiles = np.percentile(R, [0.025, 0.25, 0.5, 0.75, 0.975]*100)
     resolutionP = np.sum(R<resolution)/R.size*100
+    report.addResolutionEstimate(Rpercentiles[2])
 
     toWrite = \
 """
@@ -495,6 +500,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
     reportHistogram(R, "Local resolution (A)", fnHist)
     Rpercentiles = np.percentile(R, [0.025, 0.25, 0.5, 0.75, 0.975]*100)
     resolutionP = np.sum(R<resolution)/R.size*100
+    report.addResolutionEstimate(Rpercentiles[2])
 
     toWrite = \
 """
@@ -611,6 +617,7 @@ transformation separates the amplitude and phase of the input map.\\\\
     R, RCDF=CDFFromHistogram(x_axis[:-2], y_axis[:-2])
     Rpercentiles = CDFpercentile(R, RCDF, Fp=[0.025, 0.25, 0.5, 0.75, 0.975])
     resolutionP = CDFpercentile(R, RCDF, xp=resolution)
+    report.addResolutionEstimate(Rpercentiles[2])
 
     toWrite=\
 """
@@ -805,6 +812,7 @@ smaller than 0.8 the average directional resolution.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.f MonoDir", secLabel)
+    report.addResolutionEstimate(avgDirResolution)
 
 def fso(project, report, label, protImportMap, protMask, resolution):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -904,6 +912,7 @@ smaller than 0.8 the resolution estimated by the first cross of FSO below 0.5.
     report.writeWarningsAndSummary(warnings, "1.g FSO", secLabel)
 
     cleanPattern(os.path.join(project.getPath(),"fscDirection*.xmd"))
+    report.addResolutionEstimate(1/f05)
 
     return prot
 
@@ -1003,6 +1012,7 @@ smaller than 0.8 the resolution estimated by the first cross of the global direc
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.h FSC3D", secLabel)
+    report.addResolutionEstimate(1/fg)
 
 
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):

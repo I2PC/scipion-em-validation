@@ -509,6 +509,7 @@ input map to the appearance of the atomic structures a local resolution label ca
     reportHistogram(R, "Local resolution (A)", fnHist)
     Rpercentiles = np.percentile(R, [0.025, 0.25, 0.5, 0.75, 0.975] * 100)
     resolutionP = np.sum(R < resolution) / R.size * 100
+    report.addResolutionEstimate(Rpercentiles[2])
 
     toWrite = \
 """

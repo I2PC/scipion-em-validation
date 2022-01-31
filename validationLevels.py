@@ -243,49 +243,50 @@ protImportMap, protCreateMask, bfactor = level0(project, report, FNMAP, FNMAP1, 
 if "1" in levels:
     from validationLevel1 import level1
     protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION,
-                                            protImportMap, protCreateMask, skipAnalysis = True)
+                                            protImportMap, protCreateMask, skipAnalysis = False)
 
 # Level 2
 if "2" in levels:
     from validationLevel2 import level2
-    protImportAvgs, protAvgsResizeMap = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM, skipAnalysis = True)
+    protImportAvgs, protAvgsResizeMap = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM, skipAnalysis = False)
 
 # Level 3
 if "3" in levels:
     from validationLevel3 import level3
     protImportParticles, protResizeMap, protResizeAvgs = level3(project, report, protImportMap, protImportAvgs,
                                                                 FNPARTICLES, TSPARTICLES, KV, CS, Q0,
-                                                                skipAnalysis = True)
+                                                                skipAnalysis = False)
 
 # Level 4
 if "4" in levels:
     from validationLevel4 import level4
     level4(project, report, protImportMap, protCreateMask, protResizeMap, SYM, MAPRESOLUTION, bfactor,
-           skipAnalysis = True)
+           skipAnalysis = False)
 
 # Level 5
 if "5" in levels:
     from validationLevel5 import level5
-    level5(project, report, protImportParticles, KV, CS, Q0, MICPATTERN, TSMIC, skipAnalysis = True)
+    level5(project, report, protImportParticles, KV, CS, Q0, MICPATTERN, TSMIC, skipAnalysis = False)
 
 # Level 6
 if "6" in levels:
     from validationLevel6 import level6
-    protAtom = level6(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, skipAnalysis = True)
+    protAtom = level6(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, skipAnalysis = False)
 else:
     protAtom = None
 
 # Level W
 if "W" in levels:
     from validationLevelW import levelW
-    levelW(project, report, WORKFLOW, skipAnalysis = True)
+    levelW(project, report, WORKFLOW, skipAnalysis = False)
 
 # Level O
 if "O" in levels:
     from validationLevelO import levelO
     levelO(project, report, protImportMap, protCreateMask, protAtom, XLM, SAXS,
            UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
-           skipAnalysis = True)
+           skipAnalysis = False)
 
 # Close report
+report.abstractResolution(MAPRESOLUTION)
 report.closeReport()

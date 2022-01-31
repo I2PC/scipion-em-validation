@@ -293,6 +293,7 @@ class ValidationReport:
         self.fhSummary = open(self.fnSummary,"w")
         self.citations = {}
         self.writePreamble(levels)
+        self.resolutionEstimates = []
 
         self.abstract = ""
 
@@ -367,6 +368,19 @@ class ValidationReport:
 
     def writeAbstract(self, msg):
         self.fhAbstract.write(msg)
+
+    def addResolutionEstimate(self, R):
+        self.resolutionEstimates.append(R)
+
+    def abstractResolution(self, resolution):
+        msg="\n\n\\vspace{0.5cm}The average resolution of the map estimated by various methods goes from %4.1f\\AA~to %4.1f\\AA~ with an "\
+            "average of %4.1f\\AA. The resolution provided by the user was %4.1f\\AA."%\
+            (np.min(self.resolutionEstimates), np.max(self.resolutionEstimates), np.mean(self.resolutionEstimates),
+             resolution)
+        if resolution<0.8*np.mean(self.resolutionEstimates):
+            msg+=" The resolution reported by the user may be overestimated."
+        msg+="\n\n\\vspace{0.5cm}"
+        self.writeAbstract(msg)
 
     def addCitation(self, key, bblEntry):
         # Bibliographystyle: apalike

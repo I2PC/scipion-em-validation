@@ -546,6 +546,7 @@ of residues whose correlation is below 0.5 is %4.1f \\%%.
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %4.1f \\AA, is significantly " \
                         "smaller than the resolution estimated between map and model (FSC=0.5), %4.1f \\AA}}" %\
                         (resolution,data['*dFSCmodel_0.5_masked']))
+    report.addResolutionEstimate(data['*dFSCmodel_0.5_masked'])
 
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if 1) the percentage of residues whose correlation is
