@@ -294,6 +294,8 @@ class ValidationReport:
         self.citations = {}
         self.writePreamble(levels)
         self.resolutionEstimates = []
+        self.score = 0
+        self.scoreN = 0
 
         self.abstract = ""
 
@@ -353,6 +355,7 @@ class ValidationReport:
             toWrite = "\\textbf{STATUS}: {\\color{brown} Cannot be automatically evaluated}\\\\ \n"
             self.writeSummary(section, secLabel, "{\\color{brown} Cannot be automated}")
         else:
+            self.scoreN+=1
             if len(warnings) > 0:
                 countWarnings = len(warnings)
                 toWrite = "\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n" % (countWarnings, latexEnumerate(warnings))
@@ -360,6 +363,7 @@ class ValidationReport:
             else:
                 toWrite = "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
                 self.writeSummary(section, secLabel, "{\\color{blue} OK}")
+                self.score += 1
         self.write(toWrite)
 
     def writeSummary(self, test, sec, msg):
@@ -373,14 +377,15 @@ class ValidationReport:
         self.resolutionEstimates.append(R)
 
     def abstractResolution(self, resolution):
-        msg="\n\n\\vspace{0.5cm}The average resolution of the map estimated by various methods goes from %4.1f\\AA~to %4.1f\\AA~ with an "\
-            "average of %4.1f\\AA. The resolution provided by the user was %4.1f\\AA."%\
-            (np.min(self.resolutionEstimates), np.max(self.resolutionEstimates), np.mean(self.resolutionEstimates),
-             resolution)
-        if resolution<0.8*np.mean(self.resolutionEstimates):
-            msg+=" The resolution reported by the user may be overestimated."
-        msg+="\n\n\\vspace{0.5cm}"
-        self.writeAbstract(msg)
+        if len(self.resolutionEstimates)>0:
+            msg="\n\n\\vspace{0.5cm}The average resolution of the map estimated by various methods goes from %4.1f\\AA~to %4.1f\\AA~ with an "\
+                "average of %4.1f\\AA. The resolution provided by the user was %4.1f\\AA."%\
+                (np.min(self.resolutionEstimates), np.max(self.resolutionEstimates), np.mean(self.resolutionEstimates),
+                 resolution)
+            if resolution<0.8*np.mean(self.resolutionEstimates):
+                msg+=" The resolution reported by the user may be overestimated."
+            msg+="\n\n\\vspace{0.5cm}"
+            self.writeAbstract(msg)
 
     def addCitation(self, key, bblEntry):
         # Bibliographystyle: apalike
@@ -647,6 +652,8 @@ class ValidationReport:
         self.fh.close()
 
         self.fhAbstract.write('\n\n')
+        self.fhAbstract.write('\\textbf{The overall score (passing tests) of this report is %d out of %d evaluable '\
+                              'items.}\n\n'%(self.score,self.scoreN))
         self.fhAbstract.close()
 
         toWrite = \
