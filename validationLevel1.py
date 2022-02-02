@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import scipy
+from scipy.ndimage import gaussian_filter
 import subprocess
 
 from scipion.utils import getScipionHome
@@ -494,7 +495,10 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
         return
 
     Vres = xmipp3.Image(fnResMap+":mrc").getData()
-    R = Vres[Vres<100]
+    idx = Vres<100
+    Vres[np.logical_not(idx)]=np.mean(Vres[idx])
+    Vres = gaussian_filter(Vres,sigma=1.5)
+    R = Vres[idx]
     fnHist = os.path.join(report.getReportDir(),"resmapHist.png")
 
     reportHistogram(R, "Local resolution (A)", fnHist)
