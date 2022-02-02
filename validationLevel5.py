@@ -108,7 +108,8 @@ def micCleaner(project, report, label, protCoords):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtDeepMicrographScreen', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel=label)
+                               objLabel=label,
+                               threshold=0.9)
     prot.inputCoordinates.set(protCoords.outputCoordinates)
     project.launchProtocol(prot, wait=True)
 
@@ -127,8 +128,8 @@ Sanchez-Garcia, R., Segura, J., Maluenda, D., Sorzano, C. O.~S., and Carazo,
 \\subsection{Level 5.a Micrograph cleaner}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-This method assigns a score between 0 and 1 reflecting the probability that the coordinate is outside a region with
-aggregations, ice crystals, carbon edges, etc. \\cite{Sanchez2020} \\\\
+This method assigns a score between 0 (bad coordinate) and 1 (good coordinate) reflecting the probability that the
+coordinate is outside a region with aggregations, ice crystals, carbon edges, etc. \\cite{Sanchez2020} \\\\
 \\textbf{Results:}\\\\
 \\\\
 """ % secLabel
@@ -137,6 +138,28 @@ aggregations, ice crystals, carbon edges, etc. \\cite{Sanchez2020} \\\\
         report.writeSummary("5.a Micrograph cleaner", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
+
+    Ninput = protCoords.outputCoordinates.getSize()
+    Noutput = prot.outputCoordinates_Auto_090.getSize()
+
+    msg=\
+"%d coordinates out of %d (%4.1f \\%%) were scored below 0.9 by MicrographCleaner.\n\n"%(Ninput-Noutput, Ninput,
+                                                                                         (Ninput-Noutput)/Ninput*100)
+    report.write(msg)
+
+    # Warnings
+    warnings = []
+    testWarnings = False
+    if Noutput < 0.8 * Ninput or testWarnings:
+        warnings.append("{\\color{red} \\textbf{More than 20\\% of the particles were flagged as being suspicious.}}")
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if less than 20\\% of the coordinates are suspicious to
+lay in aggregations, contaminations, ice crystals, etc.
+\\\\
+
+"""
+    report.write(msg)
+    report.writeWarningsAndSummary(warnings, "5.a Micrograph cleaner", secLabel)
 
     return prot
 
