@@ -583,6 +583,9 @@ alignability of the input images.
 \\\\
 """ % secLabel
     report.write(msg)
+    if protRelion.isFailed() or protCryoSparc.isFailed():
+        report.writeSummary("4.d3 Relion/CryoSparc alignments", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: One of the previous protocols failed.}}\\\\ \n")
 
     shiftOutliers, angleOutliers = compareAlignment(project, report, protRelion.outputVolume, protRelion, protCryoSparc,
                                                     symmetry, "3. Relion/Cryosparc", "alignmentRelionCryosparc",
