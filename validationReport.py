@@ -291,6 +291,10 @@ class ValidationReport:
         self.fhAbstract = open(self.fnAbstract,"w")
         self.fnSummary = os.path.join(self.fnReportDir,"summary.tex")
         self.fhSummary = open(self.fnSummary,"w")
+        self.fnSummaryWarnings = os.path.join(self.fnReportDir,"summaryWarnings.tex")
+        self.fhSummaryWarnings = open(self.fnSummaryWarnings,"w")
+        self.fhSummaryWarnings.write("\\underline{Summary of the warnings along sections}.\\\\ \n"\
+                                     "If it is empty below this point, it means that there are no warnings.\\\\ \n\n\n")
         self.citations = {}
         self.writePreamble(levels)
         self.resolutionEstimates = []
@@ -329,7 +333,10 @@ class ValidationReport:
 
 \\begin{abstract}
 \\input{abstract.tex}
+\\clearpage
 \\input{summary.tex}
+\\clearpage
+\\input{summaryWarnings.tex}
 \\end{abstract}
 
 \\clearpage
@@ -360,6 +367,12 @@ class ValidationReport:
                 countWarnings = len(warnings)
                 toWrite = "\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n" % (countWarnings, latexEnumerate(warnings))
                 self.writeSummary(section, secLabel, "{\\color{red} %d warnings}" % countWarnings)
+
+                self.fhSummaryWarnings.write("\\underline{Section \\ref{%s} (%s)}\n" % (secLabel, section))
+                self.fhSummaryWarnings.write("\\begin{enumerate}\n")
+                for warning in warnings:
+                    self.fhSummaryWarnings.write("\\item %s\n"%warning)
+                self.fhSummaryWarnings.write("\\end{enumerate}\n\n")
             else:
                 toWrite = "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
                 self.writeSummary(section, secLabel, "{\\color{blue} OK}")
@@ -655,6 +668,9 @@ class ValidationReport:
         self.fhAbstract.write('\\textbf{The overall score (passing tests) of this report is %d out of %d evaluable '\
                               'items.}\n\n'%(self.score,self.scoreN))
         self.fhAbstract.close()
+
+        self.fhSummaryWarnings.write('\n\n')
+        self.fhSummaryWarnings.close()
 
         toWrite = \
 """
