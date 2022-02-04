@@ -38,6 +38,7 @@ from scipion.utils import getScipionHome
 from pwem.emlib.metadata import iterRows
 import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPath, copyFile
+from pwem.convert.atom_struct import AtomicStructHandler
 from xmipp3.convert import writeSetOfParticles
 import xmipp3
 
@@ -67,7 +68,7 @@ def importModel(project, label, protImportMap, FNMODEL):
 
     return protImport
 
-def mapq(project, report, protImportMap, protAtom):
+def mapq(project, report, protImportMap, protAtom, resolution):
     bblCitation = \
 """\\bibitem[Pintilie and Chiu, 2021]{Pintilie2021}
 Pintilie, G. and Chiu, W. (2021).
@@ -89,8 +90,119 @@ have a Gaussian shape.\\\\
 \\\\
 """ % secLabel
     report.write(msg)
-    report.writeSummary("6.a MAP-Q", secLabel, "{\\color{red} Not in Scipion}")
-    report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+
+    Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
+                                            'ProtMapQ', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="6.a MAP-Q",
+                               inputVol=protImportMap.outputVolume,
+                               pdbs=[protAtom.outputPdb],
+                               mapRes=resolution)
+    project.launchProtocol(prot, wait=True)
+    if prot.isFailed():
+        report.writeSummary("6.a MAP-Q", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return
+
+    ASH = AtomicStructHandler()
+
+    mapq_scores = []
+    for struct in prot.scoredStructures:
+        fileName = struct.getFileName()
+        fields = ASH.readLowLevel(fileName)
+        attributes = fields["_scipion_attributes.name"]
+        values = fields["_scipion_attributes.value"]
+        mapq_scores += [float(value) for attribute, value in zip(attributes, values) if attribute == "MapQ_Score"]
+
+    fnHist = os.path.join(report.getReportDir(),"locOccupancyHist.png")
+
+    reportHistogram(mapq_scores, "MAP-Q score", fnHist)
+    Bpercentiles = np.percentile(mapq_scores, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
+
+    toWrite = \
+"""
+Fig. \\ref{fig:histMapQ} shows the histogram of the Q-score according to Map-Q score. Some representative
+percentiles are:
+
+\\begin{center}
+    \\begin{tabular}{|c|c|}
+        \\hline
+        \\textbf{Percentile} & \\textbf{Map-Q score [0-1]} \\\\
+        \\hline
+        2.5\\%% & %5.2f \\\\
+        \\hline
+        25\\%% & %5.2f \\\\
+        \\hline
+        50\\%% & %5.2f \\\\
+        \\hline
+        75\\%% & %5.2f \\\\
+        \\hline
+        97.5\\%% & %5.2f \\\\
+        \\hline
+    \\end{tabular}
+\\end{center}
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=10cm]{%s}
+    \\caption{Histogram of the Q-score.}
+    \\label{fig:histMapQ}
+\\end{figure}
+
+""" % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist)
+    report.write(toWrite)
+
+    files = glob.glob(prot._getExtraPath("*All.txt"))
+    fh = open(files[0])
+    msg=\
+""" The following table shows the average Q score and estimated resolution for each chain.
+\\begin{center}
+    \\begin{tabular}{ccc}
+        \\hline
+        \\textbf{Chain} & \\textbf{Average Q score [0-1]} & \\textbf{Estimated Resol. (\\AA)} \\\\
+        \\hline
+"""
+    state = 0
+    resolutions = []
+    for line in fh.readlines():
+        print(line)
+        if state==0 and line.startswith('Chain'):
+            state=1
+        elif state==1:
+            tokens = line.split()
+            if len(tokens)>0:
+                res = float(tokens[-1])
+                msg+="      %s & %s & %4.1f \\\\ \n"%(tokens[0],tokens[3],res)
+                resolutions.append(res)
+            else:
+                state=2
+                break
+    msg+=\
+"""        \\hline
+    \\end{tabular}
+\\end{center}
+
+"""
+    report.write(msg)
+    fh.close()
+
+    report.addResolutionEstimate(np.mean(resolutions))
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if Bpercentiles[2]<0.1 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The median Q-score is less than 0.1\\%}}")
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the median Q-score is smaller than 0.1\\%.
+\\\\
+
+"""
+    report.write(msg)
+    report.writeWarningsAndSummary(warnings, "6.a MAP-Q", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("There seems to be a problem with its MAP-Q scores (see Sec. \\ref{%s}). "%secLabel)
+
 
 def convertPDB(project, protImportMap, protAtom):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -796,7 +908,7 @@ def level6(project, report, protImportMap, FNMODEL, resolution, doMultimodel, sk
     if not skipAnalysis:
         report.writeSection('Level 6 analysis')
         protConvert = convertPDB(project, protImportMap, protAtom)
-        mapq(project, report, protImportMap, protAtom)
+        mapq(project, report, protImportMap, protAtom, resolution)
         fscq(project, report, protImportMap, protAtom, protConvert)
         if doMultimodel:
             multimodel(project, report, protImportMap, protAtom)

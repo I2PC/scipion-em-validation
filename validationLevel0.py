@@ -723,7 +723,6 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
 
     reportHistogram(B, "Local occupancy", fnHist)
     Bpercentiles = np.percentile(B, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
-    print(Bpercentiles)
 
     toWrite = \
 """
