@@ -139,6 +139,11 @@ half maps.\\\\
     prot.pdbMap.set(protConvert.outputVolume)
     project.launchProtocol(prot, wait=True)
 
+    if prot.isFailed():
+        report.writeSummary("6.b FSC-Q", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return
+
     V = xmipp3.Image(prot._getExtraPath("pdb_volume.map"))
     FSCQr = xmipp3.Image(prot._getExtraPath("diferencia_norm.map"))
     fscqr = FSCQr.getData()[V.getData()>0.97]
@@ -726,9 +731,10 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         return prot
 
     daqDic = prot.parseDAQScores(prot.outputAtomStruct.getFileName())
-    daqValues = list(daqDic.values())
+    daqValues = [float(x) for x in list(daqDic.values())]
     fnDAQHist = os.path.join(report.getReportDir(),"daqHist.png")
     reportHistogram(daqValues,"DAQ", fnDAQHist)
+    print(daqValues)
     avgDaq = np.mean(daqValues)
     stdDaq = np.std(daqValues)
 
@@ -756,7 +762,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     if avgDaq<0.5 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The average DAQ is smaller than 0.5.}}")
     msg = \
-"""\\textbf{Automatic criteria}: The validation is OK if the average DAQ score is larger than 0.5\\%.
+"""\\textbf{Automatic criteria}: The validation is OK if the average DAQ score is larger than 0.5.
 \\\\
 
 """
