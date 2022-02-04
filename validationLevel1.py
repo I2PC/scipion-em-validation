@@ -323,7 +323,7 @@ estimated FSC and resolution.
 
     warnings=[]
     testWarnings = False
-    if resolution<0.8/FDRResolution or testWarnings:
+    if resolution<0.8*FDRResolution or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
                         "to the resolution calculated by the FSC permutation, %5.2f \\AA}}"%(resolution,FDRResolution))
     msg = \
@@ -334,7 +334,7 @@ resolution estimated by FSC permutation.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.b FSC permutation", secLabel)
-    report.addResolutionEstimate(1 / FDRResolution)
+    report.addResolutionEstimate(FDRResolution)
 
     return prot
 
