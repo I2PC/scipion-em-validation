@@ -507,7 +507,7 @@ input map to the appearance of the atomic structures a local resolution label ca
     fnHist = os.path.join(report.getReportDir(), "deepresHist.png")
 
     reportHistogram(R, "Local resolution (A)", fnHist)
-    Rpercentiles = np.percentile(R, [0.025, 0.25, 0.5, 0.75, 0.975] * 100)
+    Rpercentiles = np.percentile(R, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
     resolutionP = np.sum(R < resolution) / R.size * 100
     report.addResolutionEstimate(Rpercentiles[2])
 
@@ -519,7 +519,7 @@ percentiles are:
 \\begin{center}
     \\begin{tabular}{|c|c|}
         \\hline
-        \\textbf{Percentile} & Resolution(\AA) \\\\
+        \\textbf{Percentile} & \\textbf{Resolution(\AA)} \\\\
         \\hline
         2.5\\%% & %5.2f \\\\
         \\hline
@@ -572,7 +572,7 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
     report.writeWarningsAndSummary(warnings, "0.e DeepRes", secLabel)
     return prot
 
-def locBfactor(project, report, label, map, mask):
+def locBfactor(project, report, label, map, mask, resolution):
     bblCitation = \
 """\\bibitem[Kaur et~al., 2021]{Kaur2021}
 Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
@@ -595,10 +595,89 @@ local magnitude and phase term using the spiral transform.\\\\
 \\\\
 """ % secLabel
     report.write(msg)
-    report.writeSummary("0.f LocBfactor", secLabel, "{\\color{red} Not in Scipion}")
-    report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
 
-def locOccupancy(project, report, label, map, mask):
+    Prot = pwplugin.Domain.importFromPlugin('javimaps.protocols',
+                                            'ProtLocBFactor', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel=label,
+                               vol=map,
+                               mask_in_molecule=mask,
+                               max_res=resolution,
+                               numberOfThreads=1)
+    project.launchProtocol(prot, wait=True)
+
+    if prot.isFailed():
+        report.writeSummary("0.f LocBfactor", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    fnBfactor = prot._getExtraPath("bmap.mrc")
+    V = xmipp3.Image(fnBfactor+":mrc").getData()
+    M = xmipp3.Image(mask.getFileName()).getData()
+    B = V[M>0.5]
+    fnHist = os.path.join(report.getReportDir(),"locBfactorHist.png")
+
+    reportHistogram(B, "Local B-factor (A^-2)", fnHist)
+    Bpercentiles = np.percentile(B, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
+
+    toWrite = \
+"""
+Fig. \\ref{fig:histLocBfactor} shows the histogram of the local B-factor according to LocBfactor. Some representative
+percentiles are:
+
+\\begin{center}
+    \\begin{tabular}{|c|c|}
+        \\hline
+        \\textbf{Percentile} & \\textbf{Local B-factor (\AA$^{-2}$)} \\\\
+        \\hline
+        2.5\\%% & %5.2f \\\\
+        \\hline
+        25\\%% & %5.2f \\\\
+        \\hline
+        50\\%% & %5.2f \\\\
+        \\hline
+        75\\%% & %5.2f \\\\
+        \\hline
+        97.5\\%% & %5.2f \\\\
+        \\hline
+    \\end{tabular}
+\\end{center}
+
+Fig. \\ref{fig:locBfactorColor} shows some representative views of the local B-factor.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=10cm]{%s}
+    \\caption{Histogram of the local B-factor according to LocBfactor.}
+    \\label{fig:histLocBfactor}
+\\end{figure}
+
+""" % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist)
+    report.write(toWrite)
+
+    Ts = map.getSamplingRate()
+    report.colorIsoSurfaces("", "Local B-factor according to LocBfactor.", "fig:locBfactorColor",
+                            project, "locBfactorViewer",
+                            os.path.join(project.getPath(), map.getFileName()), Ts,
+                            fnBfactor, Bpercentiles[0], Bpercentiles[-1])
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if Bpercentiles[2]<-300 or Bpercentiles[2]>0 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The median B-factor is out of the interval [-300,0]}}")
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the median B-factor is in the range [-300,0].
+\\\\
+
+"""
+    report.write(msg)
+    report.writeWarningsAndSummary(warnings, "0.f LocBfactor", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("There seems to be a problem with its local B-factor (see Sec. \\ref{%s}). "%secLabel)
+
+
+def locOccupancy(project, report, label, map, mask, resolution):
     bblCitation = \
 """\bibitem[Kaur et~al., 2021]{Kaur2021}
 Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
@@ -620,8 +699,88 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
 \\\\
 """ % secLabel
     report.write(msg)
-    report.writeSummary("0.g LocOccupancy", secLabel, "{\\color{red} Not in Scipion}")
-    report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+
+    Prot = pwplugin.Domain.importFromPlugin('javimaps.protocols',
+                                            'ProtLocOccupancy', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel=label,
+                               vol=map,
+                               mask_in_molecule=mask,
+                               max_res=resolution,
+                               numberOfThreads=1)
+    project.launchProtocol(prot, wait=True)
+
+    if prot.isFailed():
+        report.writeSummary("0.g LocOccupancy", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    fnOccupancy = prot._getExtraPath("omap.mrc")
+    V = xmipp3.Image(fnOccupancy+":mrc").getData()
+    M = xmipp3.Image(mask.getFileName()).getData()
+    B = V[M>0.5]
+    fnHist = os.path.join(report.getReportDir(),"locOccupancyHist.png")
+
+    reportHistogram(B, "Local occupancy", fnHist)
+    Bpercentiles = np.percentile(B, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
+    print(Bpercentiles)
+
+    toWrite = \
+"""
+Fig. \\ref{fig:histLocOccupancy} shows the histogram of the local occupancy according to LocOccupancy. Some representative
+percentiles are:
+
+\\begin{center}
+    \\begin{tabular}{|c|c|}
+        \\hline
+        \\textbf{Percentile} & \\textbf{Local Occupancy [0-1]} \\\\
+        \\hline
+        2.5\\%% & %5.2f \\\\
+        \\hline
+        25\\%% & %5.2f \\\\
+        \\hline
+        50\\%% & %5.2f \\\\
+        \\hline
+        75\\%% & %5.2f \\\\
+        \\hline
+        97.5\\%% & %5.2f \\\\
+        \\hline
+    \\end{tabular}
+\\end{center}
+
+Fig. \\ref{fig:locOccupancyColor} shows some representative views of the local occupancy.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=10cm]{%s}
+    \\caption{Histogram of the local occupancy according to LocOccupancy.}
+    \\label{fig:histLocOccupancy}
+\\end{figure}
+
+""" % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist)
+    report.write(toWrite)
+
+    Ts = map.getSamplingRate()
+    report.colorIsoSurfaces("", "Local occupancy according to LocOccupancy.", "fig:locOccupancyColor",
+                            project, "locOccupancyViewer",
+                            os.path.join(project.getPath(), map.getFileName()), Ts,
+                            fnOccupancy, Bpercentiles[0], Bpercentiles[-1])
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if Bpercentiles[2]<0.5 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The median occupancy is less than 50\\%}}")
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the median occupancy is larger than 50\\%.
+\\\\
+
+"""
+    report.write(msg)
+    report.writeWarningsAndSummary(warnings, "0.g LocOccupancy", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("There seems to be a problem with its local occupancy (see Sec. \\ref{%s}). "%secLabel)
+
 
 def deepHand(project, report, label, resolution, map, mask):
     secLabel = "sec:deepHand"
@@ -719,7 +878,7 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, sk
 
     if not skipAnalysis:
         xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
-        locBfactor(project, report, "0.f locBfactor", protImportMap.outputVolume, protCreateMask.outputMask)
-        locOccupancy(project, report, "0.g locOccupancy", protImportMap.outputVolume, protCreateMask.outputMask)
+        locBfactor(project, report, "0.f locBfactor", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
+        locOccupancy(project, report, "0.g locOccupancy", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
         deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, protCreateMask.outputMask)
     return protImportMap, protCreateMask, bfactor

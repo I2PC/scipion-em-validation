@@ -380,7 +380,7 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
     fnHist = os.path.join(report.getReportDir(),"blocRes.png")
 
     reportHistogram(R, "Local resolution (A)", fnHist)
-    Rpercentiles = np.percentile(R, [0.025, 0.25, 0.5, 0.75, 0.975]*100)
+    Rpercentiles = np.percentile(R, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
     resolutionP = np.sum(R<resolution)/R.size*100
     report.addResolutionEstimate(Rpercentiles[2])
 
@@ -502,7 +502,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
     fnHist = os.path.join(report.getReportDir(),"resmapHist.png")
 
     reportHistogram(R, "Local resolution (A)", fnHist)
-    Rpercentiles = np.percentile(R, [0.025, 0.25, 0.5, 0.75, 0.975]*100)
+    Rpercentiles = np.percentile(R, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
     resolutionP = np.sum(R<resolution)/R.size*100
     report.addResolutionEstimate(Rpercentiles[2])
 
@@ -514,7 +514,7 @@ percentiles are:
 \\begin{center}
     \\begin{tabular}{|c|c|}
         \\hline
-        \\textbf{Percentile} & Resolution(\AA) \\\\
+        \\textbf{Percentile} & \\textbf{Resolution(\AA)} \\\\
         \\hline
         2.5\\%% & %5.2f \\\\
         \\hline
@@ -631,7 +631,7 @@ percentiles are:
 \\begin{center}
     \\begin{tabular}{|c|c|}
         \\hline
-        \\textbf{Percentile} & Resolution(\AA) \\\\
+        \\textbf{Percentile} & \\textbf{Resolution(\AA)} \\\\
         \\hline
         2.5\\%% & %5.2f \\\\
         \\hline

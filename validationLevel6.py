@@ -734,7 +734,6 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     daqValues = [float(x) for x in list(daqDic.values())]
     fnDAQHist = os.path.join(report.getReportDir(),"daqHist.png")
     reportHistogram(daqValues,"DAQ", fnDAQHist)
-    print(daqValues)
     avgDaq = np.mean(daqValues)
     stdDaq = np.std(daqValues)
 
