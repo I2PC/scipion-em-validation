@@ -114,7 +114,7 @@ have a Gaussian shape.\\\\
         values = fields["_scipion_attributes.value"]
         mapq_scores += [float(value) for attribute, value in zip(attributes, values) if attribute == "MapQ_Score"]
 
-    fnHist = os.path.join(report.getReportDir(),"locOccupancyHist.png")
+    fnHist = os.path.join(report.getReportDir(),"mapqHist.png")
 
     reportHistogram(mapq_scores, "MAP-Q score", fnHist)
     Bpercentiles = np.percentile(mapq_scores, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
