@@ -80,7 +80,7 @@ Pintilie, G. and Chiu, W. (2021).
     secLabel = "sec:mapq"
     msg = \
 """
-\\subsection{Level 6.a MAP-Q}
+\\subsection{Level A.a MAP-Q}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 MAP-Q \\cite{Pintilie2021} computes the local correlation between the map and each one of its atoms assumed to
@@ -94,13 +94,13 @@ have a Gaussian shape.\\\\
     Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
                                             'ProtMapQ', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel="6.a MAP-Q",
+                               objLabel="A.a MAP-Q",
                                inputVol=protImportMap.outputVolume,
                                pdbs=[protAtom.outputPdb],
                                mapRes=resolution)
     project.launchProtocol(prot, wait=True)
     if prot.isFailed():
-        report.writeSummary("6.a MAP-Q", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("A.a MAP-Q", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return
 
@@ -199,7 +199,7 @@ percentiles are:
 
 """
     report.write(msg)
-    report.writeWarningsAndSummary(warnings, "6.a MAP-Q", secLabel)
+    report.writeWarningsAndSummary(warnings, "A.a MAP-Q", secLabel)
     if len(warnings)>0:
         report.writeAbstract("There seems to be a problem with its MAP-Q scores (see Sec. \\ref{%s}). "%secLabel)
 
@@ -231,7 +231,7 @@ Ram{\\'i}rez-Aportela, E., Maluenda, D., Fonseca, Y.~C., Conesa, P., Marabini,
     secLabel = "sec:fscq"
     msg = \
 """
-\\subsection{Level 6.b FSC-Q}
+\\subsection{Level A.b FSC-Q}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 FSC-Q \\cite{Ramirez2021} compares the local FSC between the map and the atomic model to the local FSC of the two 
@@ -245,14 +245,14 @@ half maps.\\\\
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtValFit', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel="6.b FSC-Q",
+                               objLabel="A.b FSC-Q",
                                inputPDB=protAtom.outputPdb.getFileName())
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.pdbMap.set(protConvert.outputVolume)
     project.launchProtocol(prot, wait=True)
 
     if prot.isFailed():
-        report.writeSummary("6.b FSC-Q", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("A.b FSC-Q", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return
 
@@ -296,7 +296,7 @@ in absolute value is smaller than 10\\%.
 
 """
     report.write(msg)
-    report.writeWarningsAndSummary(warnings, "6.b FSC-Q", secLabel)
+    report.writeWarningsAndSummary(warnings, "A.b FSC-Q", secLabel)
     if len(warnings)>0:
         report.writeAbstract("According to FSC-Q, it seems that there is a mismatch between the map and its model "\
                              "(see Sec. \\ref{%s}). "%secLabel)
@@ -314,7 +314,7 @@ Herzik, M.~A., Fraser, J.~S., and Lander, G.~C. (2019).
     secLabel = "sec:multimodel"
     msg = \
 """
-\\subsection{Level 6.c Multimodel stability}
+\\subsection{Level A.c Multimodel stability}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 The method of \\cite{Herzik2019} estimates the ambiguity of the atomic model in each region of the CryoEM map due to 
@@ -324,7 +324,7 @@ the different local resolutions or local heterogeneity.\\\\
 \\\\
 """ % secLabel
     report.write(msg)
-    report.writeSummary("6.c Multimodel", secLabel, "{\\color{red} Not in Scipion}")
+    report.writeSummary("A.c Multimodel", secLabel, "{\\color{red} Not in Scipion}")
     report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
 
 def guinierModel(project, report, protImportMap, protConvert, resolution):
@@ -355,7 +355,7 @@ def guinierModel(project, report, protImportMap, protConvert, resolution):
 
     secLabel = "sec:bfactorModel"
     msg = \
-"""\\subsection{Level 6.d Map-Model Guinier analysis}
+"""\\subsection{Level A.d Map-Model Guinier analysis}
 \\label{%s}
 \\textbf{Explanation:}\\\\
 We compared the Guinier plot \\cite{Rosenthal2003} of the atomic model and the experimental map. We made the mean
@@ -388,7 +388,7 @@ than 0.5.
 
 """
     report.write(msg)
-    report.writeWarningsAndSummary(warnings, "6.d Map-Model Guinier", secLabel)
+    report.writeWarningsAndSummary(warnings, "A.d Map-Model Guinier", secLabel)
     if len(warnings)>0:
         report.writeAbstract("It seems that the Guinier plot of the map and its model do not match "\
                              "(see Sec. \\ref{%s}). "%secLabel)
@@ -407,7 +407,7 @@ Afonine, P.~V., Klaholz, B.~P., Moriarty, N.~W., Poon, B.~K., Sobolev, O.~V.,
     secLabel = "sec:phenix"
     msg = \
 """
-\\subsection{Level 6.e Phenix validation}
+\\subsection{Level A.e Phenix validation}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 Phenix provides a number of tools to assess the agreement between the experimental map and its atomic model
@@ -443,14 +443,14 @@ There are also multiple ways of measuring the resolution:
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
                                             'PhenixProtRunValidationCryoEM', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel="6.e Phenix",
+                               objLabel="A.e Phenix",
                                resolution=max(resolution,3.0))
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
     project.launchProtocol(prot, wait=True)
 
     if prot.isFailed():
-        report.writeSummary("6.e Phenix", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("A.e Phenix", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
@@ -673,7 +673,7 @@ resolution estimated between the map and model at FSC=0.5.
 
 """
     report.write(msg)
-    report.writeWarningsAndSummary(warnings, "6.e Phenix validation", secLabel)
+    report.writeWarningsAndSummary(warnings, "A.e Phenix validation", secLabel)
     if len(warnings)>0:
         report.writeAbstract("According to phenix, it seems that there might be some mismatch between the map "\
                              "and its model (see Sec. \\ref{%s}). "%secLabel)
@@ -693,7 +693,7 @@ Barad, B.~A., Echols, N., Wang, R. Y.-R., Cheng, Y., DiMaio, F., Adams, P.~D.,
     secLabel = "sec:emringer"
     msg = \
 """
-\\subsection{Level 6.f EMRinger validation}
+\\subsection{Level A.f EMRinger validation}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 EMringer \\cite{Barad2015} compares the side chains of the atomic model to the CryoEM map. The following features are
@@ -713,13 +713,13 @@ reported:
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
                                             'PhenixProtRunEMRinger', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel="6.f EMRinger")
+                               objLabel="A.f EMRinger")
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
     project.launchProtocol(prot, wait=True)
 
     if prot.isFailed():
-        report.writeSummary("6.f EMRinger", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("A.f EMRinger", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
@@ -799,7 +799,7 @@ sequence of proteins.
 """
     report.write(msg)
 
-    report.writeWarningsAndSummary(warnings, "6.f EMRinger", secLabel)
+    report.writeWarningsAndSummary(warnings, "A.f EMRinger", secLabel)
     if len(warnings)>0:
         report.writeAbstract("The EMRinger score is negative, it seems that the model side chains do not match the "\
                             "map (see Sec. \\ref{%s}). "%secLabel)
@@ -816,7 +816,7 @@ Terashi, G., Wang, X., Subramaniya, S.R.M.V., Tesmer, J.J.G. and Kihara, D. (202
     secLabel = "sec:daq"
     msg = \
 """
-\\subsection{Level 6.g DAQ validation}
+\\subsection{Level A.g DAQ validation}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 DAQ \\cite{Terashi2022} DAQ is a computational tool using deep learning that can estimate the residue-wise local
@@ -831,14 +831,14 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     Prot = pwplugin.Domain.importFromPlugin('kiharalab.protocols',
                                             'ProtDAQValidation', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel="6.g DAQ",
+                               objLabel="A.g DAQ",
                                stride=3)
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputAtomStruct.set(protAtom.outputPdb)
     project.launchProtocol(prot, wait=True)
 
     if prot.isFailed():
-        report.writeSummary("6.f DAQ", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("A.f DAQ", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
@@ -878,7 +878,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
 
 """
     report.write(msg)
-    report.writeWarningsAndSummary(warnings, "6.g DAQ", secLabel)
+    report.writeWarningsAndSummary(warnings, "A.g DAQ", secLabel)
     if len(warnings)>0:
         report.writeAbstract("DAQ detects some mismatch between the map and its model (see Sec. \\ref{%s}). "%secLabel)
 
@@ -893,7 +893,7 @@ Atomic model: %s \\\\
     msg = "See Fig. \\ref{fig:modelInput}.\\\\"
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
 
-def level6(project, report, protImportMap, FNMODEL, resolution, doMultimodel, skipAnalysis=False):
+def levelA(project, report, protImportMap, FNMODEL, resolution, doMultimodel, skipAnalysis=False):
     if protImportMap.outputVolume.hasHalfMaps():
         protImportMapWOHalves = importMap(project, "Import map2", protImportMap)
         protImportForPhenix = protImportMapWOHalves
@@ -906,7 +906,7 @@ def level6(project, report, protImportMap, FNMODEL, resolution, doMultimodel, sk
 
     # Quality Measures
     if not skipAnalysis:
-        report.writeSection('Level 6 analysis')
+        report.writeSection('Level A analysis')
         protConvert = convertPDB(project, protImportMap, protAtom)
         mapq(project, report, protImportMap, protAtom, resolution)
         fscq(project, report, protImportMap, protAtom, protConvert)
