@@ -58,7 +58,7 @@ def usage(message=''):
           "\n         LEVEL 5 ====="
           '\n            micrographs:  dir/*.mrc'
           '\n            micSampling:  1 [A]'
-          "\n         LEVEL 6 ====="
+          "\n         LEVEL A ====="
           '\n            atomicModel:  mymodel.pdb [or .cif]'
           '\n            doMultimodel:  yes # This method is computationally very expensive'
           "\n         LEVEL W ====="
@@ -179,7 +179,7 @@ LEVEL2 = ["avgs", "avgSampling", "symmetry"]
 LEVEL3 = ["particles", "ptclSampling", "kV", "Cs", "Q0"]
 LEVEL4 = ["hasAngles"]
 LEVEL5 = ["micrographs", "micSampling"]
-LEVEL6 = ["atomicModel", "doMultimodel"]
+LEVELA = ["atomicModel", "doMultimodel"]
 LEVELW = ["workflow"]
 LEVELOa = ["xlm"]
 LEVELOb = ["saxs"]
@@ -206,8 +206,8 @@ if detectLevel(LEVEL4, argsPresent):
     levels.append("4")
 if detectLevel(LEVEL5, argsPresent):
     levels.append("5")
-if detectLevel(LEVEL6, argsPresent):
-    levels.append("6")
+if detectLevel(LEVELA, argsPresent):
+    levels.append("A")
 if detectLevel(LEVELW, argsPresent):
     levels.append("W")
 if detectLevel(LEVELOa, argsPresent):
@@ -268,10 +268,10 @@ if "5" in levels:
     from validationLevel5 import level5
     level5(project, report, protImportParticles, KV, CS, Q0, MICPATTERN, TSMIC, skipAnalysis = False)
 
-# Level 6
-if "6" in levels:
-    from validationLevel6 import level6
-    protAtom = level6(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, skipAnalysis = False)
+# Level A
+if "A" in levels:
+    from validationLevelA import levelA
+    protAtom = levelA(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, skipAnalysis = False)
 else:
     protAtom = None
 
