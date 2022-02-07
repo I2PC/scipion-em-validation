@@ -293,7 +293,7 @@ class ValidationReport:
         self.fhSummary = open(self.fnSummary,"w")
         self.fnSummaryWarnings = os.path.join(self.fnReportDir,"summaryWarnings.tex")
         self.fhSummaryWarnings = open(self.fnSummaryWarnings,"w")
-        self.fhSummaryWarnings.write("\\textbf{\\underline{Summary of the warnings along sections.}}\\\\ \n"\
+        self.fhSummaryWarnings.write("\\textbf{\\underline{Summary of the warnings across sections.}}\\\\ \n"\
                                      "If it is empty below this point, it means that there are no warnings.\\\\ \n\n\n")
         self.citations = {}
         self.writePreamble(levels)

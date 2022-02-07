@@ -608,7 +608,7 @@ larger than 5\\AA, and 2) an angular difference larger than 5 degrees.
     if len(warnings)>0:
         report.writeAbstract("It seems that the angular assignment produced by Relion does not match with the one "\
                              "produced by Cryosparc (see Sec. \\ref{%s}). This is probably a sign of the difficulty "\
-                             "to align these particles."%secLabel)
+                             "to align these particles. " %secLabel)
 
 def relionClassification(project, report, protMap, protMask, protParticles, symmetry):
     Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
