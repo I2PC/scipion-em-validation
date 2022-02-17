@@ -239,7 +239,7 @@ of the smoothed cross-correlation landscape.\\\\
                                inputVolume=protMap.outputVolume,
                                inputParticles=protParticles.outputParticles,
                                symmetryGroup=symmetry,
-                               maximumTargetResolution=8, #resolution,
+                               maximumTargetResolution=resolution,
                                numberOfMpi=8)
     project.launchProtocol(prot, wait=True)
 
