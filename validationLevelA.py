@@ -301,7 +301,7 @@ in absolute value is smaller than 10\\%.
         report.writeAbstract("According to FSC-Q, it seems that there is a mismatch between the map and its model "\
                              "(see Sec. \\ref{%s}). "%secLabel)
 
-def multimodel(project, report, protImportMap, protAtom):
+def multimodel(project, report, protImportMap, protAtom, resolution):
     bblCitation = \
 """\\bibitem[Herzik et~al., 2019]{Herzik2019}
 Herzik, M.~A., Fraser, J.~S., and Lander, G.~C. (2019).
@@ -324,8 +324,32 @@ the different local resolutions or local heterogeneity.\\\\
 \\\\
 """ % secLabel
     report.write(msg)
-    report.writeSummary("A.c Multimodel", secLabel, "{\\color{red} Not in Scipion}")
-    report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+
+    Prot = pwplugin.Domain.importFromPlugin('rosetta.protocols',
+                                            'ProtRosettaGenerateStructures', doRaise=True)
+    prot1  = project.newProtocol(Prot,
+                                 objLabel="A.c Multimodel ambiguity",
+                                 inputStructure=protAtom.outputPdb,
+                                 inputVolume=protImportMap.outputVolume,
+                                 resolution=resolution,
+                                 numMods=2)
+    project.launchProtocol(prot1, wait=True)
+
+    if prot1.isFailed() or not hasattr(prot1,"outputAtomStructs"):
+        report.writeSummary("A.c Multimodel", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return
+
+    Prot = pwplugin.Domain.importFromPlugin('atomstructutils.protocols',
+                                            'ProtRMSDAtomStructs', doRaise=True)
+    prot2 = project.newProtocol(Prot,
+                                objLabel="A.c RMSD",
+                                SetOfAtomStructs=prot1.outputAtomStructs)
+    project.launchProtocol(prot2, wait=True)
+    if prot2.isFailed():
+        report.writeSummary("A.c Multimodel", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return
 
 def guinierModel(project, report, protImportMap, protConvert, resolution):
     map = protImportMap.outputVolume
@@ -907,14 +931,14 @@ def levelA(project, report, protImportMap, FNMODEL, resolution, doMultimodel, sk
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level A analysis')
-        protConvert = convertPDB(project, protImportMap, protAtom)
-        mapq(project, report, protImportMap, protAtom, resolution)
-        fscq(project, report, protImportMap, protAtom, protConvert)
+        # protConvert = convertPDB(project, protImportMap, protAtom)
+        # mapq(project, report, protImportMap, protAtom, resolution)
+        # fscq(project, report, protImportMap, protAtom, protConvert)
         if doMultimodel:
-            multimodel(project, report, protImportMap, protAtom)
-        guinierModel(project, report, protImportMap, protConvert, resolution)
-        phenix(project, report, protImportForPhenix, protAtom, resolution)
-        emringer(project, report, protImportForPhenix, protAtom)
-        daq(project, report, protImportMap, protAtom)
+            multimodel(project, report, protImportMap, protAtom, resolution)
+        # guinierModel(project, report, protImportMap, protConvert, resolution)
+        # phenix(project, report, protImportForPhenix, protAtom, resolution)
+        # emringer(project, report, protImportForPhenix, protAtom)
+        # daq(project, report, protImportMap, protAtom)
 
     return protAtom

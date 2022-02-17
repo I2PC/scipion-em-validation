@@ -208,7 +208,7 @@ plot and the dependence of the cross-correlation with the defocus.\\\\
     # Warnings
     report.writeWarningsAndSummary(None, "4.a Similarity criteria", secLabel)
 
-def alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry):
+def alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry, resolution):
     bblCitation = \
 """\\bibitem[M{\\'e}ndez et~al., 2021]{Mendez2021b}
 M{\\'e}ndez, J., Gardu{\\~n}o, E., Carazo, J.~M., and Sorzano, C. O.~S. (2021).
@@ -224,15 +224,79 @@ M{\\'e}ndez, J., Gardu{\\~n}o, E., Carazo, J.~M., and Sorzano, C. O.~S. (2021).
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 This algorithm \\cite{Mendez2021b} analyzes the smoothness of the correlation function over the projection sphere and
-the stability of its maximum.\\\\
+the stability of its maximum. Ideally, the angular assignment given by the user should coincide with the maximum
+of the smoothed cross-correlation landscape.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
 """ % secLabel
     report.write(msg)
 
-    report.writeSummary("4.b Alignability smoothness", secLabel, "{\\color{red} Not in Scipion}")
-    report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtAngularGraphConsistency', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="4.b Alignability smoothness",
+                               inputVolume=protMap.outputVolume,
+                               inputParticles=protParticles.outputParticles,
+                               symmetryGroup=symmetry,
+                               maximumTargetResolution=8, #resolution,
+                               numberOfMpi=8)
+    project.launchProtocol(prot, wait=True)
+
+    md = xmipp3.MetaData(prot._getExtraPath("Iter1/anglesDisc.xmd"))
+    dist2Max = np.array(md.getColumnValues(xmipp3.MDL_GRAPH_DISTANCE2MAX_PREVIOUS))
+    cc = np.array(md.getColumnValues(xmipp3.MDL_GRAPH_CC_PREVIOUS))
+
+    fnDistHist = os.path.join(report.getReportDir(), "graphDistHist.png")
+    reportHistogram(dist2Max, 'Angular distance to maximum', fnDistHist)
+
+    fnCCHist = os.path.join(report.getReportDir(), "graphCCHist.png")
+    reportHistogram(cc, 'CC', fnCCHist)
+
+    avgDist = np.mean(dist2Max)
+    avgCC = np.mean(cc)
+
+    fDist = np.sum(dist2Max > 10) / dist2Max.size * 100
+    fCC = np.sum(cc < 0.9) / cc.size * 100
+
+    msg = \
+"""Fig. \\ref{fig:graphValidation} shows the histograms of the cross correlation of the *** and the angular distance 
+between the angular assignment given by the user and the maximum of the smoothed landscape of cross-correlations. 
+plot. The average cross-correlation was %4.3f and the average angular distance %4.3f. The percentage of images whose 
+correlation is below 0.9 is %4.1f\\%%, and the percentage of images whose distance is larger than 10 is %4.1f\\%%.\\\\
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=6.5cm]{%s}
+    \includegraphics[width=6.5cm]{%s} \\\\
+    \\caption{Histogram of the cross-correlation *** and the angular distance between the angular assignment given
+              by the user and the maximum of the smoothed landscape of cross-correlation.}
+    \\label{fig:graphValidation}
+\\end{figure}
+""" % (avgCC, avgDist, fCC, fDist, fnCCHist, fnDistHist)
+    report.write(msg)
+
+    warnings = []
+    testWarnings = False
+    if fCC > 30 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The percentage of images with low cross correlation *** is too high, " \
+                        "%4.1f\\%%}}" % fCC)
+    if fDist > 30 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The percentage of images whose angular assignment is significantly "\
+                          "away from the smoothed maximum is too high, %4.1f\\%%}}" % fDist)
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if less than 30\\% of the images have a 1) cross-correlation
+below 0.9 and 2) their angular assignment is further than 10 degrees from the smoothed cross-correlation maximum. 
+\\\\
+
+"""
+    report.write(msg)
+    report.writeWarningsAndSummary(warnings, "4.b Alignability smoothness", secLabel)
+
+    if len(warnings) > 0:
+        report.writeAbstract("It seems that the input particles cannot be easily aligned (see Sec. \\ref{%s}). " % \
+                             secLabel)
+
 
 def multirefAlignability(project, report, protMap, protMask, protParticles, symmetry):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -905,8 +969,55 @@ SCF \\cite{Baldwin2020} measures the ability of the angular distribution to fill
 \\\\
 """ % secLabel
     report.write(msg)
-    report.writeSummary("4.h Sampling compensation factor", secLabel, "{\\color{red} Not in Scipion}")
-    report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+
+    Prot = pwplugin.Domain.importFromPlugin('scf.protocols',
+                                            'ScfProtAnalysis', doRaise=True)
+
+    prot = project.newProtocol(Prot,
+                               objLabel="4.h SCF",
+                               inParticles=protResizeParticles.outputParticles,
+                               numberToUse=-1)
+
+    project.launchProtocol(prot, wait=True)
+
+    msg='The results of the SCF analysis was:\\\\ \n'
+    fh=open(prot._getPath('extra.txt'))
+    results={}
+    for line in fh.readlines():
+        tokens = line.replace('INFO:root:','').split('=')
+        key = tokens[0].strip()
+        value = float(tokens[1].strip())
+        msg+="%s=%8.4f\\\\ \n"%(key, value)
+        results[key]=value
+    fh.close()
+    msg+="\n\n"
+    report.write(msg)
+
+    msg=\
+"""Fig. \\ref{fig:scf} shows the SCF plot for this angular distribution.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{SCF plot.}
+    \\label{fig:scf}
+\\end{figure}
+"""%os.path.join(project.getPath(),prot._getExtraPath("particleAnglesTilt0.jpg"))
+    report.write(msg)
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if results['SCFStar']<0.5 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{SCF*} is smaller than 0.5}")
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the SCF*$>$0.5.
+\\\\
+
+"""
+    report.write(msg)
+    report.writeWarningsAndSummary(warnings, "4.h SCF", secLabel)
+
 
 def ctfEstability(project, report, protRefinement, protResizeParticles, protResizeMask):
     Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
@@ -1078,7 +1189,7 @@ def level4(project, report, protMap, protMask, protParticles, symmetry, resoluti
     if not skipAnalysis:
         report.writeSection('Level 4 analysis')
         similarityMeasures(project, report, protMap, protMask, protParticles, symmetry, resolution)
-        alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry)
+        alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry, resolution)
         multirefAlignability(project, report, protMap, protMask, protParticles, symmetry)
         protRelion = relionAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
         protCryoSparc = cryosparcAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
