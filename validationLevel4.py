@@ -245,48 +245,37 @@ of the smoothed cross-correlation landscape.\\\\
 
     md = xmipp3.MetaData(prot._getExtraPath("Iter1/anglesDisc.xmd"))
     dist2Max = np.array(md.getColumnValues(xmipp3.MDL_GRAPH_DISTANCE2MAX_PREVIOUS))
-    cc = np.array(md.getColumnValues(xmipp3.MDL_GRAPH_CC_PREVIOUS))
 
     fnDistHist = os.path.join(report.getReportDir(), "graphDistHist.png")
     reportHistogram(dist2Max, 'Angular distance to maximum', fnDistHist)
 
-    fnCCHist = os.path.join(report.getReportDir(), "graphCCHist.png")
-    reportHistogram(cc, 'CC', fnCCHist)
-
     avgDist = np.mean(dist2Max)
-    avgCC = np.mean(cc)
 
     fDist = np.sum(dist2Max > 10) / dist2Max.size * 100
-    fCC = np.sum(cc < 0.9) / cc.size * 100
 
     msg = \
-"""Fig. \\ref{fig:graphValidation} shows the histograms of the cross correlation of the *** and the angular distance 
+"""Fig. \\ref{fig:graphValidation} shows the histogram of the angular distance 
 between the angular assignment given by the user and the maximum of the smoothed landscape of cross-correlations. 
-plot. The average cross-correlation was %4.3f and the average angular distance %4.3f. The percentage of images whose 
-correlation is below 0.9 is %4.1f\\%%, and the percentage of images whose distance is larger than 10 is %4.1f\\%%.\\\\
+plot. The average angular distance %4.3f. The percentage of images whose distance is larger than 10 is %4.1f\\%%.\\\\
 
 \\begin{figure}[H]
     \centering
     \includegraphics[width=6.5cm]{%s}
-    \includegraphics[width=6.5cm]{%s} \\\\
-    \\caption{Histogram of the cross-correlation *** and the angular distance between the angular assignment given
+    \\caption{Histogram of the angular distance between the angular assignment given
               by the user and the maximum of the smoothed landscape of cross-correlation.}
     \\label{fig:graphValidation}
 \\end{figure}
-""" % (avgCC, avgDist, fCC, fDist, fnCCHist, fnDistHist)
+""" % (avgDist, fDist, fnDistHist)
     report.write(msg)
 
     warnings = []
     testWarnings = False
-    if fCC > 30 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The percentage of images with low cross correlation *** is too high, " \
-                        "%4.1f\\%%}}" % fCC)
     if fDist > 30 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The percentage of images whose angular assignment is significantly "\
                           "away from the smoothed maximum is too high, %4.1f\\%%}}" % fDist)
     msg = \
-"""\\textbf{Automatic criteria}: The validation is OK if less than 30\\% of the images have a 1) cross-correlation
-below 0.9 and 2) their angular assignment is further than 10 degrees from the smoothed cross-correlation maximum. 
+"""\\textbf{Automatic criteria}: The validation is OK if less than 30\\% of the images have their angular assignment 
+is further than 10 degrees from the smoothed cross-correlation maximum. 
 \\\\
 
 """
