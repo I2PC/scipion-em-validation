@@ -781,14 +781,15 @@ Fig. \\ref{fig:locOccupancyColor} shows some representative views of the local o
         report.writeAbstract("There seems to be a problem with its local occupancy (see Sec. \\ref{%s}). "%secLabel)
 
 
-def deepHand(project, report, label, resolution, map, mask):
+def deepHand(project, report, label, resolution, map, threshold):
     secLabel = "sec:deepHand"
     msg = \
 """
 \\subsection{Level 0.h Hand correction}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-Deep Hand determines the correction of the hand for those maps with a resolution smaller than 5\\AA\\\\
+Deep Hand determines the correction of the hand for those maps with a resolution smaller than 5\\AA. The method
+calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neural network to assign its hand.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
@@ -800,9 +801,39 @@ Deep Hand determines the correction of the hand for those maps with a resolution
                 "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
         report.write(toWrite)
         report.writeSummary("0.h Deep hand", secLabel, "{\\color{blue} OK}")
-    else:
-        report.writeSummary("0.h Deep hand", secLabel, "{\\color{red} Not in Scipion}")
-        report.write("{\\color{red} \\textbf{ERROR: Not in Scipion.}}\\\\ \n")
+        return
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtDeepHand', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel=label,
+                               inputVolume=map,
+                               threshold=threshold)
+    project.launchProtocol(prot, wait=True)
+
+    if prot.isFailed():
+        report.writeSummary("0.h DeepHand", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
+    hand = prot.outputHand.get()
+    msg="Deep hand assigns a score of %4.3f to the input volume.\\\\ \n"%hand
+    report.write(msg)
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if hand>0.5 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The volume seems to be flipped.\\%}}")
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the deep hand score is smaller than 0.5.
+\\\\
+
+"""
+    report.write(msg)
+    report.writeWarningsAndSummary(warnings, "0.h DeepHand", secLabel)
+    if len(warnings)>0:
+        report.writeAbstract("There seems to be a problem with the map hand (see Sec. \\ref{%s}). "%secLabel)
 
 def reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateMask):
     toWrite=\
@@ -879,5 +910,5 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, sk
         xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
         locBfactor(project, report, "0.f locBfactor", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
         locOccupancy(project, report, "0.g locOccupancy", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
-        deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, protCreateMask.outputMask)
+        deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, threshold)
     return protImportMap, protCreateMask, bfactor
