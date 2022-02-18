@@ -962,10 +962,19 @@ SCF \\cite{Baldwin2020} measures the ability of the angular distribution to fill
     Prot = pwplugin.Domain.importFromPlugin('scf.protocols',
                                             'ScfProtAnalysis', doRaise=True)
 
+    symStr='C1'
+    if symmetry.startswith('c') or symmetry.startswith('d'):
+        symStr=symmetry.upper()
+    elif symmetry.startswith("i"):
+        symStr = 'Icos'
+    elif symmetry=="o":
+        symStr='Oct'
+
     prot = project.newProtocol(Prot,
                                objLabel="4.h SCF",
                                inParticles=protResizeParticles.outputParticles,
-                               numberToUse=-1)
+                               numberToUse=-1,
+                               sym=symStr)
 
     project.launchProtocol(prot, wait=True)
 
