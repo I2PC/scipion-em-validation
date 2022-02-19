@@ -32,7 +32,7 @@ from pyworkflow.project import Manager
 from pyworkflow.utils.path import makePath, copyFile, cleanPath
 
 def usage(message=''):
-    print("\nMake a Structure Based Drug Design for a collection of PDBs"
+    print("\nMake a Map Validation Report"
           "\n\n   -> scipion3 python validationLevels.py [opt1=val1 opt2=val2 ...] "
           "\n         project:  myProject"
           "\n         LEVEL 0 ====="
@@ -86,7 +86,7 @@ def usage(message=''):
 if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
     usage()
 
-# Manager will halp as to find paths, create project...
+# Manager will help as to find paths, create project...
 manager = Manager()
 
 # Fixing some parameters depending on the arguments or taking the default ones
