@@ -344,12 +344,66 @@ the different local resolutions or local heterogeneity.\\\\
                                             'ProtRMSDAtomStructs', doRaise=True)
     prot2 = project.newProtocol(Prot,
                                 objLabel="A.c RMSD",
-                                SetOfAtomStructs=prot1.outputAtomStructs)
+                                inputStructureSet=prot1.outputAtomStructs)
     project.launchProtocol(prot2, wait=True)
     if prot2.isFailed():
         report.writeSummary("A.c Multimodel", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return
+
+    fnCifs = glob.glob(prot2._getPath('*.cif'))
+    if len(fnCifs)==0:
+        report.writeSummary("A.c Multimodel", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return
+
+    fnCif = fnCifs[0]
+
+    from pwem.viewers.viewer_localres import replaceOcuppancyWithAttribute, makeResidueValuesDic
+    from pwem.convert.atom_struct import AtomicStructHandler
+    fnCifRMSD = os.path.join(report.getReportDir(),"atomicModelRMSD.cif")
+    replaceOcuppancyWithAttribute(fnCif, "perResidueRMSD", fnCifRMSD)
+
+    cifDic = AtomicStructHandler().readLowLevel(fnCifRMSD)
+    rmsd = []
+    for name, value in zip(cifDic['_scipion_attributes.name'],cifDic['_scipion_attributes.value']):
+        if name=='perResidueRMSD':
+            rmsd.append(float(value))
+    fnRMSDHist = os.path.join(report.getReportDir(),"rmsdHist.png")
+    reportHistogram(rmsd, "RMSD", fnRMSDHist)
+
+    avgRMSD = np.mean(rmsd)
+    msg =\
+"""Fig. \\ref{fig:rmsdHist} shows the histogram of the RMSD of the different models. The average RMSD between models
+is %4.2f \\AA. Fig. \\ref{fig:modelRMSD} shows the atomic model colored by RMSD.
+
+\\begin{figure}[H]
+  \\centering
+  \\includegraphics[width=8cm]{%s}
+  \\caption{Histogram of RMSD of the different atoms of the multiple models.}
+  \\label{fig:rmsdHist}
+\\end{figure}
+
+"""%(avgRMSD, fnRMSDHist)
+
+    report.atomicModel("modelRMSD", msg, "Atomic model colored by RMSD", fnCifRMSD, "fig:modelRMSD", occupancy=True)
+
+    warnings=[]
+    testWarnings = False
+    if avgRMSD>2 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The average RMSD is too high, "\
+                        "%4.1f\\%%}}"%avgRMSD)
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the average RMSD is smaller than 2\\AA.
+\\\\
+
+"""
+    report.write(msg)
+    report.writeWarningsAndSummary(warnings, "A.c Multimodel", secLabel)
+
+    if len(warnings)>0:
+        report.writeAbstract("It seems that the model is too ambiguous (see Sec. \\ref{%s}). "%\
+                             secLabel)
 
 def guinierModel(project, report, protImportMap, protConvert, resolution):
     map = protImportMap.outputVolume
@@ -931,14 +985,14 @@ def levelA(project, report, protImportMap, FNMODEL, resolution, doMultimodel, sk
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level A analysis')
-        # protConvert = convertPDB(project, protImportMap, protAtom)
-        # mapq(project, report, protImportMap, protAtom, resolution)
-        # fscq(project, report, protImportMap, protAtom, protConvert)
+        protConvert = convertPDB(project, protImportMap, protAtom)
+        mapq(project, report, protImportMap, protAtom, resolution)
+        fscq(project, report, protImportMap, protAtom, protConvert)
         if doMultimodel:
             multimodel(project, report, protImportMap, protAtom, resolution)
-        # guinierModel(project, report, protImportMap, protConvert, resolution)
-        # phenix(project, report, protImportForPhenix, protAtom, resolution)
-        # emringer(project, report, protImportForPhenix, protAtom)
-        # daq(project, report, protImportMap, protAtom)
+        guinierModel(project, report, protImportMap, protConvert, resolution)
+        phenix(project, report, protImportForPhenix, protAtom, resolution)
+        emringer(project, report, protImportForPhenix, protAtom)
+        daq(project, report, protImportMap, protAtom)
 
     return protAtom
