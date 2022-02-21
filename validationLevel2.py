@@ -99,6 +99,7 @@ def compareReprojections(project, report, protImportMap, protAvgs, symmetry):
 The 2D classes can be aligned against the reconstructed map, then the correlation between reprojections of the map 
 and the 2D classes can be analyzed. Also, analyzing the residuals (2D class minus the corresponding reprojection) can 
 reveal systematic differences between them.\\\\
+\\\\
 \\textbf{Results:}\\\\
 \\\\
 """ % secLabel

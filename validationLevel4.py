@@ -136,7 +136,7 @@ contaminations, or the difference between isolated particles and particles with 
 \\\\
 It must be noted that there is a dependence between similarity metrics and defocus. Typically this dependence
 is such that lower defoci imply lower similarity due to the smallest contrast. You have to be sure that the groups
-seen in the similarity measures are not caused by defocus groups.
+seen in the similarity measures are not caused by defocus groups.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
@@ -327,7 +327,7 @@ Alignability precision and accuracy. The precision \\cite{Vargas2016} analyzes t
 best matching reprojections from the reference volume. If the high values are clustered around the same orientation,
 then the precision is close to 1. Otherwise, it is closer to -1. Below 0.5 the best directions tend to be scattered.
 The alignability accuracy \\cite{Vargas2017} compares the final angular assignment with the result of a new angular 
-assignment. The similarity between both is again encoded between -1 and 1.
+assignment. The similarity between both is again encoded between -1 and 1.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
@@ -513,7 +513,7 @@ Scheres, S. H.~W. (2012).
 \\textbf{Explanation}:\\\\ 
 We have performed an independent angular assignment using Relion autorefine \\cite{Scheres2012}. Images were
 downsampled to a pixel size of 3\\AA. Then, we measured the difference between the angular assignment of the 
-particles given by the user and the one done by Relion.
+particles given by the user and the one done by Relion.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
@@ -586,7 +586,7 @@ Punjani, A., Brubaker, M.~A., and Fleet, D.~J. (2017).
 \\textbf{Explanation}:\\\\ 
 We have performed an independent angular assignment using CryoSparc non-homogeneous refinement \\cite{Punjani2017b}.
 Images were downsampled to a pixel size of 3\\AA.  Then, we measured the difference between the angular assignment
-of the particles given by the user and the one done by CryoSparc.
+of the particles given by the user and the one done by CryoSparc.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
@@ -630,7 +630,7 @@ def compareRelionAndCryosparc(project, report, protRelion, protCryoSparc, symmet
 In Secs. \\ref{sec:relionAlignment} and \\ref{sec:cryosparcAlignment} we compared the angular assignment given by
 the user to the angular assignment of Relion and CryoSparc, respectively. We now compare these two alignments as a way
 to measure the ``intrinsic'' uncertainty in the angular assignment. This comparison gives an estimate of the 
-alignability of the input images.
+alignability of the input images.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
@@ -696,7 +696,7 @@ Scheres, S. H.~W. (2012).
 We have performed a 3D classification of the input particles in two classes without aligning them using Relion
 \\cite{Scheres2012}. Images were downsampled to a pixel size of 3\\AA. A valid result would be: 1) a class attracting
 most particles and an almost empty class, 2) two classes with an arbitrary number of images in each one, but without
-any significant structural difference between the two.
+any significant structural difference between the two.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\

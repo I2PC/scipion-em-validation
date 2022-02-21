@@ -151,7 +151,8 @@ Sorzano, C. O.~S., Vargas, J., de~la Rosa-Trev\\'{\i}n, J.~M.,
 \\textbf{Explanation}:\\\\ 
 The set of particles is classified into the input set of 2D classes of Level 2. The number of particles that are
 considered to be outliers in those classes is reported. A particle is an outlier if its Mahalanobis distance to the
-centroid of the class is larger than 3 \\cite{Sorzano2014}\\\\
+centroid of the class is larger than 3 \\cite{Sorzano2014}.\\\\
+\\\\
 \\textbf{Results:}\\\\
 \\\\
 """ % secLabel
@@ -245,7 +246,9 @@ the size of the class is smaller than 20\\%.
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 The input particles are classified in 2D clusters. The quality of the 2D clusters is assessed through Fourier Ring Correlation.\\\\
+\\\\
 \\textbf{Results:}\\\\
+\\\\
 Fig. \\ref{fig:classFRC05Hist} shows the histogram of the resolution of each one of the classes. This resolution
 strongly depends on the number of particles assigned to the class, and this server only sees a small fraction of the
 particles. Fig. \\ref{fig:classFRC05} shows a scatter plot of the resolution (in \\AA$^{-1}$) in the classes versus the 
@@ -315,7 +318,8 @@ Punjani, A., Brubaker, M.~A., and Fleet, D.~J. (2017).
 \\textbf{Explanation}:\\\\ 
 The input particles were classified with CryoSparc \\cite{Punjani2017b} using the same number of classes
 as the ones provided by the user. Except for the difference in number of particles between the original classification
-and the number of particles available to the server, the new classes should resemble the old ones\\\\
+and the number of particles available to the server, the new classes should resemble the old ones.\\\\
+\\\\
 \\textbf{Results:}\\\\
 """ % (secLabel)
     report.write(msg)

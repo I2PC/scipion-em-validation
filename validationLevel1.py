@@ -105,6 +105,7 @@ It should not be understood as the average resolution of the map.\\\\
 \\\\
 Except for the noise, the FSC and DPR should be approximately monotonic. They should not have any ``coming back''
 behavior. If they have, this is typically due to the presence of a mask in real space or non-linear processing.\\\\
+\\\\
 \\textbf{Results:} \\\\
 """ % secLabel
     report.write(msg)
@@ -460,6 +461,7 @@ Kucukelbir, A., Sigworth, F.~J., and Tagare, H.~D. (2014).
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the superiority of signal over noise at different frequencies.\\\\
+\\\\
 \\textbf{Results:}\\\\
 \\\\
 """ % secLabel
@@ -908,7 +910,7 @@ Fig. \\ref{fig:fsoContour}. %s
                         "smaller than the resolution estimated by FSO, %5.2f \\AA.}}" % (resolution, 1/f05))
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the resolution provided by the user is not 
-smaller than 0.8 the resolution estimated by the first cross of FSO below 0.5.
+smaller than 0.8 times the resolution estimated by the first cross of FSO below 0.5.
 \\\\
 
 """

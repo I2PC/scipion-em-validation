@@ -130,6 +130,7 @@ Sanchez-Garcia, R., Segura, J., Maluenda, D., Sorzano, C. O.~S., and Carazo,
 \\textbf{Explanation}:\\\\ 
 This method assigns a score between 0 (bad coordinate) and 1 (good coordinate) reflecting the probability that the
 coordinate is outside a region with aggregations, ice crystals, carbon edges, etc. \\cite{Sanchez2020} \\\\
+\\\\
 \\textbf{Results:}\\\\
 \\\\
 """ % secLabel

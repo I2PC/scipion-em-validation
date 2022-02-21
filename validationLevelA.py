@@ -502,6 +502,7 @@ box.
     \\item Local real-space correlation coefficients CC (main chain) and CC (side chain) involve the main skeleton chain 
 and lateral chains, respectively.
 \\end{itemize}
+\\\\
 There are also multiple ways of measuring the resolution:
 \\begin{itemize}
     \\item d99: Resolution cutoff beyond which Fourier map coefficients are negligibly small. Calculated from the 
@@ -513,6 +514,7 @@ There are also multiple ways of measuring the resolution:
     \\item d\_FSC\_model; Resolution cutoff up to which the model and map Fourier coefficients are similar at FSC values 
         of 0, 0.143, 0.5.
 \\end{itemize}
+\\\\
 \\textbf{Results:}\\\\
 \\\\
 """ % secLabel
@@ -785,7 +787,8 @@ reported:
     \\item Model Length: Total of non-gamma-branched, non-proline aminoacids with a non-H gamma atom used in global EMRinger score computation.
     \\item EMRinger Score: Maximum EMRinger score calculated at the Optimal Threshold.
 \\end{itemize}
-\\textbf{Results:}
+\\\\
+\\textbf{Results:}\\\\
 \\\\
 """ % secLabel
     report.write(msg)
