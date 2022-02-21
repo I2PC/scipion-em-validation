@@ -192,7 +192,7 @@ percentiles are:
     warnings=[]
     testWarnings = False
     if Bpercentiles[2]<0.1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The median Q-score is less than 0.1\\%}}")
+        warnings.append("{\\color{red} \\textbf{The median Q-score is less than 0.1.}}")
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the median Q-score is smaller than 0.1\\%.
 \\\\
@@ -218,6 +218,9 @@ def convertPDB(project, protImportMap, protAtom):
     return protConvert
 
 def fscq(project, report, protImportMap, protAtom, protConvert):
+    if not protImportMap.outputVolume.hasHalfMaps():
+        return
+
     bblCitation = \
 """\\bibitem[Ram{\\'i}rez-Aportela et~al., 2021]{Ramirez2021}
 Ram{\\'i}rez-Aportela, E., Maluenda, D., Fonseca, Y.~C., Conesa, P., Marabini,
@@ -867,11 +870,14 @@ sequence of proteins.
 
     warnings = []
     testWarnings = False
-    if dataDict["EMRinger Score"] <0 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The EMRinger score is smaller than 0, it is %4.3f.}}"%\
+    if dataDict["EMRinger Score"] <1 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The EMRinger score is smaller than 1, it is %4.3f.}}"%\
                         dataDict["EMRinger Score"])
+    if dataDict["Max Zscore"] <1 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The maximum Zscore is smaller than 1, it is %4.3f.}}"%\
+                        dataDict["Max Zscore"])
     msg = \
-"""\\textbf{Automatic criteria}: The validation is OK if the EMRinger score is non-negative.
+"""\\textbf{Automatic criteria}: The validation is OK if the EMRinger score and Max. Zscore are larger than 1.
 \\\\
 
 """
@@ -920,29 +926,34 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
-    daqDic = prot.parseDAQScores(prot.outputAtomStruct.getFileName())
-    daqValues = [float(x) for x in list(daqDic.values())]
-    fnDAQHist = os.path.join(report.getReportDir(),"daqHist.png")
-    reportHistogram(daqValues,"DAQ", fnDAQHist)
-    avgDaq = np.mean(daqValues)
-    stdDaq = np.std(daqValues)
+    try:
+        daqDic = prot.parseDAQScores(prot.outputAtomStruct.getFileName())
+        daqValues = [float(x) for x in list(daqDic.values())]
+        fnDAQHist = os.path.join(report.getReportDir(),"daqHist.png")
+        reportHistogram(daqValues,"DAQ", fnDAQHist)
+        avgDaq = np.mean(daqValues)
+        stdDaq = np.std(daqValues)
 
-    msg =\
-"""Fig. \\ref{fig:daqHist} shows the histogram of the DAQ values. The average and standard deviation were %4.1f and
-%4.1f, respectively.
+        msg =\
+    """Fig. \\ref{fig:daqHist} shows the histogram of the DAQ values. The average and standard deviation were %4.1f and
+    %4.1f, respectively.
+    
+    \\begin{figure}[H]
+        \centering
+        \includegraphics[width=10cm]{%s}
+        \\caption{Histogram of the DAQ values.}
+        \\label{fig:daqHist}
+    \\end{figure}
+    """%(avgDaq, stdDaq, fnDAQHist)
+        report.write(msg)
 
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=10cm]{%s}
-    \\caption{Histogram of the DAQ values.}
-    \\label{fig:daqHist}
-\\end{figure}
-"""%(avgDaq, stdDaq, fnDAQHist)
-    report.write(msg)
-
-    msg="The atomic model colored by DAQ can be seen in Fig. \\ref{fig:daq}.\n\n"
-    report.atomicModel("daqView", msg, "Atomic model colored by DAQ",
-                       os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "fig:daq", True)
+        msg="The atomic model colored by DAQ can be seen in Fig. \\ref{fig:daq}.\n\n"
+        report.atomicModel("daqView", msg, "Atomic model colored by DAQ",
+                           os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "fig:daq", True)
+    except:
+        report.writeSummary("A.f DAQ", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
 
     warnings = []
     testWarnings = False
@@ -959,6 +970,8 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     report.writeWarningsAndSummary(warnings, "A.g DAQ", secLabel)
     if len(warnings)>0:
         report.writeAbstract("DAQ detects some mismatch between the map and its model (see Sec. \\ref{%s}). "%secLabel)
+
+    return prot
 
 def reportInput(project, report, FNMODEL):
     msg = \
