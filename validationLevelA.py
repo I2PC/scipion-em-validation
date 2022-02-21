@@ -194,7 +194,7 @@ percentiles are:
     if Bpercentiles[2]<0.1 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The median Q-score is less than 0.1.}}")
     msg = \
-"""\\textbf{Automatic criteria}: The validation is OK if the median Q-score is smaller than 0.1\\%.
+"""\\textbf{Automatic criteria}: The validation is OK if the median Q-score is larger than 0.1.
 \\\\
 
 """
@@ -927,8 +927,14 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         return prot
 
     try:
-        daqDic = prot.parseDAQScores(prot.outputAtomStruct.getFileName())
-        daqValues = [float(x) for x in list(daqDic.values())]
+        # daqDic = prot.parseDAQScores(prot.outputAtomStruct.getFileName())
+        # daqValues = [float(x) for x in list(daqDic.values())]
+        from pwem.convert.atom_struct import AtomicStructHandler
+        cifDic = AtomicStructHandler().readLowLevel(prot._getPath('outputStructure.cif'))
+        daqValues = []
+        for name, value in zip(cifDic['_scipion_attributes.name'],cifDic['_scipion_attributes.value']):
+            if name=="DAQ_score":
+                daqValues.append(float(value))
         fnDAQHist = os.path.join(report.getReportDir(),"daqHist.png")
         reportHistogram(daqValues,"DAQ", fnDAQHist)
         avgDaq = np.mean(daqValues)
