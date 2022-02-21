@@ -98,7 +98,7 @@ Set of Micrographs: %s \\\\
 
     msg+=\
 """    \\caption{Probability density function of the correlation of the user classes compared to the newly computed and
-    viceversa.}
+    vice versa.}
     \\label{fig:micrographs}
 \\end{figure}
 """
@@ -153,8 +153,8 @@ coordinate is outside a region with aggregations, ice crystals, carbon edges, et
     if Noutput < 0.8 * Ninput or testWarnings:
         warnings.append("{\\color{red} \\textbf{More than 20\\% of the particles were flagged as being suspicious.}}")
     msg = \
-"""\\textbf{Automatic criteria}: The validation is OK if less than 20\\% of the coordinates are suspicious to
-lay in aggregations, contaminations, ice crystals, etc.
+"""\\textbf{Automatic criteria}: The validation is OK if less than 20\\% of the coordinates are suspected to
+lie in aggregations, contaminations, ice crystals, etc.
 \\\\
 
 """

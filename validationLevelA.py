@@ -442,7 +442,7 @@ of both profiles to be equal (and equal to the mean of the atomic model) to make
 \\\\
 \\textbf{Results:}\\\\
 Fig. \\ref{fig:BfactorModel} shows the logarithm (in natural units) of the structure factor (the module squared of the
-Fourier transform) of the atom model and the experimental map. The correlation between both profiles was %5.3f.
+Fourier transform) of the atom model and the experimental map. The correlation between the two profiles was %5.3f.
 
 \\begin{figure}[H]
     \centering
@@ -499,7 +499,7 @@ box.
     certain contouring threshold level are ignored. CC (volume): The map region considered is defined by
     the N highest points inside the molecular mask. CC (peaks): In this case, calculations consider the union of 
     regions defined by the N highest peaks in the model-calculated map and the N highest peaks in the experimental map.
-    \\item Local real-space correlation coefficients CC (main chain) and CC (side chain) involve main skeleton chain 
+    \\item Local real-space correlation coefficients CC (main chain) and CC (side chain) involve the main skeleton chain 
 and lateral chains, respectively.
 \\end{itemize}
 There are also multiple ways of measuring the resolution:
@@ -508,7 +508,7 @@ There are also multiple ways of measuring the resolution:
     full map.
     \\item Overall B-iso: Overall isotropic B-value.
     \\item d\_model: Resolution cutoff at which the model map is the most similar to the target (experimental)
- map. For d\_model to be meaningful, model is expected to fit the map as good as possible. d\_model (B\ factors = 0) 
+ map. For d\_model to be meaningful, the model is expected to fit the map as well as possible. d\_model (B\ factors = 0) 
  tries to avoid the blurring of the map.
     \\item d\_FSC\_model; Resolution cutoff up to which the model and map Fourier coefficients are similar at FSC values 
         of 0, 0.143, 0.5.
@@ -625,6 +625,7 @@ fh.close()
     msg =\
 """To avoid ringing in Fourier space a smooth mask with a radius of %5.1f \\AA~has been applied.  \\\\
 \\underline{Overall correlation coefficients}: \\\\
+\\\\
 \\begin{center}
 \\begin{tabular}{rc}
 CC (mask) = & %5.3f\\\\
@@ -642,6 +643,7 @@ CC (main chain) = & %5.3f\\\\
     # CC per chain
     msg+=\
 """
+\\\\
 \\underline{Correlation coefficients per chain}:\\\\
 \\begin{center}
 \\begin{tabular}{cc}
@@ -680,7 +682,7 @@ of residues whose correlation is below 0.5 is %4.1f \\%%.
 \\begin{figure}[H]
     \centering
     \includegraphics[width=10cm]{%s}
-    \\caption{Histogram of the cross-correlation between the map and model evaluated for all residuals.}
+    \\caption{Histogram of the cross-correlation between the map and model evaluated for all residues.}
     \\label{fig:ccResidueHist}
 \\end{figure}
 
@@ -854,7 +856,7 @@ optimal threshold.
     msg+=\
 """The following plots show the rolling window EMRinger analysis of the different chains to distinguish regions 
 of improved model quality. This analysis was performed on rolling sliding 21-residue windows along the primary 
-sequence of proteins.
+sequence of the protein chains.
 
 """
     for chain in sorted(dataDict['_chains']):

@@ -231,13 +231,13 @@ The mean resolution between the three methods is %5.2f\AA~and its range is withi
     warnings=[]
     testWarnings = False
     if resolution<0.8/fFSC or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
                         "to the resolution calculated by the FSC, %5.2f \\AA}}"%(resolution,1.0/fFSC))
     if resolution<0.8/fDPR or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
                         "to the resolution calculated by the DPR, %5.2f\\AA.}}"%(resolution,1.0/fDPR))
     if resolution<0.8/fSSNR or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
                         "to the resolution calculated by the SSNR, %5.2f\\AA.}}"%(resolution,1.0/fSSNR))
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the user provided resolution is larger than 0.8 times the
@@ -529,7 +529,7 @@ percentiles are:
     \\end{tabular}
 \\end{center}
 
-The reported resolution, %5.2f \AA, is at the percentile %4.1f. 
+The reported resolution, %5.2f \AA, is at percentile %4.1f. 
 Fig. \\ref{fig:resmapColor} shows some representative views of the local resolution.
 
 \\begin{figure}[H]
@@ -712,7 +712,7 @@ MonoDir \\cite{Vilas2020} extends the concept of local resolution to local and d
 the shape of the filter applied to the input map. The directional analysis can reveal image alignment problems.
 
 The histogram of best resolution voxels per direction (Directional Histogram 1D) shows how many voxels in the
-volume has their maximum resolution in that direction. Directions are arbitrarily numbered from 1 to N. This histogram
+volume have their maximum resolution in that direction. Directions are arbitrarily numbered from 1 to N. This histogram
 should be relatively flat. We perform a Kolmogorov-Smirnov test to check its uniformity. If the null hypothesis is
 rejected, then the directional resolution is not uniform. It does not mean that it is wrong, and it could be caused
 by several reasons: 1) the angular distribution is not uniform, 2) there are missing directions, 3) there is some
@@ -810,7 +810,7 @@ Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if 1) the null hypothesis that the directional resolution is not
 uniform is not rejected with a threshold of 0.001 for the p-value, and 2) the resolution provided by the user is not 
-smaller than 0.8 the average directional resolution.
+smaller than 0.8 times the average directional resolution.
 \\\\
 
 """
@@ -974,7 +974,7 @@ This method analyzes the FSC in different directions and evaluates its homogenei
     fnHist = os.path.join(project.getPath(),prot._getExtraPath('Results_3D-FSC','histogram.png'))
     fnPower = os.path.join(project.getPath(),prot._getExtraPath('Results_3D-FSC','FTPlot3D-FSC.jpg'))
     msg = \
-"""Fig. \\ref{fig:fsc3DDir} shows the FSCs in X, Y, Z, and the global FSC. Fig.\\ref{fig:fsc3DHist} shows the global
+"""Fig. \\ref{fig:fsc3DDir} shows the FSCs in X, Y, Z, and the global FSC. Fig. \\ref{fig:fsc3DHist} shows the global
 FSC and the histogram of the directional FSC. Finally, Fig. \\ref{fig:FSC3DFTPower} shows the rotational average of
 the map power in Fourier space. %s
 

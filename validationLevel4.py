@@ -467,8 +467,8 @@ def compareAlignment(project, report, refmap, protRefParticles, protReconstructi
 and the one calculated by %s. The median shift difference was %4.1f\\AA, and the median angular difference
 %5.1f degrees. Their corresponding median absolute deviations were %4.1f and %4.1f, respectively. Particles
 with a shift difference larger than 5\\AA~or an angular difference larger than 5 degrees would be considered as 
-incorrectly assigned in one of the two assignments (the user's or the new one). %4.1f\\%% particles were considered 
-to have an uncertain shift, and %4.1f\\%% particles were considered to have an uncertain alignment. 
+incorrectly assigned in one of the two assignments (the user's or the new one). %4.1f\\%% of particles were considered 
+to have an uncertain shift, and %4.1f\\%% of particles were considered to have an uncertain alignment. 
 \\\\
 
 \\begin{figure}[H]

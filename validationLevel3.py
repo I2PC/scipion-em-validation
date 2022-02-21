@@ -248,11 +248,11 @@ The input particles are classified in 2D clusters. The quality of the 2D cluster
 \\textbf{Results:}\\\\
 Fig. \\ref{fig:classFRC05Hist} shows the histogram of the resolution of each one of the classes. This resolution
 strongly depends on the number of particles assigned to the class, and this server only sees a small fraction of the
-particles. Fig. \\ref{fig:classFRC05} shows a scatter plot of the resolution (in \\AA$^{-1}$ in the classes versus the 
-number of particles.
+particles. Fig. \\ref{fig:classFRC05} shows a scatter plot of the resolution (in \\AA$^{-1}$) in the classes versus the 
+number of particles as measured by FRC=0.5.
 \\\\
 The following table shows each class, the number of particles assigned to it, and its resolution as measured by
-the FRC=0.5.
+FRC=0.5.
 \\begin{figure}[H]
     \centering
     \includegraphics[width=9cm]{%s}
@@ -377,7 +377,7 @@ Fig. \\ref{fig:newClassification} shows the new classification. The classificati
         msg = None
         if show:
             msg=\
-    """The following table shows for each class in %s which is the best match in %s and its correlation coefficient.
+    """The following table shows for each class in the %s set which is the best match in the %s set and its correlation coefficient.
     \\begin{longtable}{ccc}
       \\centering
       \\textbf{%s class} & \\textbf{%s class} & \\textbf{Correlation} \\\\ 
@@ -429,14 +429,14 @@ Fig. \\ref{fig:newClassification} shows the new classification. The classificati
     msg = \
 """
 Fig. \\ref{fig:correlationDensity} shows the probability density function of the correlation of the user classes
-compared to the newly computed and viceversa. Ideally, these two distributions should be similar. We compared these
+compared to the newly computed and vice versa. Ideally, these two distributions should be similar. We compared these
 two distributions with a Kolmogorov-Smirnov (KS) two-sample test. The KS statistic was %f and the p-value %f.
 
 \\begin{figure}[H]
     \centering
     \includegraphics[width=9cm]{%s}
-    \\caption{Probability density function of the correlation of the user classes compared to the newly computed and
-    viceversa.}
+    \\caption{Probability density function of the correlation of the user classes compared to the newly computed classes and
+    vice versa.}
     \\label{fig:correlationDensity}
 \\end{figure}
 
