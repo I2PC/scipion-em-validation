@@ -182,7 +182,19 @@ centroid of the class is larger than 3 \\cite{Sorzano2014}.\\\\
 
     toWrite=\
 """The following table shows the input classes, the number of particles assigned to them, and the fraction of these
-particles that are considered to be part of the core (the closer to 1, the better). Fig. \\ref{fig:coreFracHist}
+particles that are considered to be part of the core (the closer to 1, the better). """
+
+    report.write(toWrite)
+
+    report.showj(md,
+                 [xmipp3.MDL_IMAGE, xmipp3.MDL_CLASS_COUNT, xmipp3.MDL_MODELFRAC],
+                 [True, False, False],
+                 ["", "%d ", "%4.3f "],
+                 ["2D Class", "No. Particles", "Core fraction"],
+                 os.path.join(report.getReportDir(), "core_"), "2cm")
+                 
+    toWrite=\
+"""Fig. \\ref{fig:coreFracHist}
 shows the histogram of the core fraction of the classes. Fig. \\ref{fig:classCountHist}
 shows the histogram of the size of the classes.
  
@@ -202,13 +214,6 @@ shows the histogram of the size of the classes.
 
 """%(fnFracHist, fnCountHist)
     report.write(toWrite)
-
-    report.showj(md,
-                 [xmipp3.MDL_IMAGE, xmipp3.MDL_CLASS_COUNT, xmipp3.MDL_MODELFRAC],
-                 [True, False, False],
-                 ["", "%d ", "%4.3f "],
-                 ["2D Class", "No. Particles", "Core fraction"],
-                 os.path.join(report.getReportDir(), "core_"), "2cm")
 
     # Warnings
     warnings=[]
