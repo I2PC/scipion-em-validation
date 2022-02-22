@@ -908,8 +908,8 @@ Terashi, G., Wang, X., Subramaniya, S.R.M.V., Tesmer, J.J.G. and Kihara, D. (202
 \\subsection{Level A.g DAQ validation}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-DAQ \\cite{Terashi2022} DAQ is a computational tool using deep learning that can estimate the residue-wise local
-quality for protein models from cryo-Electron Microscopy (EM) maps. The method calculates the likelihood that a given
+DAQ \\cite{Terashi2022} is a computational tool using deep learning that can estimate the residue-wise local
+quality for protein models from cryo-Electron Microscopy maps. The method calculates the likelihood that a given
 density feature corresponds to an aminoacid, atom, and secondary structure. These likelihoods are combined into a
  score that ranges from -1 (bad quality) to 1 (good quality). \\\\
 \\\\
