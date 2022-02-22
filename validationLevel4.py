@@ -694,9 +694,9 @@ Scheres, S. H.~W. (2012).
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 We have performed a 3D classification of the input particles in two classes without aligning them using Relion
-\\cite{Scheres2012}. Images were downsampled to a pixel size of 3\\AA. A valid result would be: 1) a class attracting
-most particles and an almost empty class, 2) two classes with an arbitrary number of images in each one, but without
-any significant structural difference between the two.\\\\
+\\cite{Scheres2012} to confirm they belong to a single state. Images were downsampled to a pixel size of 3\\AA. 
+A valid result would be: 1) a class attracting most particles and an almost empty class, 2) two classes with an 
+arbitrary number of images in each one, but without any significant structural difference between the two.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
