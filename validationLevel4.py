@@ -819,7 +819,7 @@ the reconstructions with experimental particles should always be better than tho
     msg=\
 """We tested with subsets of %s particles. Fig. \\ref{fig:overfitting} shows the inverse of the resolution as a function
 of the number of particles.
-"""%(', '.join(samplePtcls.split()))
+"""%(', '.join(samplePtcls.split()[:-1]) + ' and ' + samplePtcls.split()[-1])
 
     if overfitting:
         msg+="We have detected that the resolution of pure noise particles is sometimes better than the one of "\
