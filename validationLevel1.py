@@ -35,7 +35,7 @@ import subprocess
 
 from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
-from pyworkflow.utils.path import cleanPattern
+from pyworkflow.utils.path import cleanPattern, cleanPath
 from pwem.emlib.image import ImageHandler
 from validationReport import readMap, latexEnumerate, calculateSha256, CDFFromHistogram, CDFpercentile, reportPlot, \
     radialPlot, reportMultiplePlots, reportHistogram
@@ -567,6 +567,11 @@ Fig. \\ref{fig:resmapColor} shows some representative views of the local resolut
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.d Resmap", secLabel)
+
+    cleanPath(fnResMap)
+    cleanPath(fnVol1)
+    cleanPath(fnVol2)
+    cleanPath(fnMask)
 
 def monores(project, report, label, protImportMap, protCreateMask, resolution):
     Ts = protImportMap.outputVolume.getSamplingRate()

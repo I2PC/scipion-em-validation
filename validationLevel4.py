@@ -38,7 +38,7 @@ import xmipp3
 
 from validationReport import reportHistogram, reportPlot, reportMultiplePlots
 
-def resizeProject(project, protMap, protMask, protParticles, resolution):
+def resizeProject(project, protMap, protParticles, resolution):
     Xdim = protMap.outputVolume.getDim()[0]
     Ts = protMap.outputVolume.getSamplingRate()
     AMap = Xdim * Ts
@@ -59,40 +59,7 @@ def resizeProject(project, protMap, protMask, protParticles, resolution):
     protResizeParticles.inputParticles.set(protParticles.outputParticles)
     project.launchProtocol(protResizeParticles, wait=True)
 
-    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
-                                            'XmippProtCropResizeVolumes', doRaise=True)
-    protResizeMap = project.newProtocol(Prot,
-                                        objLabel="Resize Volume Ts=%2.1f"%TsTarget,
-                                        doResize=True,
-                                        resizeSamplingRate=TsTarget,
-                                        doWindow=True,
-                                        windowOperation=1,
-                                        windowSize=Xdimp)
-    protResizeMap.inputVolumes.set(protMap.outputVolume)
-    project.launchProtocol(protResizeMap, wait=True)
-
-    protResizeMask = project.newProtocol(Prot,
-                                         objLabel="Resize Mask Ts=%2.1f"%TsTarget,
-                                         doResize=True,
-                                         resizeSamplingRate=TsTarget,
-                                         doWindow=True,
-                                         windowOperation=1,
-                                         windowSize=Xdimp)
-    protResizeMask.inputVolumes.set(protMask.outputMask)
-    project.launchProtocol(protResizeMask, wait=True)
-
-    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
-                                            'XmippProtPreprocessVolumes', doRaise=True)
-    protPreprocessMask = project.newProtocol(Prot,
-                                             objLabel="Binarize",
-                                             doThreshold=True,
-                                             thresholdType=1,
-                                             threshold=0.5,
-                                             fillType=1)
-    protPreprocessMask.inputVolumes.set(protResizeMask.outputVol)
-    project.launchProtocol(protPreprocessMask, wait=True)
-
-    return protResizeParticles, protResizeMap, protPreprocessMask
+    return protResizeParticles
 
 
 def similarityMeasures(project, report, protMap, protMask, protParticles, symmetry, resolution):
@@ -1178,10 +1145,10 @@ between -5 and 5; and 5) the scale factor is between -0.1 and 0.1.
         report.writeAbstract("It seems that there is some problem with the CTF (see Sec. \\ref{%s}). "%secLabel)
     return prot
 
-def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, bfactor, skipAnalysis = False):
-    # Resize to the given resolution
-    protResizeParticles, protResizeMap, protResizeMask = resizeProject(project, protMap, protMask, protParticles,
-                                                                       resolution)
+def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, bfactor, protResizeParticles,
+           protResizeMap, protResizeMask, skipAnalysis = False):
+
+    protResizeParticles = resizeProject(project, protMap, protParticles, resolution)
 
     # Quality Measures
     if not skipAnalysis:
@@ -1197,3 +1164,4 @@ def level4(project, report, protMap, protMask, protParticles, symmetry, resoluti
         angularDistributionEfficiency(project, report, protResizeParticles, symmetry, resolution, bfactor)
         samplingCompensationFactor(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
         ctfEstability(project, report, protCryoSparc, protResizeParticles, protResizeMask)
+    return protResizeParticles

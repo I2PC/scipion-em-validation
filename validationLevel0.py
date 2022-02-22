@@ -65,6 +65,50 @@ def createMask(project, label, map, Ts, threshold):
     project.launchProtocol(prot, wait=True)
     return prot
 
+def resizeProject(project, protMap, protMask, resolution):
+    Xdim = protMap.outputVolume.getDim()[0]
+    Ts = protMap.outputVolume.getSamplingRate()
+    AMap = Xdim * Ts
+
+    TsTarget = resolution/2
+    Xdimp = AMap/TsTarget
+    Xdimp = int(2*math.floor(Xdimp/2))
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtCropResizeVolumes', doRaise=True)
+    protResizeMap = project.newProtocol(Prot,
+                                        objLabel="Resize Volume Ts=%2.1f"%TsTarget,
+                                        doResize=True,
+                                        resizeSamplingRate=TsTarget,
+                                        doWindow=True,
+                                        windowOperation=1,
+                                        windowSize=Xdimp)
+    protResizeMap.inputVolumes.set(protMap.outputVolume)
+    project.launchProtocol(protResizeMap, wait=True)
+
+    protResizeMask = project.newProtocol(Prot,
+                                         objLabel="Resize Mask Ts=%2.1f"%TsTarget,
+                                         doResize=True,
+                                         resizeSamplingRate=TsTarget,
+                                         doWindow=True,
+                                         windowOperation=1,
+                                         windowSize=Xdimp)
+    protResizeMask.inputVolumes.set(protMask.outputMask)
+    project.launchProtocol(protResizeMask, wait=True)
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtPreprocessVolumes', doRaise=True)
+    protPreprocessMask = project.newProtocol(Prot,
+                                             objLabel="Binarize",
+                                             doThreshold=True,
+                                             thresholdType=1,
+                                             threshold=0.5,
+                                             fillType=1)
+    protPreprocessMask.inputVolumes.set(protResizeMask.outputVol)
+    project.launchProtocol(protPreprocessMask, wait=True)
+
+    return protResizeMap, protPreprocessMask
+
 def massAnalysis(report, volume, mask, Ts):
     V = readMap(volume.getFileName()).getData()
     M = readMap(mask.getFileName()).getData()
@@ -545,8 +589,7 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
 \\end{figure}
 
 """ % (Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution,
-       resolutionP * 100,
-       fnHist)
+       resolutionP, fnHist)
     report.write(toWrite)
 
     Ts = map.getSamplingRate()
@@ -558,10 +601,10 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
     # Warnings
     warnings = []
     testWarnings = False
-    if resolutionP < 0.001 or testWarnings:
+    if resolutionP < 0.1 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
-                        (resolution, resolutionP * 100))
+                        (resolution, resolutionP))
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the percentile of the user provided resolution is larger than
 0.1\\% of the percentile of the local resolution as estimated by DeepRes.
@@ -606,12 +649,12 @@ local magnitude and phase term using the spiral transform.\\\\
                                numberOfThreads=1)
     project.launchProtocol(prot, wait=True)
 
-    if prot.isFailed():
+    fnBfactor = prot._getExtraPath("bmap.mrc")
+    if prot.isFailed() or not os.path.exists(fnBfactor):
         report.writeSummary("0.f LocBfactor", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
-    fnBfactor = prot._getExtraPath("bmap.mrc")
     V = xmipp3.Image(fnBfactor+":mrc").getData()
     M = xmipp3.Image(mask.getFileName()).getData()
     B = V[M>0.5]
@@ -710,12 +753,12 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
                                numberOfThreads=1)
     project.launchProtocol(prot, wait=True)
 
-    if prot.isFailed():
+    fnOccupancy = prot._getExtraPath("omap.mrc")
+    if prot.isFailed() or not os.path.exists(fnOccupancy):
         report.writeSummary("0.g LocOccupancy", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
-    fnOccupancy = prot._getExtraPath("omap.mrc")
     V = xmipp3.Image(fnOccupancy+":mrc").getData()
     M = xmipp3.Image(mask.getFileName()).getData()
     B = V[M>0.5]
@@ -824,7 +867,9 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
     warnings=[]
     testWarnings = False
     if hand>0.5 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The volume seems to be flipped.\\%}}")
+        warnings.append("{\\color{red} \\textbf{The volume seems to be flipped.}}")
+    if hand>0.4 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The orientation of the volume is uncertain.}}")
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the deep hand score is smaller than 0.5.
 \\\\
@@ -899,6 +944,9 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, sk
         raise Exception("Create mask did not work")
     reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateMask)
 
+    # Resize to the given resolution
+    protResizeMap, protResizeMask = resizeProject(project, protImportMap, protCreateMask, resolution)
+
     # Quality Measures
     report.writeSection('Level 0 analysis')
     massAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts)
@@ -908,7 +956,7 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, sk
 
     if not skipAnalysis:
         xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
-        locBfactor(project, report, "0.f locBfactor", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
-        locOccupancy(project, report, "0.g locOccupancy", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
+        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protResizeMask.outputVol, resolution)
+        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protResizeMask.outputVol, resolution)
         deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, threshold)
-    return protImportMap, protCreateMask, bfactor
+    return protImportMap, protCreateMask, bfactor, protResizeMap, protResizeMask
