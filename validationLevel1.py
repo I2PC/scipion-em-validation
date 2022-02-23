@@ -419,8 +419,7 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
 \\end{figure}
 
 """ % (Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution,
-       resolutionP * 100,
-       fnHist)
+       resolutionP, fnHist)
     report.write(toWrite)
 
     Ts = protImportMap.outputVolume.getSamplingRate()
@@ -433,10 +432,10 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
     # Warnings
     warnings = []
     testWarnings = False
-    if resolutionP < 0.001 or testWarnings:
+    if resolutionP < 0.1 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
-                        (resolution, resolutionP * 100))
+                        (resolution, resolutionP))
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the percentile of the user provided resolution is larger than
 0.1\\% of the percentile of the local resolution as estimated by BlocRes.
@@ -542,8 +541,7 @@ Fig. \\ref{fig:resmapColor} shows some representative views of the local resolut
 \\end{figure}
 
 """ % (Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution,
-       resolutionP * 100,
-       fnHist)
+       resolutionP, fnHist)
     report.write(toWrite)
 
     Ts = protImportMap.outputVolume.getSamplingRate()
@@ -555,10 +553,10 @@ Fig. \\ref{fig:resmapColor} shows some representative views of the local resolut
     # Warnings
     warnings = []
     testWarnings = False
-    if resolutionP < 0.001 or testWarnings:
+    if resolutionP < 0.1 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
-                        (resolution, resolutionP * 100))
+                        (resolution, resolutionP))
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the percentile of the user provided resolution is larger than
 0.1\\% of the percentile of the local resolution as estimated by Resmap.
@@ -571,7 +569,6 @@ Fig. \\ref{fig:resmapColor} shows some representative views of the local resolut
     cleanPath(fnResMap)
     cleanPath(fnVol1)
     cleanPath(fnVol2)
-    cleanPath(fnMask)
 
 def monores(project, report, label, protImportMap, protCreateMask, resolution):
     Ts = protImportMap.outputVolume.getSamplingRate()
@@ -605,7 +602,9 @@ Vilas, J.~L., G{\\'o}mez-Blanco, J., Conesa, P., Melero, R., de~la
 \\textbf{Explanation}:\\\\ 
 MonoRes \\cite{Vilas2018} evaluates the local energy of a point with respect to the distribution of 
 energy in the noise. This comparison is performed at multiple frequencies and for each one, the monogenic 
-transformation separates the amplitude and phase of the input map.\\\\
+transformation separates the amplitude and phase of the input map. Then the energy of the amplitude within the map
+is compared to the amplitude distribution observed in the noise, and a hypothesis test is run for every voxel to check
+if its energy is signficantly above the level of noise.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
@@ -875,10 +874,8 @@ respectively. This region is shaded in the plot.
 
     fnFSO = os.path.join(report.getReportDir(), "fso.png")
     reportMultiplePlots(f, [fso, anisotropy, [0.5]*len(f)], "Resolution (A)", "",
-                        fnFSO, ['FSO', "Anisotropy", '0.5 threshold'], invertXLabels=True)
-    if f01 is not None:
-        plt.gca().axes.axvspan(f09, f01, alpha=0.3, color='green')
-        plt.savefig(fnFSO)
+                        fnFSO, ['FSO', "Anisotropy", '0.5 threshold'], invertXLabels=True,
+                        xshade0=f09, xshadeF=f01)
 
     md = xmipp3.MetaData(prot._getExtraPath('Resolution_Distribution.xmd'))
     rot = md.getColumnValues(xmipp3.MDL_ANGLE_ROT)
@@ -1071,14 +1068,14 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protC
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 1 analysis')
-        globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
-        fscPermutation(project, report, "1.b FSC permutation", protImportMap1, protImportMap2, protCreateMask,
-                       resolution)
-        blocres(project, report, "1.c Blocres", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
-        resmap(project, report, "1.d Resmap", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
-        monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
-        monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
+        # globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
+        # fscPermutation(project, report, "1.b FSC permutation", protImportMap1, protImportMap2, protCreateMask,
+        #                resolution)
+        # blocres(project, report, "1.c Blocres", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
+        # resmap(project, report, "1.d Resmap", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
+        # monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
+        # monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
         fso(project, report, "1.g FSO", protImportMap, protCreateMask, resolution)
-        fsc3d(project, report, "1.h FSC3D", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
+        # fsc3d(project, report, "1.h FSC3D", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
 
     return protImportMap1, protImportMap2

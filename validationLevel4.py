@@ -95,8 +95,11 @@ Sorzano, C. O.~S., Vargas, J., {de la Rosa-Trev\\'{\i}n}, J.~M., Ot{\\'o}n, J.,
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 We measured the similarity between the experimental images, with the angles and shifts provided by the user, and
-reprojections of the input map along the same direction. We measured the correlation and IMED \\cite{Sorzano2015b}
-between both sets of images. If the set of particles is properly assigned there should be a single peak in the
+reprojections of the input map along the same direction. We measured the correlation and IMED (IMage Euclidean Distance,
+which is a generalized measure of the standard Euclidean Distance in which nearby pixels also contribute to the
+calculation of the final distance between the image at a given point)
+\\cite{Sorzano2015b} between both sets of images. If the set of particles is properly assigned there should be a 
+single peak in the
 1D histograms of these two similarity measures, and a single cloud in their joint scatter plot. The presence of 
 multiple peaks could reveal a mixture of different conformations, the presence of misaligned particles or 
 contaminations, or the difference between isolated particles and particles with other objects around.\\\\ 
@@ -287,10 +290,10 @@ Vargas, J., Ot{\\'o}n, J., Marabini, R., Carazo, J.~M., and Sorzano, C. O.~S.
     secLabel = "sec:multirefAlignability"
     msg = \
 """
-\\subsection{Level 4.b Alignability}
+\\subsection{Level 4.c Alignability precision and accuracy}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-Alignability precision and accuracy. The precision \\cite{Vargas2016} analyzes the orientation distribution of the
+The precision \\cite{Vargas2016} analyzes the orientation distribution of the
 best matching reprojections from the reference volume. If the high values are clustered around the same orientation,
 then the precision is close to 1. Otherwise, it is closer to -1. Below 0.5 the best directions tend to be scattered.
 The alignability accuracy \\cite{Vargas2017} compares the final angular assignment with the result of a new angular 
@@ -362,14 +365,14 @@ precision smaller than 0.5.
 
 """
     report.write(msg)
-    report.writeWarningsAndSummary(warnings, "4.c Alignability", secLabel)
+    report.writeWarningsAndSummary(warnings, "4.c Alignability precision and accuracy", secLabel)
 
     if len(warnings)>0:
         report.writeAbstract("It seems that the input particles cannot be easily aligned (see Sec. \\ref{%s}). "%\
                              secLabel)
 
-def compareAlignment(project, report, refmap, protRefParticles, protReconstruction, symmetry, label, fnRoot,
-                     generateSlices=True):
+def compareAlignment(project, report, refmap, protRefParticles, protReconstruction, symmetry, label,
+                     agent1, agent2, fnRoot, generateSlices=True):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtAlignVolumeParticles', doRaise=True)
     protAlign = project.newProtocol(Prot,
@@ -430,7 +433,7 @@ def compareAlignment(project, report, refmap, protRefParticles, protReconstructi
                                 "fig:check%s"%simplifiedLabel, maxVar=True)
 
     msg=\
-"""Fig. \\ref{fig:comparison%s} shows the shift and angular difference between the alignment given by the user
+"""Fig. \\ref{fig:comparison%s} shows the shift and angular difference between the alignment given by %s
 and the one calculated by %s. The median shift difference was %4.1f\\AA, and the median angular difference
 %5.1f degrees. Their corresponding median absolute deviations were %4.1f and %4.1f, respectively. Particles
 with a shift difference larger than 5\\AA~or an angular difference larger than 5 degrees would be considered as 
@@ -442,12 +445,12 @@ to have an uncertain shift, and %4.1f\\%% of particles were considered to have a
     \centering
     \includegraphics[width=9cm]{%s}
     \includegraphics[width=9cm]{%s}
-    \\caption{Top: Shift difference between the alignment given by the user and the one calculated by %s. Bottom:
+    \\caption{Top: Shift difference between the alignment given by %s and the one calculated by %s. Bottom:
     Angular difference. The X-axis represents all particles sorted by their difference.}
     \\label{fig:comparison%s}
 \\end{figure}
-"""%(simplifiedLabel, simplifiedLabel, medShift, medAngle, madShift, madAngle, outliersShift, outliersAngles,
-     fnShift, fnAngles, simplifiedLabel, simplifiedLabel)
+"""%(simplifiedLabel, agent1, agent2, medShift, medAngle, madShift, madAngle, outliersShift, outliersAngles,
+     fnShift, fnAngles, agent1, agent2, simplifiedLabel)
     report.write(msg)
 
     return outliersShift, outliersAngles
@@ -493,7 +496,7 @@ particles given by the user and the one done by Relion.\\\\
 
     shiftOutliers, angleOutliers = compareAlignment(project, report, protResizeMap.outputVol,
                                                     protResizeParticles, prot, symmetry,
-                                                    "1. Relion", "alignmentRelion")
+                                                    "1. Relion", "the user", "Relion", "alignmentRelion")
     warnings = []
     testWarnings = False
     if shiftOutliers>20 or testWarnings:
@@ -537,13 +540,13 @@ def cryosparcAlignment(project, report, protMap, protMask, protParticles, symmet
     project.launchProtocol(prot, wait=True)
 
     bblCitation = \
-        """\\bibitem[Punjani et~al., 2017]{Punjani2017b}
-Punjani, A., Brubaker, M.~A., and Fleet, D.~J. (2017).
-\\newblock Building proteins in a day: Efficient {3D} molecular structure
-  estimation with electron cryomicroscopy.
-\\newblock {\em {IEEE} Trans. Pattern Analysis \& Machine Intelligence},
-  39:706--718."""
-    report.addCitation("Punjani2017b", bblCitation)
+"""\\bibitem[Punjani et~al., 2020]{Punjani2020}
+Punjani, A., Zhang, H., and Fleet, D.~J. (2020).
+\\newblock Non-uniform refinement: adaptive regularization improves
+  single-particle cryo-{EM} reconstruction.
+\\newblock {\em Nature Methods}, 17(12):1214--1221.
+}"""
+    report.addCitation("Punjani2020", bblCitation)
 
     secLabel = "sec:cryosparcAlignment"
     msg = \
@@ -551,7 +554,7 @@ Punjani, A., Brubaker, M.~A., and Fleet, D.~J. (2017).
 \\subsection{Level 4.d2 CryoSparc alignment}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-We have performed an independent angular assignment using CryoSparc non-homogeneous refinement \\cite{Punjani2017b}.
+We have performed an independent angular assignment using CryoSparc non-homogeneous refinement \\cite{Punjani2020}.
 Images were downsampled to a pixel size of 3\\AA.  Then, we measured the difference between the angular assignment
 of the particles given by the user and the one done by CryoSparc.\\\\
 \\\\
@@ -565,7 +568,7 @@ of the particles given by the user and the one done by CryoSparc.\\\\
         return prot
 
     shiftOutliers, angleOutliers = compareAlignment(project, report, protMap.outputVol, protParticles, prot, symmetry,
-                                                    "2. Cryosparc", "alignmentCryosparc")
+                                                    "2. Cryosparc", "the user", "CryoSparc", "alignmentCryosparc")
 
     warnings = []
     testWarnings = False
@@ -608,8 +611,8 @@ alignability of the input images.\\\\
         report.write("{\\color{red} \\textbf{ERROR: One of the previous protocols failed.}}\\\\ \n")
 
     shiftOutliers, angleOutliers = compareAlignment(project, report, protRelion.outputVolume, protRelion, protCryoSparc,
-                                                    symmetry, "3. Relion/Cryosparc", "alignmentRelionCryosparc",
-                                                    False)
+                                                    symmetry, "3. Relion/Cryosparc", "Relion", "CryoSparc",
+                                                    "alignmentRelionCryosparc", False)
 
     warnings = []
     testWarnings = False
@@ -984,7 +987,7 @@ SCF \\cite{Baldwin2020} measures the ability of the angular distribution to fill
     report.writeWarningsAndSummary(warnings, "4.h SCF", secLabel)
 
 
-def ctfEstability(project, report, protRefinement, protResizeParticles, protResizeMask):
+def ctfStability(project, report, protRefinement, protResizeParticles, protResizeMask):
     Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
                                             'ProtRelionPostprocess', doRaise=True)
 
@@ -994,10 +997,10 @@ def ctfEstability(project, report, protRefinement, protResizeParticles, protResi
     protPostprocess.solventMask.set(protResizeMask.outputVol)
     project.launchProtocol(protPostprocess, wait=True)
 
-    secLabel = "sec:ctfEstability"
+    secLabel = "sec:ctfStability"
     msg = \
 """
-\\subsection{Level 4.i CTF estability}
+\\subsection{Level 4.i CTF stability}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 We estimated the per-particle defocus, B-factor, astigmatism, and phase shift using Relion's ctf refine. Ideally,
@@ -1009,7 +1012,7 @@ the differences in defoci cannot be larger than the ice thickness. We also estim
 """ % secLabel
     report.write(msg)
     if protPostprocess.isFailed():
-        report.writeSummary("4.i CTF estability", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("4.i CTF stability", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return protPostprocess
 
@@ -1058,11 +1061,9 @@ the differences in defoci cannot be larger than the ice thickness. We also estim
     pS = np.percentile(s,[2.5, 50, 97.5])
 
     msg=\
-"""Figs. \\ref{fig:defocus} and \\ref{fig:astigmatism} shows the histogram of the defocus and astigmatism. Ideally, the 
-defoci should cover a range
-of values, so that the zeroes of the CTF are spread over the Fourier spectrum, and the astigmatism should be as close
-to 0 as possible. The median and confidence intervals for the following parameters were observed (ideally they should all
-concentrate around 0, except for the phase shift that must be centered around its true value):
+"""The following list shows the median, confidence intervals and links to the histograms for the refined parameters.
+Ideally these should all concentrate around 0, except for the defocus and the phase shift that 
+must be centered around their true values.
 
 \\begin{center}
     \\begin{tabular}{cccc}
@@ -1145,7 +1146,7 @@ between -5 and 5; and 5) the scale factor is between -0.1 and 0.1.
         report.writeAbstract("It seems that there is some problem with the CTF (see Sec. \\ref{%s}). "%secLabel)
     return prot
 
-def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, bfactor, protResizeParticles,
+def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, bfactor,
            protResizeMap, protResizeMask, skipAnalysis = False):
 
     protResizeParticles = resizeProject(project, protMap, protParticles, resolution)
@@ -1153,6 +1154,10 @@ def level4(project, report, protMap, protMask, protParticles, symmetry, resoluti
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 4 analysis')
+        msg = \
+"""This analysis compares the experimental images provided along with their angular assignment to the reconstructed
+map."""
+        report.write(msg)
         similarityMeasures(project, report, protMap, protMask, protParticles, symmetry, resolution)
         alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry, resolution)
         multirefAlignability(project, report, protMap, protMask, protParticles, symmetry)
@@ -1163,5 +1168,5 @@ def level4(project, report, protMap, protMask, protParticles, symmetry, resoluti
         validateOverfitting(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
         angularDistributionEfficiency(project, report, protResizeParticles, symmetry, resolution, bfactor)
         samplingCompensationFactor(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
-        ctfEstability(project, report, protCryoSparc, protResizeParticles, protResizeMask)
+        ctfStability(project, report, protCryoSparc, protResizeParticles, protResizeMask)
     return protResizeParticles

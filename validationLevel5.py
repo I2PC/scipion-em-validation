@@ -94,11 +94,10 @@ Set of Micrographs: %s \\\\
         coordsmic = [(c.getX(), c.getY()) for c in setOfCoords.iterCoordinates(micId)]
         fnOut = os.path.join(report.getReportDir(),"mic%d.png"%i)
         plotMicrograph(fnMic, fnOut, coordsmic, boxSize, Ts)
-        msg+="\includegraphics[width=8cm]{%s}\\\\ \n"%fnOut
+        msg+="\includegraphics[width=7cm]{%s}\\\\ \n"%fnOut
 
     msg+=\
-"""    \\caption{Probability density function of the correlation of the user classes compared to the newly computed and
-    vice versa.}
+"""    \\caption{Two example micrographs with their coordinates.}
     \\label{fig:micrographs}
 \\end{figure}
 """

@@ -180,7 +180,7 @@ def reportHistogram(y, ylabel, fnOut):
     plt.savefig(fnOut, bbox_inches='tight')
     plt.close('all')
 
-def reportMultiplePlots(x,yList, xlabel, ylabel, fnOut, legends, invertXLabels=False):
+def reportMultiplePlots(x,yList, xlabel, ylabel, fnOut, legends, invertXLabels=False, xshade0=None, xshadeF=None):
     matplotlib.use('Agg')
     plt.figure()
     for i in range(len(yList)):
@@ -191,6 +191,8 @@ def reportMultiplePlots(x,yList, xlabel, ylabel, fnOut, legends, invertXLabels=F
     plt.grid(True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    if xshade0 is not None and xshadeF is not None:
+        plt.gca().axes.axvspan(xshade0, xshadeF, alpha=0.3, color='green')
     plt.savefig(fnOut, bbox_inches='tight')
     plt.close('all')
 

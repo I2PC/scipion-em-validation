@@ -151,7 +151,8 @@ Sorzano, C. O.~S., Vargas, J., de~la Rosa-Trev\\'{\i}n, J.~M.,
 \\textbf{Explanation}:\\\\ 
 The set of particles is classified into the input set of 2D classes of Level 2. The number of particles that are
 considered to be outliers in those classes is reported. A particle is an outlier if its Mahalanobis distance to the
-centroid of the class is larger than 3 \\cite{Sorzano2014}.\\\\
+centroid of the class is larger than 3 \\cite{Sorzano2014}. This distance takes into account the covariance of
+the images assigned to that class.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
@@ -512,6 +513,9 @@ def level3(project, report, protImportMap, protClasses, fnParticles, TsParticles
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 3 analysis')
+        msg=\
+"""This analysis compares the experimental images provided to the 2D classes provided of Level 2."""
+        report.write(msg)
         classAnalysis(project, report, protResizeAvgs, protClasses)
         newClassification(project, report, protResizeAvgs, protClasses)
     return protParticles, protResizeMap, protResizeAvgs

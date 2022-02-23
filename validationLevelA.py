@@ -70,20 +70,20 @@ def importModel(project, label, protImportMap, FNMODEL):
 
 def mapq(project, report, protImportMap, protAtom, resolution):
     bblCitation = \
-"""\\bibitem[Pintilie and Chiu, 2021]{Pintilie2021}
-Pintilie, G. and Chiu, W. (2021).
-\\newblock Validation, analysis and annotation of cryo-{EM} structures.
-\\newblock {\em Acta Crystallographica D, Struct. Biol.}, 77:1142--1152.
+"""\\bibitem[Pintilie et~al., 2020]{Pintilie2020}
+Pintilie, G., Zhang, K., Su, Z., Li, S., Schmid, M.~F., and Chiu, W. (2020).
+\\newblock Measurement of atom resolvability in cryo-em maps with q-scores.
+\\newblock {\em Nature methods}, 17(3):328--334.
 """
-    report.addCitation("Pintilie2021", bblCitation)
+    report.addCitation("Pintilie2020", bblCitation)
 
     secLabel = "sec:mapq"
     msg = \
 """
-\\subsection{Level A.a MAP-Q}
+\\subsection{Level A.a MapQ}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-MAP-Q \\cite{Pintilie2021} computes the local correlation between the map and each one of its atoms assumed to
+MapQ \\cite{Pintilie2021} computes the local correlation between the map and each one of its atoms assumed to
 have a Gaussian shape.\\\\
 \\\\
 \\textbf{Results:}\\\\
@@ -94,13 +94,13 @@ have a Gaussian shape.\\\\
     Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
                                             'ProtMapQ', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel="A.a MAP-Q",
+                               objLabel="A.a MapQ",
                                inputVol=protImportMap.outputVolume,
                                pdbs=[protAtom.outputPdb],
                                mapRes=resolution)
     project.launchProtocol(prot, wait=True)
     if prot.isFailed():
-        report.writeSummary("A.a MAP-Q", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("A.a MapQ", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return
 
@@ -116,18 +116,18 @@ have a Gaussian shape.\\\\
 
     fnHist = os.path.join(report.getReportDir(),"mapqHist.png")
 
-    reportHistogram(mapq_scores, "MAP-Q score", fnHist)
+    reportHistogram(mapq_scores, "MapQ score", fnHist)
     Bpercentiles = np.percentile(mapq_scores, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
 
     toWrite = \
 """
-Fig. \\ref{fig:histMapQ} shows the histogram of the Q-score according to Map-Q score. Some representative
+Fig. \\ref{fig:histMapQ} shows the histogram of the Q-score according calculated by MapQ. Some representative
 percentiles are:
 
 \\begin{center}
     \\begin{tabular}{|c|c|}
         \\hline
-        \\textbf{Percentile} & \\textbf{Map-Q score [0-1]} \\\\
+        \\textbf{Percentile} & \\textbf{MapQ score [0-1]} \\\\
         \\hline
         2.5\\%% & %5.2f \\\\
         \\hline
@@ -199,9 +199,9 @@ percentiles are:
 
 """
     report.write(msg)
-    report.writeWarningsAndSummary(warnings, "A.a MAP-Q", secLabel)
+    report.writeWarningsAndSummary(warnings, "A.a MapQ", secLabel)
     if len(warnings)>0:
-        report.writeAbstract("There seems to be a problem with its MAP-Q scores (see Sec. \\ref{%s}). "%secLabel)
+        report.writeAbstract("There seems to be a problem with its MapQ scores (see Sec. \\ref{%s}). "%secLabel)
 
 
 def convertPDB(project, protImportMap, protAtom):
@@ -238,7 +238,8 @@ Ram{\\'i}rez-Aportela, E., Maluenda, D., Fonseca, Y.~C., Conesa, P., Marabini,
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 FSC-Q \\cite{Ramirez2021} compares the local FSC between the map and the atomic model to the local FSC of the two 
-half maps.\\\\
+half maps. FSC-Qr is the normalized version of FSC-Q to facilitate comparisons. Typically, FSC-Qr should
+take values between -1.5 and 1.5, being 0 an indicator of good matching between map and model.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
@@ -270,9 +271,9 @@ half maps.\\\\
     reportHistogram(np.clip(fscqr, -1.5, 1.5), "FSC-Qr", fnHist)
 
     msg =\
-"""Fig. \\ref{fig:fscqHist} shows the histogram of the normalized FSC-Qr (between -1.5 and 1.5) and Fig. 
+"""Fig. \\ref{fig:fscqHist} shows the histogram of FSC-Qr and Fig. 
 \\ref{fig:fscq} the colored isosurface of the atomic model converted to map. The
-average FSC-Qr is %5.2f, its 95\\%% confidence interval would be [%5.2f,%5.2f]. The percentage of values
+average FSC-Qr is %5.2f, its 95\\%% confidence interval is [%5.2f,%5.2f]. The percentage of values
 whose FSC-Qr absolute value is beyond 1.5 is %5.1f \\%%.
 
 \\begin{figure}[H]
@@ -286,7 +287,7 @@ whose FSC-Qr absolute value is beyond 1.5 is %5.1f \\%%.
     report.colorIsoSurfaces(msg, "Isosurface of the atomic model colored by FSC-Qr between -1.5 and 1.5",
                             "fig:fscq", project, "fscq", prot._getExtraPath("pdb_volume.map"),
                             protImportMap.outputVolume.getSamplingRate(),
-                            prot._getExtraPath("diferencia_norm.map"), -1.5, 1.5)
+                            prot._getExtraPath("diferencia_norm.map"), -3.0, 3.0)
     warnings = []
     testWarnings = False
     if f15>10 or testWarnings:
@@ -503,7 +504,7 @@ box.
     the N highest points inside the molecular mask. CC (peaks): In this case, calculations consider the union of 
     regions defined by the N highest peaks in the model-calculated map and the N highest peaks in the experimental map.
     \\item Local real-space correlation coefficients CC (main chain) and CC (side chain) involve the main skeleton chain 
-and lateral chains, respectively.
+and side chains, respectively.
 \\end{itemize}
 \\\\
 There are also multiple ways of measuring the resolution:
