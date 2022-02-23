@@ -184,22 +184,8 @@ centroid of the class is larger than 3 \\cite{Sorzano2014}\\\\
 particles that are considered to be part of the core (the closer to 1, the better). Fig. \\ref{fig:coreFracHist}
 shows the histogram of the core fraction of the classes. Fig. \\ref{fig:classCountHist}
 shows the histogram of the size of the classes.
- 
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=9cm]{%s}
-    \\caption{Histogram of the core fraction of the 2D classes.}
-    \\label{fig:coreFracHist}
-\\end{figure}
- 
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=9cm]{%s}
-    \\caption{Histogram of the number of particles assigned to the 2D classes.}
-    \\label{fig:classCountHist}
-\\end{figure}
 
-"""%(fnFracHist, fnCountHist)
+"""
     report.write(toWrite)
 
     report.showj(md,
@@ -208,6 +194,24 @@ shows the histogram of the size of the classes.
                  ["", "%d ", "%4.3f "],
                  ["2D Class", "No. Particles", "Core fraction"],
                  os.path.join(report.getReportDir(), "core_"), "2cm")
+
+    toWrite = \
+"""\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Histogram of the core fraction of the 2D classes.}
+    \\label{fig:coreFracHist}
+\\end{figure}
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Histogram of the number of particles assigned to the 2D classes.}
+    \\label{fig:classCountHist}
+\\end{figure}
+
+""" % (fnFracHist, fnCountHist)
+    report.write(toWrite)
 
     # Warnings
     warnings=[]
