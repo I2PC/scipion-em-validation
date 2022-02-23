@@ -197,14 +197,25 @@ particles that are considered to be part of the core (the closer to 1, the bette
 """Fig. \\ref{fig:coreFracHist}
 shows the histogram of the core fraction of the classes. Fig. \\ref{fig:classCountHist}
 shows the histogram of the size of the classes.
- 
-\\begin{figure}[H]
+
+"""
+    report.write(toWrite)
+
+    report.showj(md,
+                 [xmipp3.MDL_IMAGE, xmipp3.MDL_CLASS_COUNT, xmipp3.MDL_MODELFRAC],
+                 [True, False, False],
+                 ["", "%d ", "%4.3f "],
+                 ["2D Class", "No. Particles", "Core fraction"],
+                 os.path.join(report.getReportDir(), "core_"), "2cm")
+
+    toWrite = \
+"""\\begin{figure}[H]
     \centering
     \includegraphics[width=9cm]{%s}
     \\caption{Histogram of the core fraction of the 2D classes.}
     \\label{fig:coreFracHist}
 \\end{figure}
- 
+
 \\begin{figure}[H]
     \centering
     \includegraphics[width=9cm]{%s}
@@ -212,7 +223,7 @@ shows the histogram of the size of the classes.
     \\label{fig:classCountHist}
 \\end{figure}
 
-"""%(fnFracHist, fnCountHist)
+""" % (fnFracHist, fnCountHist)
     report.write(toWrite)
 
     # Warnings

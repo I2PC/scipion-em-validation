@@ -64,7 +64,7 @@ def importModel(project, label, protImportMap, FNMODEL):
     protImport.inputVolume.set(protImportMap.outputVolume)
     project.launchProtocol(protImport, wait=True)
     if protImport.isFailed():
-        raise Exception("Import micrographs did not work")
+        raise Exception("Import atomic model did not work")
 
     return protImport
 

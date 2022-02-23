@@ -531,7 +531,7 @@ percentiles are:
     \\end{tabular}
 \\end{center}
 
-The reported resolution, %5.2f \AA, is at percentile %4.1f. 
+The reported resolution, %5.2f \AA, is at the percentile %4.0f. 
 Fig. \\ref{fig:resmapColor} shows some representative views of the local resolution.
 
 \\begin{figure}[H]
@@ -745,7 +745,7 @@ protein. As the shells approach the outside of the protein, these radial average
     md.read(prot._getExtraPath("hist_prefdir.xmd"))
     direction = md.getColumnValues(xmipp3.MDL_X)
     count = md.getColumnValues(xmipp3.MDL_COUNT)
-    reportPlot(direction, count, 'Resolution (A)', '# of voxels', fnHistDirMonoDir1, plotType="bar")
+    reportPlot(direction, count, 'Direction index', '# of voxels', fnHistDirMonoDir1, plotType="bar")
 
     # Test
     randomSample = np.random.choice([x for x in range(int(np.max(direction))+1)], size=50000,
