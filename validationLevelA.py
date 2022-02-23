@@ -511,13 +511,14 @@ There are also multiple ways of measuring the resolution:
 \\begin{itemize}
     \\item d99: Resolution cutoff beyond which Fourier map coefficients are negligibly small. Calculated from the 
     full map.
-    \\item Overall B-iso: Overall isotropic B-value.
     \\item d\_model: Resolution cutoff at which the model map is the most similar to the target (experimental)
  map. For d\_model to be meaningful, the model is expected to fit the map as well as possible. d\_model (B\ factors = 0) 
  tries to avoid the blurring of the map.
     \\item d\_FSC\_model; Resolution cutoff up to which the model and map Fourier coefficients are similar at FSC values 
         of 0, 0.143, 0.5.
 \\end{itemize}
+In addition to these resolution measurements the overall isotropic B factor is another indirect measure of the
+quality of the map.
 \\\\
 \\textbf{Results:}\\\\
 \\\\
@@ -702,7 +703,6 @@ of residues whose correlation is below 0.5 is %4.1f \\%%.
 \\begin{tabular}{rcc}
     \\textbf{Resolution} (\\AA) & \\textbf{Masked} & \\textbf{Unmasked} \\\\
     d99 & %4.1f & %4.1f \\\\
-    Overall B-iso & %4.1f & %4.1f \\\\
     d\_model & %4.1f & %4.1f \\\\
     d\_model (B-factor=0) & %4.1f & %4.1f \\\\
     FSC\_model=0 & %4.1f & %4.1f \\\\
@@ -712,12 +712,23 @@ of residues whose correlation is below 0.5 is %4.1f \\%%.
 \\end{center}
 
 """%(data['*d99_full_masked'],data['*d99_full_unmasked'],
-     data["overall_b_iso_masked"],data["overall_b_iso_unmasked"],
      data['*dmodel_masked'],data['*dmodel_unmasked'],
      data['d_model_b0_masked'],data['d_model_b0_unmasked'],
      data['*dFSCmodel_0_masked'],data['*dFSCmodel_0_unmasked'],
      data['*dFSCmodel_0.143_masked'],data['*dFSCmodel_0.143_unmasked'],
      data['*dFSCmodel_0.5_masked'],data['*dFSCmodel_0.5_unmasked'])
+
+    msg += \
+"""
+\\underline{Overall isotropic B factor}:\\\\
+\\begin{center}
+\\begin{tabular}{rcc}
+    \\textbf{B factor} & \\textbf{Masked} & \\textbf{Unmasked} \\\\
+    Overall B-iso & %4.1f & %4.1f \\\\
+\\end{tabular}
+\\end{center}
+
+""" % (data["overall_b_iso_masked"], data["overall_b_iso_unmasked"])
 
     if 'FSC_Model_Map_Masked' in data and 'FSC_Model_Map_Unmasked' in data:
         fnFSCModel = os.path.join(report.getReportDir(),"fscModel.png")
@@ -791,6 +802,9 @@ reported:
     \\item Model Length: Total of non-gamma-branched, non-proline aminoacids with a non-H gamma atom used in global EMRinger score computation.
     \\item EMRinger Score: Maximum EMRinger score calculated at the Optimal Threshold.
 \\end{itemize}
+A rotameric residue is one in which EMRinger peaks that fall within defined rotamers based on chi1, this often suggests 
+a problem with the modelling of the backbone. In general, the user should look at the profiles and identify regions 
+that may need improvement. 
 \\\\
 \\textbf{Results:}\\\\
 \\\\
@@ -947,7 +961,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         stdDaq = np.std(daqValues)
 
         msg =\
-    """Fig. \\ref{fig:daqHist} shows the histogram of the DAQ values. The average and standard deviation were %4.1f and
+    """Fig. \\ref{fig:daqHist} shows the histogram of the DAQ values. The mean and standard deviation were %4.1f and
     %4.1f, respectively.
     
     \\begin{figure}[H]

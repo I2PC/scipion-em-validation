@@ -1068,14 +1068,14 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protC
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 1 analysis')
-        # globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
-        # fscPermutation(project, report, "1.b FSC permutation", protImportMap1, protImportMap2, protCreateMask,
-        #                resolution)
-        # blocres(project, report, "1.c Blocres", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
-        # resmap(project, report, "1.d Resmap", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
-        # monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
-        # monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
+        globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
+        fscPermutation(project, report, "1.b FSC permutation", protImportMap1, protImportMap2, protCreateMask,
+                       resolution)
+        blocres(project, report, "1.c Blocres", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
+        resmap(project, report, "1.d Resmap", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
+        monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
+        monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
         fso(project, report, "1.g FSO", protImportMap, protCreateMask, resolution)
-        # fsc3d(project, report, "1.h FSC3D", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
+        fsc3d(project, report, "1.h FSC3D", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
 
     return protImportMap1, protImportMap2

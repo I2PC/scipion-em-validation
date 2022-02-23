@@ -52,7 +52,9 @@ of protein structures.
 \\label{%s}
 
 \\textbf{Explanation}:\\\\ 
-The method in \\cite{Sinnott2020} uses information from cross- and mono-links to validate the atomic model.\\\\
+The method in \\cite{Sinnott2020} uses information from cross- and mono-links to validate the atomic model. In a 
+cross-link, the linker is bound to two residues, while in a mono-link, it is bound to only one residue and it can
+be thought as a measure of the residue surface exposure.\\\\
 \\\\
 \\textbf{Results:}\\\\
 """ % (secLabel)

@@ -247,7 +247,7 @@ protImportMap, protCreateMask, bfactor, protResizeMap, protResizeMask = level0(
 if "1" in levels:
     from validationLevel1 import level1
     protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION,
-                                            protImportMap, protCreateMask, skipAnalysis = False)
+                                            protImportMap, protCreateMask, skipAnalysis = True)
 
 # Level 2
 if "2" in levels:
@@ -265,7 +265,7 @@ if "3" in levels:
 if "4" in levels:
     from validationLevel4 import level4
     protResizeParticles = level4(project, report, protImportMap, protCreateMask, protResizeParticlesMap, SYM,
-                                 MAPRESOLUTION, bfactor, protResizeMap, protResizeMask, skipAnalysis = True)
+                                 MAPRESOLUTION, bfactor, protResizeMap, protResizeMask, skipAnalysis = False)
 
 # Level 5
 if "5" in levels:
