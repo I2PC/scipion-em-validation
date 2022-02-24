@@ -250,7 +250,7 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
                                             'XmippProtValFit', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel="A.b FSC-Q",
-                               inputPDB=protAtom.outputPdb.getFileName())
+                               inputPDBObj=protAtom.outputPdb)
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.pdbMap.set(protConvert.outputVolume)
     project.launchProtocol(prot, wait=True)
