@@ -27,24 +27,38 @@
 import graphviz
 import json
 import os
+import urllib.request
 
 from validationReport import calculateSha256
 
 def levelW(project, report, WORKFLOW, skipAnalysis=False):
-    secLabel="sec:workflow"
-    msg =\
+    fnWorkflow = WORKFLOW
+    if WORKFLOW.startswith("http"):
+        fnWorkflow = os.path.join(report.getReportDir(),"workflow.json")
+        urlWorkflow = WORKFLOW
+        if not urlWorkflow.endswith('.json'):
+            urlWorkflow="http://nolan.cnb.csic.es/cryoemworkflowviewer/static/uploadedFiles/%s/workflow.json"%\
+                        WORKFLOW.split('/')[-1]
+            urllib.request.urlretrieve(urlWorkflow, fnWorkflow)
+
+    fh = open(fnWorkflow)
+    workflow = json.load(fh)
+    fh.close()
+
+    secLabel = "sec:workflow"
+    if WORKFLOW.startswith("http"):
+        msgWorkflow = "\\url{%s}" % WORKFLOW
+    else:
+        msgWorkflow = WORKFLOW.replace('_', '\_').replace('/', '/\-')
+    msg = \
 """
 \\section{Workflow}
 \\label{%s}
 Workflow file: %s \\\\
 SHA256 hash: %s \\\\ 
 \\\\
-"""%(secLabel, WORKFLOW.replace('_','\_').replace('/','/\-'),calculateSha256(WORKFLOW))
+""" % (secLabel, msgWorkflow, calculateSha256(fnWorkflow))
     report.write(msg)
-
-    fh = open(WORKFLOW)
-    workflow = json.load(fh)
-    fh.close()
 
     dot = graphviz.Digraph()
 

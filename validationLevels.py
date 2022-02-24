@@ -81,8 +81,8 @@ def usage(message=''):
     message = "\n\n  >>  %s\n" % message if message != '' else ''
     print(message)
     sys.exit(1)
-    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o particles=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/particles.sqlite ptclSampling=0.74 kV=300 Cs=2.7 Q0=0.1 hasAngles=yes micrographs="/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/006458_XmippProtMovieCorr/extra/*mic.mrc" micSampling=0.49 atomicModel=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/centered4V1W.pdb doMultimodel=yes workflow=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/workflow.json xlm=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/xlm.txt saxs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/SASDE55.dat untiltedMic=/home/coss/scipion3/data/tests/eman/mics/ip3r10252011-0005_0-2.hdf tiltedMic=/home/coss/scipion3/data/tests/eman/mics/ip3r10252011-0005_10.hdf tiltkV=200 tiltCs=2 tiltQ0=0.1 tiltSampling=1.88 tiltAngle=60 untiltedCoords=/home/coss/scipion3/data/tests/eman/coords/ip3r10252011-0005_0-2_info.json tiltedCoords=/home/coss/scipion3/data/tests/eman/coords/ip3r10252011-0005_10_info.json
-    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/011849_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o particles=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/particles.sqlite ptclSampling=0.74 kV=300 Cs=2.7 Q0=0.1 hasAngles=yes micrographs="/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/006458_XmippProtMovieCorr/extra/*mic.mrc" micSampling=0.49 atomicModel=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/centered4V1W.pdb doMultimodel=yes workflow=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/workflow.json saxs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/SASDE55.dat
+    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/012458_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o particles=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/particles.sqlite ptclSampling=0.74 kV=300 Cs=2.7 Q0=0.1 hasAngles=yes micrographs="/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/006458_XmippProtMovieCorr/extra/*mic.mrc" micSampling=0.49 atomicModel=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/centered4V1W.pdb doMultimodel=yes workflow=http://nolan.cnb.csic.es/cryoemworkflowviewer/workflow/637ca2bbcd57e45e88f6fabb7f6b1095a3ca0de6 xlm=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/xlm.txt saxs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/SASDE55.dat untiltedMic=/home/coss/scipion3/data/tests/eman/mics/ip3r10252011-0005_0-2.hdf tiltedMic=/home/coss/scipion3/data/tests/eman/mics/ip3r10252011-0005_10.hdf tiltkV=200 tiltCs=2 tiltQ0=0.1 tiltSampling=1.88 tiltAngle=60 untiltedCoords=/home/coss/scipion3/data/tests/eman/coords/ip3r10252011-0005_0-2_info.json tiltedCoords=/home/coss/scipion3/data/tests/eman/coords/ip3r10252011-0005_10_info.json
+    # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=TestValidation map=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010948_XmippProtLocSharp/extra/sharpenedMap_1.mrc sampling=0.74 threshold=0.0025 resolution=2.6 map1=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume01.vol map2=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/extra/Iter001/volume02.vol avgs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/012458_XmippProtCropResizeParticles/extra/output_images.stk avgSampling=1.24 symmetry=o particles=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/010450_XmippProtReconstructHighRes/particles.sqlite ptclSampling=0.74 kV=300 Cs=2.7 Q0=0.1 hasAngles=yes micrographs="/home/coss/ScipionUserData/projects/Example_10248_Scipion3/Runs/006458_XmippProtMovieCorr/extra/*mic.mrc" micSampling=0.49 atomicModel=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/centered4V1W.pdb doMultimodel=yes workflow=http://nolan.cnb.csic.es/cryoemworkflowviewer/workflow/637ca2bbcd57e45e88f6fabb7f6b1095a3ca0de6 saxs=/home/coss/ScipionUserData/projects/Example_10248_Scipion3/SASDE55.dat
     # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=Validation22301 map=/home/coss/data/Dropbox/Aplicaciones/ShareLaTeX/MapValidation/EMDB22301/emd_22301.map sampling=0.52 threshold=0.1 resolution=3.7 symmetry=c1  atomicModel=/home/coss/data/Dropbox/Aplicaciones/ShareLaTeX/MapValidation/EMDB22301/6xs6_updated_centered.pdb doMultimodel=no
     # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=Validation22838 map=/home/coss/data/Dropbox/Aplicaciones/ShareLaTeX/MapValidation/EMDB22838/emd_22838.map sampling=1.058 threshold=0.2 resolution=3.84 symmetry=c1  atomicModel=/home/coss/data/Dropbox/Aplicaciones/ShareLaTeX/MapValidation/EMDB22838/7kec_updated_centered.pdb doMultimodel=no
     # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=Validation11337 map=/home/coss/data/Dropbox/Aplicaciones/ShareLaTeX/MapValidation/EMDB11337/emd_11337.map sampling=1.047 threshold=0.165 resolution=3.3 symmetry=c1  atomicModel=/home/coss/data/Dropbox/Aplicaciones/ShareLaTeX/MapValidation/EMDB11337/6zp7_updated_centered.pdb doMultimodel=no map1=/home/coss/data/Dropbox/Aplicaciones/ShareLaTeX/MapValidation/EMDB11337/emd_11337_half_map_1.map map2=/home/coss/data/Dropbox/Aplicaciones/ShareLaTeX/MapValidation/EMDB11337/emd_11337_half_map_2.map
@@ -241,25 +241,25 @@ report = ValidationReport(fnProjectDir, levels)
 # Level 0
 from validationLevel0 import level0
 protImportMap, protCreateMask, bfactor, protResizeMap, protResizeMask = level0(
-    project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, skipAnalysis = True)
+    project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, skipAnalysis = False)
 
 # Level 1
 if "1" in levels:
     from validationLevel1 import level1
     protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION,
-                                            protImportMap, protCreateMask, skipAnalysis = True)
+                                            protImportMap, protCreateMask, skipAnalysis = False)
 
 # Level 2
 if "2" in levels:
     from validationLevel2 import level2
-    protImportAvgs, protAvgsResizeMap = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM, skipAnalysis = True)
+    protImportAvgs, protAvgsResizeMap = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM, skipAnalysis = False)
 
 # Level 3
 if "3" in levels:
     from validationLevel3 import level3
     protImportParticles, protResizeParticlesMap, protResizeAvgs = level3(project, report, protImportMap, protImportAvgs,
                                                                 FNPARTICLES, TSPARTICLES, KV, CS, Q0,
-                                                                skipAnalysis = True)
+                                                                skipAnalysis = False)
 
 # Level 4
 if "4" in levels:
@@ -270,26 +270,26 @@ if "4" in levels:
 # Level 5
 if "5" in levels:
     from validationLevel5 import level5
-    level5(project, report, protImportParticles, KV, CS, Q0, MICPATTERN, TSMIC, skipAnalysis = True)
+    level5(project, report, protImportParticles, KV, CS, Q0, MICPATTERN, TSMIC, skipAnalysis = False)
 
 # Level A
 if "A" in levels:
     from validationLevelA import levelA
-    protAtom = levelA(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, skipAnalysis = True)
+    protAtom = levelA(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, skipAnalysis = False)
 else:
     protAtom = None
 
 # Level W
 if "W" in levels:
     from validationLevelW import levelW
-    levelW(project, report, WORKFLOW, skipAnalysis = True)
+    levelW(project, report, WORKFLOW, skipAnalysis = False)
 
 # Level O
 if "O" in levels:
     from validationLevelO import levelO
     levelO(project, report, protImportMap, protCreateMask, protAtom, XLM, SAXS,
            UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
-           skipAnalysis = True)
+           skipAnalysis = False)
 
 # Close report
 report.abstractResolution(MAPRESOLUTION)
