@@ -954,9 +954,12 @@ SCF \\cite{Baldwin2020} measures the ability of the angular distribution to fill
     for line in fh.readlines():
         tokens = line.replace('INFO:root:','').split('=')
         key = tokens[0].strip()
-        value = float(tokens[1].strip())
-        msg+="%s=%8.4f\\\\ \n"%(key, value)
-        results[key]=value
+        try:
+            value = float(tokens[1].strip())
+            msg+="%s=%8.4f\\\\ \n"%(key, value)
+            results[key] = value
+        except:
+            pass
     fh.close()
     msg+="\n\n"
     report.write(msg)
