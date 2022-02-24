@@ -170,15 +170,28 @@ the images assigned to that class.\\\\
     protCore.inputClasses.set(protGL2D.outputClasses)
     project.launchProtocol(protCore, wait=True)
 
-    md = xmipp3.MetaData(protCore._getExtraPath(os.path.join("level_00","level_classes_core.xmd")))
-    md.sort(xmipp3.MDL_MODELFRAC)
+    originalSize = {}
+    for item in protGL2D.outputClasses:
+        originalSize[item.getObjId()]=item.getSize()
+
+    finalSize={}
+    frac = []
+    mdCore = xmipp3.MetaData()
+    for item in protCore.outputClasses_core:
+        finalSize[item.getObjId()]=item.getSize()
+        item_frac = float(finalSize[item.getObjId()])/float(originalSize[item.getObjId()])
+        frac.append(item_frac)
+        objId = mdCore.addObject()
+        mdCore.setValue(xmipp3.MDL_IMAGE, item.getRepresentative().getFileName(), objId)
+        mdCore.setValue(xmipp3.MDL_CLASS_COUNT, item.getSize(), objId)
+        mdCore.setValue(xmipp3.MDL_MODELFRAC, item_frac, objId)
+    mdCore.sort(xmipp3.MDL_MODELFRAC)
 
     fnFracHist = os.path.join(report.getReportDir(),"coreFracHist.png")
-    frac = md.getColumnValues(xmipp3.MDL_MODELFRAC)
     reportHistogram(frac,'Core fraction',fnFracHist)
 
     fnCountHist = os.path.join(report.getReportDir(),"class2DCountHist.png")
-    count = md.getColumnValues(xmipp3.MDL_CLASS_COUNT)
+    count = [finalSize[objId] for objId in finalSize.keys()]
     reportHistogram(count,'Image count',fnCountHist)
 
     toWrite=\
@@ -187,7 +200,7 @@ particles that are considered to be part of the core (the closer to 1, the bette
 
     report.write(toWrite)
 
-    report.showj(md,
+    report.showj(mdCore,
                  [xmipp3.MDL_IMAGE, xmipp3.MDL_CLASS_COUNT, xmipp3.MDL_MODELFRAC],
                  [True, False, False],
                  ["", "%d ", "%4.3f "],
@@ -201,13 +214,6 @@ shows the histogram of the size of the classes.
 
 """
     report.write(toWrite)
-
-    report.showj(md,
-                 [xmipp3.MDL_IMAGE, xmipp3.MDL_CLASS_COUNT, xmipp3.MDL_MODELFRAC],
-                 [True, False, False],
-                 ["", "%d ", "%4.3f "],
-                 ["2D Class", "No. Particles", "Core fraction"],
-                 os.path.join(report.getReportDir(), "core_"), "2cm")
 
     toWrite = \
 """\\begin{figure}[H]
@@ -247,8 +253,10 @@ the size of the class is smaller than 20\\%.
                              "classes (see Sec. \\ref{%s}. "%secLabel)
 
     # 3.b internal consistency
+    md = xmipp3.MetaData(protCore._getExtraPath(os.path.join("level_00", "level_classes_core.xmd")))
     Ts = protParticles.outputParticles.getSamplingRate()
     f05 = np.array(md.getColumnValues(xmipp3.MDL_CLASSIFICATION_FRC_05))
+    count = md.getColumnValues(xmipp3.MDL_CLASS_COUNT)
     R05 = Ts*np.reciprocal(f05[f05>0])
     fnR05Hist = os.path.join(report.getReportDir(),"class2DFRC05Hist.png")
     reportHistogram(R05,'Resolution at FRC=0.5 (A)',fnR05Hist)
@@ -291,20 +299,20 @@ FRC=0.5.
 """ % (secLabel,fnR05Hist, fnR05)
     report.write(msg)
 
-    for objId in md:
-        frc05 = md.getValue(xmipp3.MDL_CLASSIFICATION_FRC_05, objId)
-        if frc05>0:
-            md.setValue(xmipp3.MDL_CLASSIFICATION_FRC_05, Ts/frc05, objId)
-        else:
-            md.setValue(xmipp3.MDL_CLASSIFICATION_FRC_05, 999.0, objId)
-
-    md.sort(xmipp3.MDL_CLASSIFICATION_FRC_05)
-    report.showj(md,
-                 [xmipp3.MDL_IMAGE, xmipp3.MDL_CLASS_COUNT, xmipp3.MDL_CLASSIFICATION_FRC_05],
-                 [True, False, False],
-                 ["", "%d ", "%5.1f "],
-                 ["2D Class", "No. Particles", "Resolution (\\AA)"],
-                 os.path.join(report.getReportDir(), "classfrc_"), "2cm")
+    # for objId in md:
+    #     frc05 = md.getValue(xmipp3.MDL_CLASSIFICATION_FRC_05, objId)
+    #     if frc05>0:
+    #         md.setValue(xmipp3.MDL_CLASSIFICATION_FRC_05, Ts/frc05, objId)
+    #     else:
+    #         md.setValue(xmipp3.MDL_CLASSIFICATION_FRC_05, 999.0, objId)
+    #
+    # md.sort(xmipp3.MDL_CLASSIFICATION_FRC_05)
+    # report.showj(md,
+    #              [xmipp3.MDL_IMAGE, xmipp3.MDL_CLASS_COUNT, xmipp3.MDL_CLASSIFICATION_FRC_05],
+    #              [True, False, False],
+    #              ["", "%d ", "%5.1f "],
+    #              ["2D Class", "No. Particles", "Resolution (\\AA)"],
+    #              os.path.join(report.getReportDir(), "classfrc_"), "2cm")
 
     # Warnings
     report.writeWarningsAndSummary(None, "3.b 2D Classification internal consistency", secLabel)
