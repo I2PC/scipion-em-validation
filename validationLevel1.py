@@ -957,7 +957,7 @@ This method analyzes the FSC in different directions and evaluates its homogenei
         return prot
 
     Ts = protImportMap.outputVolume.getSamplingRate()
-    md=np.genfromtxt(prot._getExtraPath(os.path.join('Results_3D-FSC','Plots3D-FSC.csv')), delimiter=' ')
+    md=np.genfromtxt(prot._getExtraPath(os.path.join('Results_vol','Plotsvol.csv')), delimiter=' ')
     N=md.shape[0]
     f = np.arange(0,N)*2*Ts/Xdim
     fscx = md[:,0].tolist()
@@ -974,9 +974,9 @@ This method analyzes the FSC in different directions and evaluates its homogenei
                "respectively. The global resolution at the same threshold is %5.2f \AA. The resolution range is "\
                "[%5.2f,%5.2f]\AA."%(1/fx, 1/fy, 1/fz, 1/fg, np.min(fList), np.max(fList))
 
-    fnDir = os.path.join(project.getPath(),prot._getExtraPath('Results_3D-FSC','Plots3D-FSC.jpg'))
-    fnHist = os.path.join(project.getPath(),prot._getExtraPath('Results_3D-FSC','histogram.png'))
-    fnPower = os.path.join(project.getPath(),prot._getExtraPath('Results_3D-FSC','FTPlot3D-FSC.jpg'))
+    fnDir = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','Plotsvol.jpg'))
+    fnHist = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','histogram.png'))
+    fnPower = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','FTPlotvol.jpg'))
     msg = \
 """Fig. \\ref{fig:fsc3DDir} shows the FSCs in X, Y, Z, and the global FSC. Fig. \\ref{fig:fsc3DHist} shows the global
 FSC and the histogram of the directional FSC. Finally, Fig. \\ref{fig:FSC3DFTPower} shows the rotational average of

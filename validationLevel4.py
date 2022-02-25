@@ -545,7 +545,7 @@ Punjani, A., Zhang, H., and Fleet, D.~J. (2020).
 \\newblock Non-uniform refinement: adaptive regularization improves
   single-particle cryo-{EM} reconstruction.
 \\newblock {\em Nature Methods}, 17(12):1214--1221.
-}"""
+"""
     report.addCitation("Punjani2020", bblCitation)
 
     secLabel = "sec:cryosparcAlignment"

@@ -383,7 +383,7 @@ the symmetry of the structure.
     toWrite+="The null hypothesis that the background mean is 0 was tested with a one-sample Student's t-test. The "\
              "resulting t-statistic and p-value were %5.2f and %f, respectively.\\\\ \n"\
              "\\\\ \n"\
-             "The mean and standard deviation of the background were %f and %f. "\
+             "The mean and standard deviation (sigma) of the background were %f and %f. "\
              "The percentage of background voxels whose absolute value is larger than 5 times the standard "\
              "deviation is %5.2f \\%% (see Fig. \\ref{fig:sigma5}). The same percentage from a Gaussian would be "\
              "%f\\%% (ratio between the two percentages: %f).\\\\ \n\\\\ \n"%\

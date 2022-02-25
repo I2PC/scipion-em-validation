@@ -377,13 +377,18 @@ the experimental one is smaller than 15 degrees.
 def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS,
            UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
            skipAnalysis=False):
-    msg ="\\section{Other experimental techniques}\n\n"
-    report.write(msg)
+    checkXlm = XLM is not None and protAtom is not None
+    checkSaxs = SAXS is not None
+    checkPair = UNTILTEDMIC is not None
 
-    if not skipAnalysis:
-        if XLM is not None and protAtom is not None:
+    if not skipAnalysis and (checkXlm or checkSaxs or checkPair):
+        msg = "\\section{Other experimental techniques}\n\n"
+        report.write(msg)
+
+        if checkXlm:
             xlmValidation(project, report, protAtom, XLM)
-        if SAXS is not None:
+        if checkSaxs:
             saxsValidation(project, report, protMap, protMask, SAXS)
-        tiltPairValidation(project, report, protMap, UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE,
-                           UNTILTEDCOORDS, TILTEDCOORDS, SYM)
+        if checkPair:
+            tiltPairValidation(project, report, protMap, UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE,
+                               UNTILTEDCOORDS, TILTEDCOORDS, SYM)

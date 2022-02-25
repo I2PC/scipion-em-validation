@@ -506,7 +506,6 @@ box.
     \\item Local real-space correlation coefficients CC (main chain) and CC (side chain) involve the main skeleton chain 
 and side chains, respectively.
 \\end{itemize}
-\\\\
 There are also multiple ways of measuring the resolution:
 \\begin{itemize}
     \\item d99: Resolution cutoff beyond which Fourier map coefficients are negligibly small. Calculated from the 
@@ -650,7 +649,6 @@ CC (main chain) = & %5.3f\\\\
     # CC per chain
     msg+=\
 """
-\\\\
 \\underline{Correlation coefficients per chain}:\\\\
 \\begin{center}
 \\begin{tabular}{cc}
