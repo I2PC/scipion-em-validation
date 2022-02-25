@@ -83,7 +83,7 @@ Pintilie, G., Zhang, K., Su, Z., Li, S., Schmid, M.~F., and Chiu, W. (2020).
 \\subsection{Level A.a MapQ}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-MapQ \\cite{Pintilie2021} computes the local correlation between the map and each one of its atoms assumed to
+MapQ \\cite{Pintilie2020} computes the local correlation between the map and each one of its atoms assumed to
 have a Gaussian shape.\\\\
 \\\\
 \\textbf{Results:}\\\\
