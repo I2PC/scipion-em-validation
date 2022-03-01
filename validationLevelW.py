@@ -32,8 +32,22 @@ import urllib.request
 from validationReport import calculateSha256
 
 def levelW(project, report, WORKFLOW, skipAnalysis=False):
-    fnWorkflow = WORKFLOW
+    secLabel = "sec:workflow"
     if WORKFLOW.startswith("http"):
+        msgWorkflow = "\\url{%s}" % WORKFLOW
+    else:
+        msgWorkflow = WORKFLOW.replace('_', '\_').replace('/', '/\-')
+    msg = \
+        """
+        \\section{Workflow}
+        \\label{%s}
+        Workflow file: %s \\\\
+        SHA256 hash: %s \\\\ 
+        \\\\
+        """ % (secLabel, msgWorkflow, calculateSha256(fnWorkflow))
+    report.write(msg)
+
+    if WORKFLOW.startswith("http://nolan.cnb.csic.es"):
         fnWorkflow = os.path.join(report.getReportDir(),"workflow.json")
         urlWorkflow = WORKFLOW
         if not urlWorkflow.endswith('.json'):
@@ -41,48 +55,33 @@ def levelW(project, report, WORKFLOW, skipAnalysis=False):
                         WORKFLOW.split('/')[-1]
             urllib.request.urlretrieve(urlWorkflow, fnWorkflow)
 
-    fh = open(fnWorkflow)
-    workflow = json.load(fh)
-    fh.close()
+        fh = open(fnWorkflow)
+        workflow = json.load(fh)
+        fh.close()
 
-    secLabel = "sec:workflow"
-    if WORKFLOW.startswith("http"):
-        msgWorkflow = "\\url{%s}" % WORKFLOW
-    else:
-        msgWorkflow = WORKFLOW.replace('_', '\_').replace('/', '/\-')
-    msg = \
-"""
-\\section{Workflow}
-\\label{%s}
-Workflow file: %s \\\\
-SHA256 hash: %s \\\\ 
-\\\\
-""" % (secLabel, msgWorkflow, calculateSha256(fnWorkflow))
-    report.write(msg)
+        dot = graphviz.Digraph()
 
-    dot = graphviz.Digraph()
+        # create nodes
+        for protocol in workflow:
+            dot.node(protocol['object.id'], protocol['object.label'])
 
-    # create nodes
-    for protocol in workflow:
-        dot.node(protocol['object.id'], protocol['object.label'])
-
-    # create edges
-    for protocol in workflow:
-        for key in protocol:
-            if 'input' in key:
-                source = protocol[key]
-                if isinstance(source, str):
-                    source = source.split('.')[0]
-                    dot.edge(source, protocol['object.id'])
-                if isinstance(source, list):
-                    for s in source:
-                        source = s.split('.')[0]
+        # create edges
+        for protocol in workflow:
+            for key in protocol:
+                if 'input' in key:
+                    source = protocol[key]
+                    if isinstance(source, str):
+                        source = source.split('.')[0]
                         dot.edge(source, protocol['object.id'])
+                    if isinstance(source, list):
+                        for s in source:
+                            source = s.split('.')[0]
+                            dot.edge(source, protocol['object.id'])
 
-    fnGraph = os.path.join(report.getReportDir(),"workflow.png")
-    dot.render(outfile=fnGraph, view=False)
+        fnGraph = os.path.join(report.getReportDir(),"workflow.png")
+        dot.render(outfile=fnGraph, view=False)
 
-    msg=\
+        msg=\
 """Fig. \\ref{fig:workflow} shows the image processing workflow followed in Scipion to achieve these results.
 
 \\begin{figure}[H]
@@ -93,6 +92,6 @@ SHA256 hash: %s \\\\
 \\end{figure}
 """%fnGraph
 
-    report.write(msg)
-    report.writeWarningsAndSummary(None, "W Workflow", secLabel)
+        report.write(msg)
 
+    report.writeWarningsAndSummary(None, "W Workflow", secLabel)
