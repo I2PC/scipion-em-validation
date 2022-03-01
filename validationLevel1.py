@@ -49,7 +49,11 @@ def importMap(project, label, fnMap, Ts):
                                objLabel=label,
                                filesPath=fnDir,
                                filesPattern=fnMap,
-                               samplingRate=Ts)
+                               samplingRate=Ts,
+                               setOrigCoord=True,
+                               x=0,
+                               y=0,
+                               z=0)
     project.launchProtocol(prot, wait=True)
     return prot
 
