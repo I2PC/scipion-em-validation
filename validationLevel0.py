@@ -44,7 +44,11 @@ def importMap(project, label, fnMap, fnMap1, fnMap2, Ts):
     prot = project.newProtocol(Prot,
                                objLabel=label,
                                filesPath=os.path.join(fnDir,fnMap),
-                               samplingRate=Ts)
+                               samplingRate=Ts,
+                               setOrigCoord=True,
+                               x=0,
+                               y=0,
+                               z=0)
     if fnMap1 is not None and fnMap2 is not None:
         prot.setHalfMaps.set(True)
         prot.half1map.set(fnMap1)
@@ -213,7 +217,7 @@ def maskAnalysis(report, volume, mask, Ts, threshold):
     Ts3 = math.pow(Ts,3)
 
     # Analysis of the raw mask
-    rawM = np.where(V>threshold,1,0)
+    rawM = np.where(V>=threshold,1,0)
 
     # Connected components
     structure = np.ones((3, 3, 3), dtype=np.int)
@@ -238,21 +242,27 @@ agree.
 \\\\
 \\underline{Raw mask}: At threshold %f, there are %d connected components with a total number of voxels of %d and
 a volume of %5.2f \\AA$^3$ (see Fig. \\ref{fig:rawMask}). 
-The size and percentage of the total number of voxels for the raw mask are listed below (up to 95\\%% of the mass),
+The size and percentage of the total number of voxels for the raw mask are listed below (up to 95\\%% of the mass or
+the first 100 clusters, whatever happens first),
 the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercentage):\\\\
 \\\\
 """%(secLabel,threshold, ncomponents, sumRawM, sumRawM*Ts3)
 
-    individualMass = [np.sum(labeled==i) for i in range(1,ncomponents+1)]
+    # individualMass = [np.sum(labeled==i) for i in range(1,ncomponents+1)]
+    individualMass = np.zeros(ncomponents+1)
+    for l in np.nditer(labeled):
+        individualMass[l]+=1
     idx = np.argsort(-np.asarray(individualMass)) # Minus is for sorting i descending order
     cumulatedMass = 0
     i = 0
     while cumulatedMass/sumRawM<0.95:
-        massi = individualMass[idx[i]]
-        cumulatedMass += massi
-        if i>0:
-            toWrite+=", "
-        toWrite+="(%d (%5.2f), %5.2f, %5.2f)"%(massi, massi*Ts3, 100.0*massi/sumRawM, 100.0*cumulatedMass/sumRawM)
+        if idx[i]>0:
+            massi = individualMass[idx[i]]
+            cumulatedMass += massi
+            if i<100:
+                if i>0:
+                    toWrite+=", "
+                toWrite+="(%d (%5.2f), %5.2f, %5.2f)"%(massi, massi*Ts3, 100.0*massi/sumRawM, 100.0*cumulatedMass/sumRawM)
         i+=1
     ncomponents95 = i
     toWrite+="\\\\ \\\\Number of components to reach 95\\%% of the mass: %d\\\\ \\\\"%ncomponents95
@@ -503,14 +513,6 @@ Fourier transform) of the experimental map, its fitted line, and the corrected m
     return bfactor
 
 def xmippDeepRes(project, report, label, map, mask, resolution):
-    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
-                                            'XmippProtDeepRes', doRaise=True)
-    prot = project.newProtocol(Prot,
-                               objLabel=label,
-                               inputVolume=map,
-                               Mask=mask)
-    project.launchProtocol(prot, wait=True)
-
     bblCitation= \
 """\\bibitem[Ram\\'{\i}rez-Aportela et~al., 2019]{Ramirez2019}
 Ram\\'{\i}rez-Aportela, E., Mota, J., Conesa, P., Carazo, J.~M., and Sorzano, C.
@@ -534,6 +536,19 @@ input map to the appearance of the atomic structures a local resolution label ca
 \\\\
 """%secLabel
     report.write(msg)
+
+    if resolution<2:
+        report.writeSummary("0.e DeepRes", secLabel, "{\\color{brown} Does not apply}")
+        report.write("This method cannot be applied to maps with a resolution better than 2\\AA.\\\\ \n")
+        return None
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtDeepRes', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel=label,
+                               inputVolume=map,
+                               Mask=mask)
+    project.launchProtocol(prot, wait=True)
 
     if prot.isFailed():
         report.writeSummary("0.e DeepRes", secLabel, "{\\color{red} Could not be measured}")
@@ -639,7 +654,7 @@ local magnitude and phase term using the spiral transform.\\\\
 """ % secLabel
     report.write(msg)
 
-    Prot = pwplugin.Domain.importFromPlugin('javimaps.protocols',
+    Prot = pwplugin.Domain.importFromPlugin('ucm.protocols',
                                             'ProtLocBFactor', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel=label,
@@ -651,7 +666,7 @@ local magnitude and phase term using the spiral transform.\\\\
 
     fnBfactor = prot._getExtraPath("bmap.mrc")
     if prot.isFailed() or not os.path.exists(fnBfactor):
-        report.writeSummary("0.f LocBfactor", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("0.f LocBfactor", secLabel, "{\\color{brown} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
@@ -743,7 +758,7 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
 """ % secLabel
     report.write(msg)
 
-    Prot = pwplugin.Domain.importFromPlugin('javimaps.protocols',
+    Prot = pwplugin.Domain.importFromPlugin('ucm.protocols',
                                             'ProtLocOccupancy', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel=label,
@@ -755,7 +770,7 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
 
     fnOccupancy = prot._getExtraPath("omap.mrc")
     if prot.isFailed() or not os.path.exists(fnOccupancy):
-        report.writeSummary("0.g LocOccupancy", secLabel, "{\\color{red} Could not be measured}")
+        report.writeSummary("0.g LocOccupancy", secLabel, "{\\color{brown} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
