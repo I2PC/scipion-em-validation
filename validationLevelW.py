@@ -37,6 +37,17 @@ def levelW(project, report, WORKFLOW, skipAnalysis=False):
         msgWorkflow = "\\url{%s}" % WORKFLOW
     else:
         msgWorkflow = WORKFLOW.replace('_', '\_').replace('/', '/\-')
+
+    if WORKFLOW.startswith("http://nolan.cnb.csic.es"):
+        fnWorkflow = os.path.join(report.getReportDir(),"workflow.json")
+        urlWorkflow = WORKFLOW
+        if not urlWorkflow.endswith('.json'):
+            urlWorkflow="http://nolan.cnb.csic.es/cryoemworkflowviewer/static/uploadedFiles/%s/workflow.json"%\
+                        WORKFLOW.split('/')[-1]
+            urllib.request.urlretrieve(urlWorkflow, fnWorkflow)
+    else:
+        fnWorkflow = WORKFLOW
+
     msg = \
         """
         \\section{Workflow}
@@ -47,51 +58,43 @@ def levelW(project, report, WORKFLOW, skipAnalysis=False):
         """ % (secLabel, msgWorkflow, calculateSha256(fnWorkflow))
     report.write(msg)
 
-    if WORKFLOW.startswith("http://nolan.cnb.csic.es"):
-        fnWorkflow = os.path.join(report.getReportDir(),"workflow.json")
-        urlWorkflow = WORKFLOW
-        if not urlWorkflow.endswith('.json'):
-            urlWorkflow="http://nolan.cnb.csic.es/cryoemworkflowviewer/static/uploadedFiles/%s/workflow.json"%\
-                        WORKFLOW.split('/')[-1]
-            urllib.request.urlretrieve(urlWorkflow, fnWorkflow)
+    fh = open(fnWorkflow)
+    workflow = json.load(fh)
+    fh.close()
 
-        fh = open(fnWorkflow)
-        workflow = json.load(fh)
-        fh.close()
+    dot = graphviz.Digraph()
 
-        dot = graphviz.Digraph()
+    # create nodes
+    for protocol in workflow:
+        dot.node(protocol['object.id'], protocol['object.label'])
 
-        # create nodes
-        for protocol in workflow:
-            dot.node(protocol['object.id'], protocol['object.label'])
-
-        # create edges
-        for protocol in workflow:
-            for key in protocol:
-                if 'input' in key:
-                    source = protocol[key]
-                    if isinstance(source, str):
-                        source = source.split('.')[0]
+    # create edges
+    for protocol in workflow:
+        for key in protocol:
+            if 'input' in key:
+                source = protocol[key]
+                if isinstance(source, str):
+                    source = source.split('.')[0]
+                    dot.edge(source, protocol['object.id'])
+                if isinstance(source, list):
+                    for s in source:
+                        source = s.split('.')[0]
                         dot.edge(source, protocol['object.id'])
-                    if isinstance(source, list):
-                        for s in source:
-                            source = s.split('.')[0]
-                            dot.edge(source, protocol['object.id'])
 
-        fnGraph = os.path.join(report.getReportDir(),"workflow.png")
-        dot.render(outfile=fnGraph, view=False)
+    fnGraph = os.path.join(report.getReportDir(),"workflow.png")
+    dot.render(outfile=fnGraph, view=False)
 
-        msg=\
+    msg=\
 """Fig. \\ref{fig:workflow} shows the image processing workflow followed in Scipion to achieve these results.
 
 \\begin{figure}[H]
-    \centering
-    \includegraphics[width=15cm]{%s}
-    \\caption{Image processing workflow in Scipion to achieve these results.}
-    \\label{fig:workflow}
+\centering
+\includegraphics[width=15cm]{%s}
+\\caption{Image processing workflow in Scipion to achieve these results.}
+\\label{fig:workflow}
 \\end{figure}
 """%fnGraph
 
-        report.write(msg)
+    report.write(msg)
 
     report.writeWarningsAndSummary(None, "W Workflow", secLabel)
