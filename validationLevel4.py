@@ -916,13 +916,45 @@ Baldwin, P.~R. and Lyumkis, D. (2020).
 \\newblock {\em Progress in Biophysics and Molecular Biology}, 150:160--183."""
     report.addCitation("Baldwin2020", bblCitation)
 
+    bblCitation = \
+        """\\bibitem[Baldwin and Lyumkis, 2021]{Baldwin2021}
+        Baldwin, P.~R. and Lyumkis, D. (2021).
+        \\newblock Non-uniformity of projection distributions attenuates resolution in {Cryo-EM}.
+        \\newblock {\em Progress in Biophysics and Molecular Biology}, 160:53--65."""
+    report.addCitation("Baldwin2021", bblCitation)
+
     secLabel = "sec:SCF"
     msg = \
 """
 \\subsection{Level 4.h Sampling compensation factor}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-SCF \\cite{Baldwin2020} measures the ability of the angular distribution to fill the Fourier space.\\\\
+The SCF \\cite{Baldwin2020, Baldwin2021} is a measure of how effectively projections have been arranged on the
+projection sphere in order to maximize
+the resulting SNR. It is evaluated over the particle assignments and estimates how much the global SSNR/FSC has been
+decremented due to deviations from uniformity in the projection distribution. The SCF calculation is based solely on
+the concept of Fourier sampling, which decouples from other parameters in simple estimates. The SCF does not take
+into account the CTF or any of the microscope effects. A low value of the SCF indicates an ineffective set of Euler
+angles. A poor distribution of sampling can additionally result in other issues, such as mis-assignment of Eulerian
+angles to the particles in the data, but that is not measured directly by the SCF. 
+
+The SCF is calculated by first evaluating the effective number of measurements that take place on a spiral grid on a 
+Fourier space sphere at some intermediate value of Fourier radius. Over these measurements, it is the ratio of the 
+harmonic mean of the sampling divided by the mean sampling; the resultant is a quantity equal to or less than 1, 
+where a value of 1 corresponds to a set of uniform views. For pure side views, the SCF value is theoretically 
+evaluated at 0.81. Pure side views give rise to a fully sampled and largely isotropic reconstruction, and the ~20%% 
+deviation from unity means that the spectral SNR is attenuated proportionally by that amount. Reconstructions 
+characterized by an SCF value between 0.81 and 1 are thus healthy reconstructions. Between ~0.5 and 0.81, one
+typically begins to observe small problems in the map and slightly elongated features due to non-uniform sampling and 
+resolution anisotropy. When the SCF drops below 0.5, there tend to be more serious issues in the reconstruction and 
+artifacts from resolution anisotropy. Values of SCF lower than 0.5 should encourage the experimentalist to reconsider 
+the preparation of the sample or the design of the experiment, for example by tilting the stage. In all cases, the 
+SCF provides a direct measure of the deviation from unity for the global spectral SNR. An SCF value of 0.5 and 0.25 
+means that two and four times as much data would need to be collected, respectively, to reach an equivalent 
+resolution as a fully sampled isotopic map characterized by an SCF of 1.0. However, as noted above, low SCF values 
+typically go hand in hand with issues that are more severe and not directly measured by sampling, such as Euler 
+angle mis-assignment.
+
 \\\\
 \\textbf{Results:}\\\\
 \\\\
