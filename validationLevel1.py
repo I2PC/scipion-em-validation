@@ -911,7 +911,7 @@ Fig. \\ref{fig:fsoContour}. %s
     # Warnings
     warnings=[]
     testWarnings = False
-    if resolution<0.8/f05 or testWarnings:
+    if (f05 is not None and resolution<0.8/f05) or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the resolution estimated by FSO, %5.2f \\AA.}}" % (resolution, 1/f05))
     msg = \
@@ -924,7 +924,8 @@ smaller than 0.8 times the resolution estimated by the first cross of FSO below 
     report.writeWarningsAndSummary(warnings, "1.g FSO", secLabel)
 
     cleanPattern(os.path.join(project.getPath(),"fscDirection*.xmd"))
-    report.addResolutionEstimate(1/f05)
+    if f05 is not None:
+        report.addResolutionEstimate(1/f05)
 
     return prot
 
