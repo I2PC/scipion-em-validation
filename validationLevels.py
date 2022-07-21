@@ -249,7 +249,8 @@ protImportMap, protCreateMask, bfactor, protResizeMap, protResizeMask = level0(
 if "1" in levels:
     from validationLevel1 import level1
     protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION,
-                                            protImportMap, protCreateMask, skipAnalysis = False)
+                                            protImportMap, protResizeMap, protCreateMask, protResizeMask,
+                                            skipAnalysis = False)
 
 # Level 2
 if "2" in levels:

@@ -928,18 +928,44 @@ smaller than 0.8 times the resolution estimated by the first cross of FSO below 
 
     return prot
 
-def fsc3d(project, report, label, protImportMap, protImportMap1, protImportMap2, protMask, resolution):
-    Xdim = protImportMap.outputVolume.getDim()[0]
+def resizeMapToTargetResolution(project, map, TsTarget):
+    Xdim = map.getDim()[0]
+    Ts = map.getSamplingRate()
+    AMap = Xdim * Ts
+
+    Xdimp = AMap/TsTarget
+    Xdimp = int(2*math.floor(Xdimp/2))
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtCropResizeVolumes', doRaise=True)
+    protResizeMap = project.newProtocol(Prot,
+                                        objLabel="Resize Volume Ts=%2.1f"%TsTarget,
+                                        doResize=True,
+                                        resizeSamplingRate=TsTarget,
+                                        doWindow=True,
+                                        windowOperation=1,
+                                        windowSize=Xdimp)
+    protResizeMap.inputVolumes.set(map)
+    project.launchProtocol(protResizeMap, wait=True)
+    return protResizeMap
+
+
+def fsc3d(project, report, label, protImportMapResize, protImportMap1, protImportMap2, protMaskResize, resolution):
+    Xdim = protImportMapResize.outputVol.getDim()[0]
+
+    protResizeHalf1 = resizeMapToTargetResolution(project, protImportMap1.outputVolume, resolution/2)
+    protResizeHalf2 = resizeMapToTargetResolution(project, protImportMap2.outputVolume, resolution/2)
+
 
     Prot = pwplugin.Domain.importFromPlugin('fsc3d.protocols',
                                             'Prot3DFSC', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel=label,
                                applyMask=True)
-    prot.inputVolume.set(protImportMap.outputVolume)
-    prot.volumeHalf1.set(protImportMap1.outputVolume)
-    prot.volumeHalf2.set(protImportMap2.outputVolume)
-    prot.maskVolume.set(protMask.outputMask)
+    prot.inputVolume.set(protImportMapResize.outputVol)
+    prot.volumeHalf1.set(protResizeHalf1.outputVol)
+    prot.volumeHalf2.set(protResizeHalf2.outputVol)
+    prot.maskVolume.set(protMaskResize.outputVol)
 
     project.launchProtocol(prot, wait=True)
 
@@ -960,7 +986,7 @@ This method analyzes the FSC in different directions and evaluates its homogenei
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
-    Ts = protImportMap.outputVolume.getSamplingRate()
+    Ts = protImportMapResize.outputVol.getSamplingRate()
     md=np.genfromtxt(prot._getExtraPath(os.path.join('Results_vol','Plotsvol.csv')), delimiter=' ')
     N=md.shape[0]
     f = np.arange(0,N)*2*Ts/Xdim
@@ -1059,7 +1085,8 @@ any structure in this difference. Sometimes some patterns are seen if the map is
                             "Slices of maximum variation in the three dimensions of the difference Half1-Half2.", Vdiff,
                             "fig:maxVarHalfDiff", maxVar=True)
 
-def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protCreateMask, skipAnalysis = False):
+def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protImportMapResized,
+           protCreateMask, protCreateMaskResized, skipAnalysis = False):
     # Import maps
     protImportMap1 = importMap(project, "import half1", fnMap1, Ts)
     if protImportMap1.isFailed():
@@ -1080,6 +1107,7 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protC
         monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
         monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
         fso(project, report, "1.g FSO", protImportMap, protCreateMask, resolution)
-        fsc3d(project, report, "1.h FSC3D", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
+        fsc3d(project, report, "1.h FSC3D", protImportMapResized, protImportMap1, protImportMap2,
+              protCreateMaskResized, resolution)
 
     return protImportMap1, protImportMap2
