@@ -999,10 +999,13 @@ This method analyzes the FSC in different directions and evaluates its homogenei
     fy = findFirstCross(f,fscy,0.143,'lesser')
     fz = findFirstCross(f,fscz,0.143,'lesser')
     fg = findFirstCross(f,fscg,0.143,'lesser')
-    fList = [1/fx, 1/fy, 1/fz, 1/fg]
-    strFSC3D = "The FSC 3D resolutions at a 0.143 threshold in X, Y, and Z are %5.2f, %5.2f, and %5.2f \AA, "\
-               "respectively. The global resolution at the same threshold is %5.2f \AA. The resolution range is "\
-               "[%5.2f,%5.2f]\AA."%(1/fx, 1/fy, 1/fz, 1/fg, np.min(fList), np.max(fList))
+    if fx is None or fy is None or fz is None or fg is None:
+        strFSC3D = "The FSC 3D did not cross the 0.143 threshold in at least one direction."
+    else:
+        fList = [1/fx, 1/fy, 1/fz, 1/fg]
+        strFSC3D = "The FSC 3D resolutions at a 0.143 threshold in X, Y, and Z are %5.2f, %5.2f, and %5.2f \AA, "\
+                   "respectively. The global resolution at the same threshold is %5.2f \AA. The resolution range is "\
+                   "[%5.2f,%5.2f]\AA."%(1/fx, 1/fy, 1/fz, 1/fg, np.min(fList), np.max(fList))
 
     fnDir = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','Plotsvol.jpg'))
     fnHist = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','histogram.png'))
@@ -1039,9 +1042,11 @@ the map power in Fourier space. %s
     # Warnings
     warnings=[]
     testWarnings = False
-    if resolution<0.8/fg or testWarnings:
+    if (fg is not None and resolution<0.8/fg) or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the resolution estimated by FSC3D, %5.2f \\AA.}}" % (resolution, 1/fg))
+    if fg is not None or testWarnings:
+        warnings.append("{\\color{red} \\textbf{We could not estimate the global FSC3D}}")
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the resolution provided by the user is not 
 smaller than 0.8 the resolution estimated by the first cross of the global directional FSC below 0.143.
