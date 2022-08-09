@@ -151,7 +151,7 @@ reported resolution of the map.
     testWarnings = False
     if np.sum(np.array(cc)<0.7)/len(cc)>0.2 or testWarnings:
         warnings.append("{\\color{red} \\textbf{A large fraction of the 2D classes, %4.1f\\%%, correlate less "\
-                        "than 0.7 with reprojections of the input map}}"%(np.sum(cc<0.7)/len(cc)*100))
+                        "than 0.7 with reprojections of the input map}}"%(np.sum(np.array(cc)<0.7)/len(cc)*100))
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the proportion of classes for which the correlation is below
 0.7 is smaller than 20\\%.
