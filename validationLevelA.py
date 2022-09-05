@@ -1001,12 +1001,23 @@ def reportInput(project, report, FNMODEL):
     msg = \
 """
 \\section{Atomic model}
+\\label{sec:atomicModel}\n\n
 Atomic model: %s \\\\
 \\\\"""%FNMODEL.replace('_','\_').replace('/','/\-')
     report.write(msg)
 
+    try:
+        h = AtomicStructHandler()
+        h.read(FNMODEL)
+    except:
+        warnings = []
+        warnings.append("{\\color{red} \\textbf{Biopython cannot safely read this PDB}}")
+        report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
+        return True
+
     msg = "See Fig. \\ref{fig:modelInput}.\\\\"
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
+    return False
 
 def levelA(project, report, protImportMap, FNMODEL, resolution, doMultimodel, skipAnalysis=False):
     if protImportMap.outputVolume.hasHalfMaps():
@@ -1017,7 +1028,7 @@ def levelA(project, report, protImportMap, FNMODEL, resolution, doMultimodel, sk
 
     protAtom = importModel(project, "Import atomic", protImportMap, FNMODEL)
 
-    reportInput(project, report, FNMODEL)
+    skipAnalysis = skipAnalysis or reportInput(project, report, FNMODEL)
 
     # Quality Measures
     if not skipAnalysis:
