@@ -202,26 +202,26 @@ def detectLevel(labels, args):
 levels = []
 if detectLevel(LEVEL0, argsPresent):
     levels.append("0")
-if detectLevel(LEVEL1, argsPresent):
+if detectLevel(LEVEL1, argsPresent) and detectLevel(LEVEL0, argsPresent):
     levels.append("1")
-if detectLevel(LEVEL2, argsPresent):
+if detectLevel(LEVEL2, argsPresent) and detectLevel(LEVEL0, argsPresent):
     levels.append("2")
-if detectLevel(LEVEL3, argsPresent):
+if detectLevel(LEVEL3, argsPresent) and detectLevel(LEVEL2, argsPresent):
     levels.append("3")
-if detectLevel(LEVEL4, argsPresent):
+if detectLevel(LEVEL4, argsPresent) and detectLevel(LEVEL3, argsPresent):
     levels.append("4")
-if detectLevel(LEVEL5, argsPresent):
+if detectLevel(LEVEL5, argsPresent) and detectLevel(LEVEL3, argsPresent):
     levels.append("5")
-if detectLevel(LEVELA, argsPresent):
+if detectLevel(LEVELA, argsPresent) and detectLevel(LEVEL0, argsPresent)
     levels.append("A")
 if detectLevel(LEVELW, argsPresent):
     levels.append("W")
-if detectLevel(LEVELOa, argsPresent):
+if detectLevel(LEVELOa, argsPresent) and detectLevel(LEVELA, argsPresent):
     levels.append("O")
-if detectLevel(LEVELOb, argsPresent):
+if detectLevel(LEVELOb, argsPresent) and detectLevel(LEVELA, argsPresent):
     if not "O" in levels:
         levels.append("O")
-if detectLevel(LEVELOc, argsPresent):
+if detectLevel(LEVELOc, argsPresent) and detectLevel(LEVELA, argsPresent):
     if not "O" in levels:
         levels.append("O")
 
