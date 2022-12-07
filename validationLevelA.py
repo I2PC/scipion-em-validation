@@ -215,6 +215,11 @@ def convertPDB(project, protImportMap, protAtom):
     protConvert.pdbObj.set(protAtom.outputPdb)
     protConvert.volObj.set(protImportMap.outputVolume)
     project.launchProtocol(protConvert, wait=True)
+    if protConvert.isFailed():
+        report.writeSummary("A. Conversion to PDB", secLabel, "{\\color{red} Could not be converted}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return None
+
     return protConvert
 
 def fscq(project, report, protImportMap, protAtom, protConvert):
@@ -1011,7 +1016,17 @@ Atomic model: %s \\\\
         h.read(FNMODEL)
     except:
         warnings = []
-        warnings.append("{\\color{red} \\textbf{Biopython cannot safely read this PDB}}")
+        warnings.append("{\\color{red} \\textbf{Biopython cannot safely read this atomic model}}")
+        report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
+        return True
+
+    try:
+        fnPdb = os.path.join(self.getReportDir(),"tmp.pdb")
+        h.writeAsPdb(fnPdb)
+        cleanPath(fnPdb)
+    except:
+        warnings = []
+        warnings.append("{\\color{red} \\textbf{Biopython cannot safely write this PDB}}")
         report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
         return True
 
@@ -1034,13 +1049,14 @@ def levelA(project, report, protImportMap, FNMODEL, resolution, doMultimodel, sk
     if not skipAnalysis:
         report.writeSection('Level A analysis')
         protConvert = convertPDB(project, protImportMap, protAtom)
-        mapq(project, report, protImportMap, protAtom, resolution)
-        fscq(project, report, protImportMap, protAtom, protConvert)
-        if doMultimodel:
-            multimodel(project, report, protImportMap, protAtom, resolution)
-        guinierModel(project, report, protImportMap, protConvert, resolution)
-        phenix(project, report, protImportForPhenix, protAtom, resolution)
-        emringer(project, report, protImportForPhenix, protAtom)
-        daq(project, report, protImportMap, protAtom)
+        if protConvert is not None:
+            mapq(project, report, protImportMap, protAtom, resolution)
+            fscq(project, report, protImportMap, protAtom, protConvert)
+            if doMultimodel:
+                multimodel(project, report, protImportMap, protAtom, resolution)
+            guinierModel(project, report, protImportMap, protConvert, resolution)
+            phenix(project, report, protImportForPhenix, protAtom, resolution)
+            emringer(project, report, protImportForPhenix, protAtom)
+            daq(project, report, protImportMap, protAtom)
 
     return protAtom
