@@ -24,7 +24,6 @@
 # *
 # **************************************************************************
 
-import math
 import numpy as np
 import os
 
@@ -35,6 +34,8 @@ import xmipp3
 
 from validationReport import reportHistogram
 
+from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
+
 def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportAverages', doRaise=True)
@@ -42,7 +43,9 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                objLabel=label,
                                filesPath=fnAvgs,
                                samplingRate=TsAvg)
-    project.launchProtocol(protImport, wait=True)
+    sendToSlurm(protImport)
+    project.launchProtocol(protImport)
+    waitOutput(project, protImport, 'outputAverages')
     if protImport.isFailed():
         raise Exception("Import averages did not work")
 
@@ -64,7 +67,9 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                       windowOperation=1,
                                       windowSize=XdimAvgsp)
     protResize1.inputParticles.set(protImport.outputAverages)
-    project.launchProtocol(protResize1, wait=True)
+    sendToSlurm(protResize1)
+    project.launchProtocol(protResize1)
+    waitOutput(project, protResize1, 'outputAverages')
 
     protResize2 = project.newProtocol(Prot,
                                       objLabel="Resize and resample Avgs",
@@ -74,7 +79,10 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                       windowOperation=1,
                                       windowSize=XdimMap)
     protResize2.inputParticles.set(protResize1.outputAverages)
-    project.launchProtocol(protResize2, wait=True)
+    sendToSlurm(protResize2)
+    project.launchProtocol(protResize2)
+    waitUntilFinishes(project, protResize2)
+
     return protImport, protResize2
 
 
@@ -88,7 +96,9 @@ def compareReprojections(project, report, protImportMap, protAvgs, symmetry):
                                symmetryGroup=symmetry)
     prot.inputSet.set(protAvgs.outputAverages)
     prot.inputVolume.set(protImportMap.outputVolume)
-    project.launchProtocol(prot, wait=True)
+    sendToSlurm(prot)
+    project.launchProtocol(prot)
+    waitOutput(project, prot, 'reprojections')
 
     secLabel = "sec:fsc3d"
     msg = \

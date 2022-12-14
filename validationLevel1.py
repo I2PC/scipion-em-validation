@@ -26,7 +26,6 @@
 
 import glob
 import math
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import scipy
@@ -37,9 +36,11 @@ from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPattern, cleanPath
 from pwem.emlib.image import ImageHandler
-from validationReport import readMap, latexEnumerate, calculateSha256, CDFFromHistogram, CDFpercentile, reportPlot, \
+from validationReport import readMap, calculateSha256, CDFFromHistogram, CDFpercentile, reportPlot, \
     radialPlot, reportMultiplePlots, reportHistogram
 import xmipp3
+
+from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFinishes
 
 def importMap(project, label, fnMap, Ts):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -54,7 +55,9 @@ def importMap(project, label, fnMap, Ts):
                                x=0,
                                y=0,
                                z=0)
-    project.launchProtocol(prot, wait=True)
+    sendToSlurm(prot)
+    project.launchProtocol(prot)
+    waitOutput(project, prot, 'outputVolume')
     return prot
 
 def findFirstCross(x,y,y0,mode):
@@ -81,7 +84,9 @@ def globalResolution(project, report, label, protImportMap1, protImportMap2, res
     prot.inputVolume.set(protImportMap1.outputVolume)
     prot.referenceVolume.set(protImportMap2.outputVolume)
 
-    project.launchProtocol(prot, wait=True)
+    sendToSlurm(prot)
+    project.launchProtocol(prot)
+    waitOutput(project, prot, 'outputFSC')
 
     bblCitation = \
 """\\bibitem[Sorzano et~al., 2017]{Sorzano2017}
@@ -289,7 +294,10 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
     prot.halfTwo.set(protImportMap2.outputVolume)
     prot.mask.set(protMask.outputMask)
 
-    project.launchProtocol(prot, wait=True)
+    sendToSlurm(prot)
+    project.launchProtocol(prot)
+    waitOutput(project, prot, 'outputFSC')
+
     if prot.isFailed():
         report.writeSummary("1.b FSC permutation", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -374,7 +382,10 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
     prot.inputVolume2.set(protImportMap2.outputVolume)
     prot.mask.set(protMask.outputMask)
 
-    project.launchProtocol(prot, wait=True)
+    sendToSlurm(prot)
+    project.launchProtocol(prot)
+    waitOutput(project, prot, 'resolution_Volume')
+
     if prot.isFailed():
         report.writeSummary("1.c Blocres", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -587,7 +598,10 @@ def monores(project, report, label, protImportMap, protCreateMask, resolution):
                                maxRes=max(10,5*resolution))
     prot.associatedHalves.set(protImportMap.outputVolume)
     prot.mask.set(protCreateMask.outputMask)
-    project.launchProtocol(prot, wait=True)
+    sendToSlurm(prot)
+    project.launchProtocol(prot)
+    waitOutput(project, prot, 'resolution_Volume')
+    waitOutputFile(project, prot, "hist.xmd")
 
     bblCitation = \
 """\\bibitem[Vilas et~al., 2018]{Vilas2018}
@@ -621,7 +635,8 @@ if its energy is signficantly above the level of noise.\\\\
         return prot
 
     md = xmipp3.MetaData()
-    md.read(prot._getExtraPath("hist.xmd"))
+    # md.read(prot._getExtraPath("hist.xmd"))
+    md.read(os.path.join(project.getPath(), prot._getExtraPath("hist.xmd")))
     x_axis = md.getColumnValues(xmipp3.MDL_X)
     y_axis = md.getColumnValues(xmipp3.MDL_COUNT)
 
@@ -701,7 +716,11 @@ def monodir(project, report, label, protImportMap, protCreateMask, resolution):
                                resstep=resolution/3)
     prot.inputVolumes.set(protImportMap.outputVolume)
     prot.Mask.set(protCreateMask.outputMask)
-    project.launchProtocol(prot, wait=True)
+    sendToSlurm(prot)
+    project.launchProtocol(prot)
+    waitOutput(project, prot, 'outputVolume_doa')
+    waitOutput(project, prot, 'azimuthalVolume')
+    waitOutput(project, prot, 'radialVolume')
 
     bblCitation = \
 """\\bibitem[Vilas et~al., 2020]{Vilas2020}
@@ -839,7 +858,9 @@ def fso(project, report, label, protImportMap, protMask, resolution):
     prot.inputHalves.set(protImportMap.outputVolume)
     prot.mask.set(protMask.outputMask)
 
-    project.launchProtocol(prot, wait=True)
+    sendToSlurm(prot)
+    project.launchProtocol(prot)
+    waitUntilFinishes(project, prot)
 
     secLabel = "sec:fso"
     msg = \
@@ -948,7 +969,8 @@ def resizeMapToTargetResolution(project, map, TsTarget):
                                         windowOperation=1,
                                         windowSize=Xdimp)
     protResizeMap.inputVolumes.set(map)
-    project.launchProtocol(protResizeMap, wait=True)
+    sendToSlurm(protResizeMap)
+    project.launchProtocol(protResizeMap)
     return protResizeMap
 
 
@@ -969,7 +991,9 @@ def fsc3d(project, report, label, protImportMapResize, protImportMap1, protImpor
     prot.volumeHalf2.set(protResizeHalf2.outputVol)
     prot.maskVolume.set(protMaskResize.outputVol)
 
-    project.launchProtocol(prot, wait=True)
+    sendToSlurm(prot)
+    project.launchProtocol(prot)
+    waitOutput(project, prot, 'outputVolume')
 
     secLabel = "sec:fsc3d"
     msg = \

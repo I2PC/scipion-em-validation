@@ -26,10 +26,12 @@
 
 import os
 import sys
+import math
 
 import pyworkflow.plugin as pwplugin
 from pyworkflow.project import Manager
 from pyworkflow.utils.path import makePath, copyFile, cleanPath
+from resourceManager import sendToSlurm, waitOutput
 
 def usage(message=''):
     print("\nMake a Map Validation Report"
@@ -212,7 +214,7 @@ if detectLevel(LEVEL4, argsPresent) and detectLevel(LEVEL3, argsPresent):
     levels.append("4")
 if detectLevel(LEVEL5, argsPresent) and detectLevel(LEVEL3, argsPresent):
     levels.append("5")
-if detectLevel(LEVELA, argsPresent) and detectLevel(LEVEL0, argsPresent)
+if detectLevel(LEVELA, argsPresent) and detectLevel(LEVEL0, argsPresent):
     levels.append("A")
 if detectLevel(LEVELW, argsPresent):
     levels.append("W")
@@ -240,60 +242,297 @@ os.chdir(fnProjectDir)
 from validationReport import ValidationReport
 report = ValidationReport(fnProjectDir, levels)
 
-# Level 0
-from validationLevel0 import level0
-protImportMap, protCreateMask, bfactor, protResizeMap, protResizeMask = level0(
-    project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, skipAnalysis = False)
+# Validate inputs formats
+wrongInputs = []
+# check 'map' arg
+fnDir, fnBase = os.path.split(FNMAP)
+protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
+                                           objLabel='check format - import map',
+                                           filesPath=os.path.join(fnDir,FNMAP),
+                                           samplingRate=TS,
+                                           setOrigCoord=True,
+                                           x=0,
+                                           y=0,
+                                           z=0)
+sendToSlurm(protImportMapChecker)
+project.launchProtocol(protImportMapChecker)
+waitOutput(project, protImportMapChecker, 'outputVolume')
+if protImportMapChecker.isFailed():
+    wrongInputs.append(FNMAP)
 
-# Level 1
 if "1" in levels:
-    from validationLevel1 import level1
-    protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION,
-                                            protImportMap, protResizeMap, protCreateMask, protResizeMask,
-                                            skipAnalysis = False)
+    # check 'map1' and 'map2' arg
+    # 'map1'
+    fnDir, fnBase = os.path.split(FNMAP1)
+    protImportMap1Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
+                                                objLabel='check format - import half1',
+                                                filesPath=fnDir,
+                                                filesPattern=FNMAP1,
+                                                samplingRate=TS,
+                                                setOrigCoord=True,
+                                                x=0,
+                                                y=0,
+                                                z=0)
 
-# Level 2
+    sendToSlurm(protImportMap1Checker)
+    project.launchProtocol(protImportMap1Checker)
+    waitOutput(project, protImportMap1Checker, 'outputVolume')
+    if protImportMap1Checker.isFailed():
+        wrongInputs.append(FNMAP1)
+
+    # 'map2'
+    fnDir, fnBase = os.path.split(FNMAP2)
+    protImportMap2Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
+                                                objLabel='check format - import half2',
+                                                filesPath=fnDir,
+                                                filesPattern=FNMAP2,
+                                                samplingRate=TS,
+                                                setOrigCoord=True,
+                                                x=0,
+                                                y=0,
+                                                z=0)
+
+    sendToSlurm(protImportMap2Checker)
+    project.launchProtocol(protImportMap2Checker)
+    waitOutput(project, protImportMap2Checker, 'outputVolume')
+    if protImportMap2Checker.isFailed():
+        wrongInputs.append(FNMAP2)
+
 if "2" in levels:
-    from validationLevel2 import level2
-    protImportAvgs, protAvgsResizeMap = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM, skipAnalysis = False)
+    # Check 'avgs' arg
+    protImportAvgsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportAverages', doRaise=True),
+                                                objLabel='check format - import averages',
+                                                filesPath=FNAVGS,
+                                                samplingRate=TSAVG)
+    sendToSlurm(protImportAvgsChecker)
+    project.launchProtocol(protImportAvgsChecker)
+    waitOutput(project, protImportAvgsChecker, 'outputAverages')
+    if protImportAvgsChecker.isFailed():
+        wrongInputs.append(FNAVGS)
 
-# Level 3
 if "3" in levels:
-    from validationLevel3 import level3
-    protImportParticles, protResizeParticlesMap, protResizeAvgs = level3(project, report, protImportMap, protImportAvgs,
-                                                                FNPARTICLES, TSPARTICLES, KV, CS, Q0,
-                                                                skipAnalysis = False)
+    # Check 'particles' arg
+    protImportParticlesChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportParticles', doRaise=True),
+                                                     objLabel='check format - import particles',
+                                                     filesPath=FNPARTICLES,
+                                                     samplingRate=TSPARTICLES,
+                                                     voltage=KV,
+                                                     sphericalAberration=CS,
+                                                     amplitudeContrast=Q0)
+    if FNPARTICLES.endswith(".sqlite"):
+        protImportParticlesChecker.importFrom.set(protImportParticlesChecker.IMPORT_FROM_SCIPION)
+        protImportParticlesChecker.sqliteFile.set(FNPARTICLES)
+    elif FNPARTICLES.endswith(".xmd"):
+        protImportParticlesChecker.importFrom.set(protImportParticlesChecker.IMPORT_FROM_XMIPP)
+        protImportParticlesChecker.mdFile.set(FNPARTICLES)
+    elif FNPARTICLES.endswith(".star"):
+        protImportParticlesChecker.importFrom.set(protImportParticlesChecker.IMPORT_FROM_RELION)
+        protImportParticlesChecker.starFile.set(FNPARTICLES)
+    sendToSlurm(protImportParticlesChecker)
+    project.launchProtocol(protImportParticlesChecker)
+    waitOutput(project, protImportParticlesChecker, 'outputParticles')
+    # check if particles has alignment
+    if protImportParticlesChecker.isFailed() or not protImportParticlesChecker.outputParticles.hasAlignment():
+        wrongInputs.append(FNPARTICLES)
 
-# Level 4
-if "4" in levels:
-    from validationLevel4 import level4
-    protResizeParticles = level4(project, report, protImportMap, protCreateMask, protResizeParticlesMap, SYM,
-                                 MAPRESOLUTION, bfactor, protResizeMap, protResizeMask, skipAnalysis = False)
-
-# Level 5
 if "5" in levels:
-    from validationLevel5 import level5
-    level5(project, report, protImportParticles, KV, CS, Q0, MICPATTERN, TSMIC, skipAnalysis = False)
+    # Check 'micrographs' arg
+    protImportMicrographsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportMicrographs', doRaise=True),
+                                     objLabel='check format - import mics',
+                                     samplingRate=TSMIC,
+                                     voltage=KV,
+                                     sphericalAberration=CS,
+                                     amplitudeContrast=Q0)
+    if MICPATTERN.endswith(".sqlite"):
+        protImportMicrographsChecker.importFrom.set(protImportMicrographsChecker.IMPORT_FROM_SCIPION)
+        protImportMicrographsChecker.sqliteFile.set(MICPATTERN)
+    else:
+        protImportMicrographsChecker.filesPattern.set(MICPATTERN)
+    sendToSlurm(protImportMicrographsChecker)
+    project.launchProtocol(protImportMicrographsChecker)
+    waitOutput(project, protImportMicrographsChecker, 'outputMicrographs')
+    if protImportMicrographsChecker.isFailed():
+        wrongInputs.append(MICPATTERN)
 
-# Level A
-if "A" in levels:
-    from validationLevelA import levelA
-    protAtom = levelA(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, skipAnalysis = False)
-else:
-    protAtom = None
+if "A" in levels and not protImportMapChecker.isFailed():
+    # Check 'atomicModel' arg
+    protImportAtomicModelChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportPdb', doRaise=True),
+                                                       objLabel='check format - import atomic',
+                                                       inputPdbData=1,
+                                                       pdbFile=FNMODEL)
+    protImportAtomicModelChecker.inputVolume.set(protImportMapChecker.outputVolume)
+    sendToSlurm(protImportAtomicModelChecker)
+    project.launchProtocol(protImportAtomicModelChecker)
+    waitOutput(project, protImportAtomicModelChecker, 'outputPdb')
+    if protImportAtomicModelChecker.isFailed():
+        wrongInputs.append(FNMODEL)
 
-# Level W
-if "W" in levels:
-    from validationLevelW import levelW
-    levelW(project, report, WORKFLOW, skipAnalysis = False)
+    try:
+        from pwem.convert.atom_struct import AtomicStructHandler
+        h = AtomicStructHandler()
+        h.read(FNMODEL)
+        fnPdb = os.path.join(report.getReportDir(),"tmp.pdb")
+        h.writeAsPdb(fnPdb)
+        cleanPath(fnPdb)
+    except:
+        wrongInputs.append("There is a problem reading %s or writing it as PDB"%FNMODEL)
 
-# Level O
-if "O" in levels:
-    from validationLevelO import levelO
-    levelO(project, report, protImportMap, protCreateMask, protAtom, XLM, SAXS,
-           UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
-           skipAnalysis = False)
+if "O" in levels and not protImportMapChecker.isFailed():
+    # Check 'xlm', 'saxs', 'untiltedMic', 'tiltedMic', 'untiltedCoords', 'tiltedCoords' args
+    # 'xlm'
+    if "A" in levels and not protImportAtomicModelChecker.isFailed():
+        protImportXLMChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xlmtools.protocols', 'ProtWLM', doRaise=True),
+                                                   objLabel="check format - XLM",
+                                                   xlList=XLM)
+        protImportXLMChecker.pdbs.set([protImportAtomicModelChecker.outputPdb])
+        sendToSlurm(protImportXLMChecker)
+        project.launchProtocol(protImportXLMChecker)
+        waitOutput(project, protImportXLMChecker, 'crosslinkStruct_1')
+        if protImportXLMChecker.isFailed():
+            wrongInputs.append(XLM)
+    # 'sax'
+    protCreateMask = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
+                                         objLabel='check format - create mask',
+                                         inputVolume=protImportMapChecker.outputVolume,
+                                         threshold=MAPTHRESHOLD,
+                                         doBig=True,
+                                         doMorphological=True,
+                                         elementSize=math.ceil(2/TS)) # Dilation by 2A
+    sendToSlurm(protCreateMask)
+    project.launchProtocol(protCreateMask)
+    waitOutput(project, protCreateMask, 'outputMask')
 
-# Close report
-report.abstractResolution(MAPRESOLUTION)
-report.closeReport()
+    protPseudo = project.newProtocol(pwplugin.Domain.importFromPlugin('continuousflex.protocols', 'FlexProtConvertToPseudoAtoms', doRaise=True),
+                                     objLabel="check format - convert Map to Pseudo",
+                                     maskMode=2,
+                                     pseudoAtomRadius=1.5)
+    protPseudo.inputStructure.set(protImportMapChecker.outputVolume)
+    protPseudo.volumeMask.set(protCreateMask.outputMask)
+    sendToSlurm(protPseudo)
+    project.launchProtocol(protPseudo)
+    waitOutput(project, protPseudo, 'outputVolume')
+    waitOutput(project, protPseudo, 'outputPdb')
+
+    protImportSaxsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('atsas.protocols',
+                                                                                 'AtsasProtConvertPdbToSAXS', doRaise=True),
+                                                objLabel="check format - SAXS",
+                                                experimentalSAXS=SAXS)
+    protImportSaxsChecker.inputStructure.set(protPseudo.outputPdb)
+    sendToSlurm(protImportSaxsChecker)
+    project.launchProtocol(protImportSaxsChecker)
+    if protImportSaxsChecker.isFailed():
+        wrongInputs.append(SAXS)
+
+    # 'untiltedMic' and 'tiltedMic'
+    protImportTiltPairsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportMicrographsTiltPairs', doRaise=True),
+                                                     objLabel="check format - import tilt pairs",
+                                                     patternUntilted=UNTILTEDMIC,
+                                                     patternTilted=TILTEDMIC,
+                                                     voltage=TILTKV,
+                                                     ampContrast=TILTQ0,
+                                                     sphericalAberration=TILTCS,
+                                                     samplingRate=TILTTS)
+    sendToSlurm(protImportTiltPairsChecker)
+    project.launchProtocol(protImportTiltPairsChecker)
+    waitOutput(project, protImportTiltPairsChecker, 'outputMicrographsTiltPair')
+    if protImportTiltPairsChecker.isFailed():
+        wrongInputs.extend([UNTILTEDMIC, TILTEDMIC])
+
+    # 'untiltedCoords' and 'tiltedCoords'
+    x, y, z = protImportMapChecker.outputVolume.getDimensions()
+    Ts = protImportMapChecker.outputVolume.getSamplingRate()
+    dMap = x * Ts
+    boxSize = int(dMap / TILTTS)
+    protImportCoordsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportCoordinatesPairs', doRaise=True),
+                                                  objLabel="check format - import paired coordinates",
+                                                  patternUntilted=UNTILTEDCOORDS,
+                                                  patternTilted=TILTEDCOORDS,
+                                                  boxSize=boxSize)
+    if UNTILTEDCOORDS.endswith('.json'):
+        protImportCoordsChecker.importFrom.set(1)
+    protImportCoordsChecker.inputMicrographsTiltedPair.set(protImportTiltPairsChecker.outputMicrographsTiltPair)
+    sendToSlurm(protImportCoordsChecker)
+    project.launchProtocol(protImportCoordsChecker)
+    waitOutput(project, protImportCoordsChecker, 'outputCoordinatesTiltPair')
+    if protImportCoordsChecker.isFailed():
+        wrongInputs.extend([UNTILTEDCOORDS, TILTEDCOORDS])
+
+
+# if some input data was wrong do whatever we want: inform the user, write error msg in report, etc.
+#if protImportMapChecker.isFailed() or protImportMap1Checker.isFailed() or protImportMap2Checker.isFailed() or \
+if protImportMapChecker.isFailed() or \
+        (protImportMap1Checker.isFailed() if "1" in levels and 'protImportMap1Checker' in locals() else None) or \
+        (protImportMap2Checker.isFailed() if "1" in levels and 'protImportMap2Checker' in locals() else None) or \
+        (protImportAvgsChecker.isFailed() if "2" in levels and 'protImportAvgsChecker' in locals() else None) or \
+        (protImportParticlesChecker.isFailed() if "3" in levels and 'protImportParticlesChecker' in locals() else None) or \
+        (protImportMicrographsChecker.isFailed() if "5" in levels and 'protImportMicrographsChecker' in locals() else None) or \
+        (protImportAtomicModelChecker.isFailed() if "A" in levels and 'protImportAtomicModelChecker' in locals() else None) or \
+        (protImportXLMChecker.isFailed() if "O" in levels and 'protImportXLMChecker' in locals() else None) or \
+        (protImportSaxsChecker.isFailed() if "O" in levels and 'protImportSaxsChecker' in locals() else None) or \
+        (protImportTiltPairsChecker.isFailed() if "O" in levels and 'protImportTiltPairsChecker' in locals() else None) or \
+        (protImportCoordsChecker.isFailed() if "O" in levels and 'protImportCoordsChecker' in locals() else None) or \
+        len(wrongInputs)>0:
+    print("Some input data was not correct")
+    with open (os.path.join(report.fnReportDir, 'wrongInputs.log'), 'w') as f:
+        for input in wrongInputs:
+            f.write(input+'\n')
+
+else: # go ahead
+    print("All inputs were correct, let's process them!")
+    # Level 0
+    from validationLevel0 import level0
+    protImportMap, protCreateMask, bfactor, protResizeMap, protResizeMask = level0(
+        project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, skipAnalysis = False)
+
+    # Level 1
+    if "1" in levels:
+        from validationLevel1 import level1
+        protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION,
+                                                protImportMap, protResizeMap, protCreateMask, protResizeMask,
+                                                skipAnalysis = False)
+
+    # Level 2
+    if "2" in levels:
+        from validationLevel2 import level2
+        protImportAvgs, protAvgsResizeMap = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM, skipAnalysis = False)
+
+    # Level 3
+    if "3" in levels:
+        from validationLevel3 import level3
+        protImportParticles, protResizeParticlesMap, protResizeAvgs = level3(project, report, protImportMap, protImportAvgs,
+                                                                    FNPARTICLES, TSPARTICLES, KV, CS, Q0,
+                                                                    skipAnalysis = False)
+
+    # Level 4
+    if "4" in levels:
+        from validationLevel4 import level4
+        protResizeParticles = level4(project, report, protImportMap, protCreateMask, protResizeParticlesMap, SYM,
+                                     MAPRESOLUTION, bfactor, protResizeMap, protResizeMask, skipAnalysis = False)
+
+    # Level 5
+    if "5" in levels:
+        from validationLevel5 import level5
+        level5(project, report, protImportParticles, KV, CS, Q0, MICPATTERN, TSMIC, skipAnalysis = False)
+
+    # Level A
+    if "A" in levels:
+        from validationLevelA import levelA
+        protAtom = levelA(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, skipAnalysis = False)
+    else:
+        protAtom = None
+
+    # Level W
+    if "W" in levels:
+        from validationLevelW import levelW
+        levelW(project, report, WORKFLOW, skipAnalysis = False)
+
+    # Level O
+    if "O" in levels:
+        from validationLevelO import levelO
+        levelO(project, report, protImportMap, protCreateMask, protAtom, XLM, SAXS,
+               UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
+               skipAnalysis = False)
+
+    # Close report
+    report.abstractResolution(MAPRESOLUTION)
+    report.closeReport()
