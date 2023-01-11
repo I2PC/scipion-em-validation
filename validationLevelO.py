@@ -33,7 +33,7 @@ import pyworkflow.plugin as pwplugin
 
 from validationReport import calculateSha256, reportMultiplePlots, radialPlot, reportHistogram
 
-from resourceManager import waitOutput, sendToSlurm
+from resourceManager import waitOutput, sendToSlurm, waitOutputFile, waitUntilFinishes
 
 def xlmValidation(project, report, protAtom, XLM):
     bblCitation = \
@@ -70,7 +70,8 @@ be thought as a measure of the residue surface exposure.\\\\
     prot.pdbs.set([protAtom.outputPdb])
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'crosslinkStruct_1')
+    #waitOutput(project, prot, 'crosslinkStruct_1')
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("O.a XLM", secLabel, "{\\color{red} Could not be measured}")
@@ -173,8 +174,9 @@ obtained by a SAXS experiment. \\\\
     protPseudo.volumeMask.set(protMask.outputMask)
     sendToSlurm(protPseudo)
     project.launchProtocol(protPseudo)
-    waitOutput(project, protPseudo, 'outputVolume')
-    waitOutput(project, protPseudo, 'outputPdb')
+    #waitOutput(project, protPseudo, 'outputVolume')
+    #waitOutput(project, protPseudo, 'outputPdb')
+    waitUntilFinishes(project, protPseudo)
     if protPseudo.isFailed():
         report.writeSummary("O.b SAXS", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -188,6 +190,8 @@ obtained by a SAXS experiment. \\\\
     prot.inputStructure.set(protPseudo.outputPdb)
     sendToSlurm(prot)
     project.launchProtocol(prot)
+    #waitOutputFile(project, prot, "crysol_summary.txt")
+    waitUntilFinishes(project, prot)
     if prot.isFailed():
         report.writeSummary("O.b SAXS", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -263,7 +267,8 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
                                samplingRate=TILTTS)
     sendToSlurm(protImport)
     project.launchProtocol(protImport)
-    waitOutput(project, protImport, 'outputMicrographsTiltPair')
+    #waitOutput(project, protImport, 'outputMicrographsTiltPair')
+    waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -286,7 +291,8 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     protCoords.inputMicrographsTiltedPair.set(protImport.outputMicrographsTiltPair)
     sendToSlurm(protCoords)
     project.launchProtocol(protCoords)
-    waitOutput(project, protCoords, 'outputCoordinatesTiltPair')
+    #waitOutput(project, protCoords, 'outputCoordinatesTiltPair')
+    waitUntilFinishes(project, protCoords)
     if protCoords.isFailed():
         report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -301,7 +307,8 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     protExtract.inputCoordinatesTiltedPairs.set(protCoords.outputCoordinatesTiltPair)
     sendToSlurm(protExtract)
     project.launchProtocol(protExtract)
-    waitOutput(project, protExtract, 'outputParticlesTiltPair')
+    #waitOutput(project, protExtract, 'outputParticlesTiltPair')
+    waitUntilFinishes(project, protExtract)
     if protExtract.isFailed():
         report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -319,7 +326,8 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     protResize.inputVolumes.set(protMap.outputVolume)
     sendToSlurm(protResize)
     project.launchProtocol(protResize)
-    waitOutput(project, protResize, 'outputVol')
+    #waitOutput(project, protResize, 'outputVol')
+    waitUntilFinishes(project, protResize)
 
     Prot = pwplugin.Domain.importFromPlugin('eman2.protocols',
                                             'EmanProtTiltValidate', doRaise=True)
@@ -337,12 +345,13 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     prot.inputTiltPair.set(protExtract.outputParticlesTiltPair)
     sendToSlurm(prot)
     project.launchProtocol(prot)
+    #waitUntilFinishes(project, prot)
+    waitUntilFinishes(project, prot)
     if prot.isFailed():
         report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return None
-
-    fnAngles = prot._getExtraPath("TiltValidate_01/perparticletilts.json")
+    fnAngles = os.path.join(project.getPath(),prot._getExtraPath("TiltValidate_01/perparticletilts.json"))
     with open(fnAngles) as jsonFile:
         jsonDict = json.load(jsonFile)
     tiltpairs = jsonDict["particletilt_list"]

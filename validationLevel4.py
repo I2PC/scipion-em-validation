@@ -33,7 +33,7 @@ import pyworkflow.plugin as pwplugin
 import xmipp3
 
 from validationReport import reportHistogram, reportPlot, reportMultiplePlots
-from resourceManager import waitOutput, sendToSlurm, skipSlurm, waitUntilFinishes
+from resourceManager import waitOutput, sendToSlurm, skipSlurm, waitUntilFinishes, waitOutputFile
 
 def resizeProject(project, protMap, protParticles, resolution):
     Xdim = protMap.outputVolume.getDim()[0]
@@ -56,7 +56,8 @@ def resizeProject(project, protMap, protParticles, resolution):
     protResizeParticles.inputParticles.set(protParticles.outputParticles)
     sendToSlurm(protResizeParticles)
     project.launchProtocol(protResizeParticles)
-    waitOutput(project, protResizeParticles, 'outputParticles')
+    #waitOutput(project, protResizeParticles, 'outputParticles')
+    waitUntilFinishes(project, protResizeParticles)
 
     return protResizeParticles
 
@@ -78,8 +79,9 @@ def similarityMeasures(project, report, protMap, protMask, protParticles, symmet
     prot.nextMask.set(protMask.outputMask)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputVolume')
-    waitOutput(project, prot, 'outputParticles')
+    #waitOutput(project, prot, 'outputVolume')
+    #waitOutput(project, prot, 'outputParticles')
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
 """\\bibitem[Sorzano et~al., 2015]{Sorzano2015b}
@@ -216,8 +218,9 @@ of the smoothed cross-correlation landscape.\\\\
                                numberOfMpi=8)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputParticles')
-    waitOutput(project, prot, 'outputParticlesAux')
+    #waitOutput(project, prot, 'outputParticles')
+    #waitOutput(project, prot, 'outputParticlesAux')
+    waitUntilFinishes(project, prot)
 
     md = xmipp3.MetaData(prot._getExtraPath("Iter1/anglesDisc.xmd"))
     dist2Max = np.array(md.getColumnValues(xmipp3.MDL_GRAPH_DISTANCE2MAX_PREVIOUS))
@@ -275,8 +278,9 @@ def multirefAlignability(project, report, protMap, protMask, protParticles, symm
     prot.inputParticles.set(protParticles.outputParticles)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputParticles')
-    waitOutput(project, prot, 'outputVolumes')
+    #waitOutput(project, prot, 'outputParticles')
+    #waitOutput(project, prot, 'outputVolumes')
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
 """\\bibitem[Vargas et~al., 2017]{Vargas2017}
@@ -392,8 +396,9 @@ def compareAlignment(project, report, refmap, protRefParticles, protReconstructi
     protAlign.inputParticles.set(protReconstruction.outputParticles)
     sendToSlurm(protAlign)
     project.launchProtocol(protAlign)
-    waitOutput(project, protAlign, 'outputVolume')
-    waitOutput(project, protAlign, 'outputParticles')
+    #waitOutput(project, protAlign, 'outputVolume')
+    #waitOutput(project, protAlign, 'outputParticles')
+    waitUntilFinishes(project, protAlign)
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtCompareAngles', doRaise=True)
@@ -404,7 +409,8 @@ def compareAlignment(project, report, refmap, protRefParticles, protReconstructi
     protCompare.inputParticles2.set(protReconstruction.outputParticles)
     sendToSlurm(protCompare)
     project.launchProtocol(protCompare)
-    waitOutput(project, protCompare, 'outputParticles')
+    #waitOutput(project, protCompare, 'outputParticles')
+    waitUntilFinishes(project, protCompare)
 
     allShiftDiffs = []
     allAngleDiffs = []
@@ -482,9 +488,10 @@ def relionAlignment(project, report, protResizeMap, protResizeMask, protResizePa
     prot.referenceMask.set(protResizeMask.outputVol)
     sendToSlurm(prot, GPU=True)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputVolume')
-    waitOutput(project, prot, 'outputParticles')
-    waitOutput(project, prot, 'outputFSC')
+    #waitOutput(project, prot, 'outputVolume')
+    #waitOutput(project, prot, 'outputParticles')
+    #waitOutput(project, prot, 'outputFSC')
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
         """\\bibitem[Scheres, 2012]{Scheres2012}
@@ -558,9 +565,10 @@ def cryosparcAlignment(project, report, protMap, protMask, protParticles, symmet
 
     skipSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputVolume')
-    waitOutput(project, prot, 'outputParticles')
-    waitOutput(project, prot, 'outputFSC')
+    #waitOutput(project, prot, 'outputVolume')
+    #waitOutput(project, prot, 'outputParticles')
+    #waitOutput(project, prot, 'outputFSC')
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
 """\\bibitem[Punjani et~al., 2020]{Punjani2020}
@@ -673,8 +681,9 @@ def relionClassification(project, report, protMap, protMask, protParticles, symm
     prot.referenceMask.set(protMask.outputVol)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputClasses')
-    waitOutput(project, prot, 'outputVolumes')
+    #waitOutput(project, prot, 'outputClasses')
+    #waitOutput(project, prot, 'outputVolumes')
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
         """\\bibitem[Scheres, 2012]{Scheres2012}
@@ -725,6 +734,8 @@ arbitrary number of images in each one, but without any significant structural d
 """
         report.write(msg)
     elif len(Nimgs)==2:
+        #waitOutputFile(project, prot, representative[0].split("/")[-1])
+        #waitOutputFile(project, prot, representative[1].split("/")[-1])
         V1 = xmipp3.Image(representative[0]+":mrc")
         V2 = xmipp3.Image(representative[1]+":mrc")
         Vdiff = V1-V2
@@ -869,8 +880,9 @@ def angularDistributionEfficiency(project, report, protResizeParticles, symmetry
     prot.inputParticles.set(protResizeParticles.outputParticles)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputVolume1')
-    waitOutput(project, prot, 'outputVolume2')
+    #waitOutput(project, prot, 'outputVolume1')
+    #waitOutput(project, prot, 'outputVolume2')
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
 """\\bibitem[Naydenova and Russo, 2017]{Naydenova2017}
@@ -1065,7 +1077,8 @@ def ctfStability(project, report, protRefinement, protResizeParticles, protResiz
     protPostprocess.solventMask.set(protResizeMask.outputVol)
     sendToSlurm(protPostprocess)
     project.launchProtocol(protPostprocess)
-    waitOutput(project, protPostprocess, 'outputVolume')
+    #waitOutput(project, protPostprocess, 'outputVolume')
+    waitUntilFinishes(project, protPostprocess)
 
     secLabel = "sec:ctfStability"
     msg = \
@@ -1100,7 +1113,8 @@ the differences in defoci cannot be larger than the ice thickness. We also estim
     prot.inputPostprocess.set(protPostprocess)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputParticles')
+    #waitOutput(project, prot, 'outputParticles')
+    waitUntilFinishes(project, prot)
 
     md1 = xmipp3.MetaData("particles@"+prot._getPath("input_particles.star"))
     md2 = xmipp3.MetaData("particles@"+prot._getExtraPath("particles_ctf_refine.star"))

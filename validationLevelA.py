@@ -50,7 +50,9 @@ def importMap(project, label, protImportMap):
                                samplingRate=protImportMap.outputVolume.getSamplingRate())
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputVolume')
+    #waitOutput(project, prot, 'outputVolume')
+    #prueba
+    waitUntilFinishes(project, prot)
     return prot
 
 def importModel(project, label, protImportMap, FNMODEL):
@@ -63,7 +65,9 @@ def importModel(project, label, protImportMap, FNMODEL):
     protImport.inputVolume.set(protImportMap.outputVolume)
     sendToSlurm(protImport)
     project.launchProtocol(protImport)
-    waitOutput(project, protImport, 'outputPdb')
+    #waitOutput(project, protImport, 'outputPdb')
+    #prueba
+    waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import atomic model did not work")
 
@@ -101,7 +105,9 @@ have a Gaussian shape.\\\\
                                mapRes=resolution)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'scoredStructures')
+    #waitOutput(project, prot, 'scoredStructures')
+    #prueba
+    waitUntilFinishes(project, prot)
     if prot.isFailed():
         report.writeSummary("A.a MapQ", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -219,7 +225,9 @@ def convertPDB(project, report, protImportMap, protAtom):
     protConvert.volObj.set(protImportMap.outputVolume)
     sendToSlurm(protConvert)
     project.launchProtocol(protConvert)
-    waitOutput(project, protConvert, 'outputVolume')
+    #waitOutput(project, protConvert, 'outputVolume')
+    #prueba
+    waitUntilFinishes(project, protConvert)
     if protConvert.isFailed():
         report.writeSummary("A. Conversion to PDB", secLabel, "{\\color{red} Could not be converted}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -265,7 +273,9 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
     prot.pdbMap.set(protConvert.outputVolume)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputAtomStruct')
+    #waitOutput(project, prot, 'outputAtomStruct')
+    #prueba
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("A.b FSC-Q", secLabel, "{\\color{red} Could not be measured}")
@@ -351,7 +361,8 @@ the different local resolutions or local heterogeneity.\\\\
                                  numMods=2)
     sendToSlurm(prot1, GPU=True)
     project.launchProtocol(prot1)
-    waitOutput(project, prot1, 'outputAtomStructs')
+    #waitOutput(project, prot1, 'outputAtomStructs')
+    #prueba
     waitUntilFinishes(project, prot1)
 
 
@@ -367,7 +378,9 @@ the different local resolutions or local heterogeneity.\\\\
                                 inputStructureSet=prot1.outputAtomStructs)
     sendToSlurm(prot2)
     project.launchProtocol(prot2)
-    waitOutput(project, prot2, 'outputAtomStructs')
+    #waitOutput(project, prot2, 'outputAtomStructs')
+    #prueba
+    waitUntilFinishes(project, prot2)
     if prot2.isFailed():
         report.writeSummary("A.c Multimodel", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -842,8 +855,10 @@ that may need improvement.
     prot.inputStructure.set(protAtom.outputPdb)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'stringDataDict')
+    #waitOutput(project, prot, 'stringDataDict')
     #waitOutputFile(project, prot, '*_emringer_plots')
+    #prueba
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("A.f EMRinger", secLabel, "{\\color{red} Could not be measured}")
@@ -967,7 +982,9 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     prot.inputAtomStruct.set(protAtom.outputPdb)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputAtomStruct')
+    #waitOutput(project, prot, 'outputAtomStruct')
+    #prueba
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("A.f DAQ", secLabel, "{\\color{red} Could not be measured}")

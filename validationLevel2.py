@@ -45,7 +45,8 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                samplingRate=TsAvg)
     sendToSlurm(protImport)
     project.launchProtocol(protImport)
-    waitOutput(project, protImport, 'outputAverages')
+    #waitOutput(project, protImport, 'outputAverages')
+    waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import averages did not work")
 
@@ -69,7 +70,8 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
     protResize1.inputParticles.set(protImport.outputAverages)
     sendToSlurm(protResize1)
     project.launchProtocol(protResize1)
-    waitOutput(project, protResize1, 'outputAverages')
+    #waitOutput(project, protResize1, 'outputAverages')
+    waitUntilFinishes(project, protResize1)
 
     protResize2 = project.newProtocol(Prot,
                                       objLabel="Resize and resample Avgs",
@@ -98,7 +100,8 @@ def compareReprojections(project, report, protImportMap, protAvgs, symmetry):
     prot.inputVolume.set(protImportMap.outputVolume)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'reprojections')
+    #waitOutput(project, prot, 'reprojections')
+    waitUntilFinishes(project, prot)
 
     secLabel = "sec:fsc3d"
     msg = \

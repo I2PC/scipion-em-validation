@@ -31,7 +31,7 @@ import math
 import pyworkflow.plugin as pwplugin
 from pyworkflow.project import Manager
 from pyworkflow.utils.path import makePath, copyFile, cleanPath
-from resourceManager import sendToSlurm, waitOutput
+from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes
 
 def usage(message=''):
     print("\nMake a Map Validation Report"
@@ -256,7 +256,8 @@ protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwe
                                            z=0)
 sendToSlurm(protImportMapChecker)
 project.launchProtocol(protImportMapChecker)
-waitOutput(project, protImportMapChecker, 'outputVolume')
+#waitOutput(project, protImportMapChecker, 'outputVolume')
+waitUntilFinishes(project, protImportMapChecker)
 if protImportMapChecker.isFailed():
     wrongInputs.append(FNMAP)
 
@@ -276,7 +277,8 @@ if "1" in levels:
 
     sendToSlurm(protImportMap1Checker)
     project.launchProtocol(protImportMap1Checker)
-    waitOutput(project, protImportMap1Checker, 'outputVolume')
+    #waitOutput(project, protImportMap1Checker, 'outputVolume')
+    waitUntilFinishes(project, protImportMap1Checker)
     if protImportMap1Checker.isFailed():
         wrongInputs.append(FNMAP1)
 
@@ -294,7 +296,8 @@ if "1" in levels:
 
     sendToSlurm(protImportMap2Checker)
     project.launchProtocol(protImportMap2Checker)
-    waitOutput(project, protImportMap2Checker, 'outputVolume')
+    #waitOutput(project, protImportMap2Checker, 'outputVolume')
+    waitUntilFinishes(project, protImportMap2Checker)
     if protImportMap2Checker.isFailed():
         wrongInputs.append(FNMAP2)
 
@@ -306,7 +309,8 @@ if "2" in levels:
                                                 samplingRate=TSAVG)
     sendToSlurm(protImportAvgsChecker)
     project.launchProtocol(protImportAvgsChecker)
-    waitOutput(project, protImportAvgsChecker, 'outputAverages')
+    #waitOutput(project, protImportAvgsChecker, 'outputAverages')
+    waitUntilFinishes(project, protImportAvgsChecker)
     if protImportAvgsChecker.isFailed():
         wrongInputs.append(FNAVGS)
 
@@ -330,7 +334,8 @@ if "3" in levels:
         protImportParticlesChecker.starFile.set(FNPARTICLES)
     sendToSlurm(protImportParticlesChecker)
     project.launchProtocol(protImportParticlesChecker)
-    waitOutput(project, protImportParticlesChecker, 'outputParticles')
+    #waitOutput(project, protImportParticlesChecker, 'outputParticles')
+    waitUntilFinishes(project, protImportParticlesChecker)
     # check if particles has alignment
     if protImportParticlesChecker.isFailed() or not protImportParticlesChecker.outputParticles.hasAlignment():
         wrongInputs.append(FNPARTICLES)
@@ -350,7 +355,8 @@ if "5" in levels:
         protImportMicrographsChecker.filesPattern.set(MICPATTERN)
     sendToSlurm(protImportMicrographsChecker)
     project.launchProtocol(protImportMicrographsChecker)
-    waitOutput(project, protImportMicrographsChecker, 'outputMicrographs')
+    #waitOutput(project, protImportMicrographsChecker, 'outputMicrographs')
+    waitUntilFinishes(project, protImportMicrographsChecker)
     if protImportMicrographsChecker.isFailed():
         wrongInputs.append(MICPATTERN)
 
@@ -363,7 +369,8 @@ if "A" in levels and not protImportMapChecker.isFailed():
     protImportAtomicModelChecker.inputVolume.set(protImportMapChecker.outputVolume)
     sendToSlurm(protImportAtomicModelChecker)
     project.launchProtocol(protImportAtomicModelChecker)
-    waitOutput(project, protImportAtomicModelChecker, 'outputPdb')
+    #waitOutput(project, protImportAtomicModelChecker, 'outputPdb')
+    waitUntilFinishes(project, protImportAtomicModelChecker)
     if protImportAtomicModelChecker.isFailed():
         wrongInputs.append(FNMODEL)
 
@@ -387,7 +394,9 @@ if "O" in levels and not protImportMapChecker.isFailed():
         protImportXLMChecker.pdbs.set([protImportAtomicModelChecker.outputPdb])
         sendToSlurm(protImportXLMChecker)
         project.launchProtocol(protImportXLMChecker)
-        waitOutput(project, protImportXLMChecker, 'crosslinkStruct_1')
+        #waitOutput(project, protImportXLMChecker, 'crosslinkStruct_1')
+        waitUntilFinishes(project, protImportXLMChecker)
+
         if protImportXLMChecker.isFailed():
             wrongInputs.append(XLM)
     # 'sax'
@@ -400,7 +409,9 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                          elementSize=math.ceil(2/TS)) # Dilation by 2A
     sendToSlurm(protCreateMask)
     project.launchProtocol(protCreateMask)
-    waitOutput(project, protCreateMask, 'outputMask')
+    #waitOutput(project, protCreateMask, 'outputMask')
+    waitUntilFinishes(project, protCreateMask)
+
 
     protPseudo = project.newProtocol(pwplugin.Domain.importFromPlugin('continuousflex.protocols', 'FlexProtConvertToPseudoAtoms', doRaise=True),
                                      objLabel="check format - convert Map to Pseudo",
@@ -410,8 +421,10 @@ if "O" in levels and not protImportMapChecker.isFailed():
     protPseudo.volumeMask.set(protCreateMask.outputMask)
     sendToSlurm(protPseudo)
     project.launchProtocol(protPseudo)
-    waitOutput(project, protPseudo, 'outputVolume')
-    waitOutput(project, protPseudo, 'outputPdb')
+    #waitOutput(project, protPseudo, 'outputVolume')
+    #waitOutput(project, protPseudo, 'outputPdb')
+    waitUntilFinishes(project, protPseudo)
+
 
     protImportSaxsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('atsas.protocols',
                                                                                  'AtsasProtConvertPdbToSAXS', doRaise=True),
@@ -434,7 +447,9 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                                      samplingRate=TILTTS)
     sendToSlurm(protImportTiltPairsChecker)
     project.launchProtocol(protImportTiltPairsChecker)
-    waitOutput(project, protImportTiltPairsChecker, 'outputMicrographsTiltPair')
+    #waitOutput(project, protImportTiltPairsChecker, 'outputMicrographsTiltPair')
+    waitUntilFinishes(project, protImportTiltPairsChecker)
+
     if protImportTiltPairsChecker.isFailed():
         wrongInputs.extend([UNTILTEDMIC, TILTEDMIC])
 
@@ -453,7 +468,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
     protImportCoordsChecker.inputMicrographsTiltedPair.set(protImportTiltPairsChecker.outputMicrographsTiltPair)
     sendToSlurm(protImportCoordsChecker)
     project.launchProtocol(protImportCoordsChecker)
-    waitOutput(project, protImportCoordsChecker, 'outputCoordinatesTiltPair')
+    #waitOutput(project, protImportCoordsChecker, 'outputCoordinatesTiltPair')
+    waitUntilFinishes(project, protImportCoordsChecker)
     if protImportCoordsChecker.isFailed():
         wrongInputs.extend([UNTILTEDCOORDS, TILTEDCOORDS])
 

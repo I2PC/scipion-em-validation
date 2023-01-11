@@ -57,7 +57,8 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
         protImport.starFile.set(fnParticles)
     sendToSlurm(protImport)
     project.launchProtocol(protImport)
-    waitOutput(project, protImport, 'outputParticles')
+    #waitOutput(project, protImport, 'outputParticles')
+    waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import averages did not work")
 
@@ -115,7 +116,8 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
         protResize1.inputParticles.set(protImport.outputParticles)
         sendToSlurm(protResize1)
         project.launchProtocol(protResize1)
-        waitOutput(project, protResize1, 'outputParticles')
+        #waitOutput(project, protResize1, 'outputParticles')
+        waitUntilFinishes(project, protResize1)
 
         protResize2 = project.newProtocol(Prot,
                                           objLabel="Resize and resample Ptcls 4",
@@ -127,7 +129,8 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
         protResize2.inputParticles.set(protResize1.outputParticles)
         sendToSlurm(protResize2)
         project.launchProtocol(protResize2)
-        waitOutput(project, protResize2, 'outputParticles')
+        #waitOutput(project, protResize2, 'outputParticles')
+        waitUntilFinishes(project, protResize2)
         protResizeAvgs = protResize2
 
     return protImport, protResizeMap, protResizeAvgs
@@ -142,7 +145,8 @@ def classAnalysis(project, report, protParticles, protClasses):
 
     sendToSlurm(protGL2D, GPU=True)
     project.launchProtocol(protGL2D)
-    waitOutput(project, protGL2D, 'outputClasses')
+    #waitOutput(project, protGL2D, 'outputClasses')
+    waitUntilFinishes(project, protGL2D)
 
     bblCitation = \
 """\\bibitem[Sorzano et~al., 2014]{Sorzano2014}
@@ -182,7 +186,8 @@ the images assigned to that class.\\\\
     protCore.inputClasses.set(protGL2D.outputClasses)
     sendToSlurm(protCore)
     project.launchProtocol(protCore)
-    waitOutput(project, protCore, 'outputClasses_core')
+    #waitOutput(project, protCore, 'outputClasses_core')
+    waitUntilFinishes(project, protCore)
 
     originalSize = {}
     for item in protGL2D.outputClasses:
@@ -340,7 +345,8 @@ def newClassification(project, report, protParticles, protClasses):
     protClassif2D.inputParticles.set(protParticles.outputParticles)
     skipSlurm(protClassif2D)
     project.launchProtocol(protClassif2D)
-    waitOutput(project, protClassif2D, 'outputClasses')
+    #waitOutput(project, protClassif2D, 'outputClasses')
+    waitUntilFinishes(project, protClassif2D)
 
     bblCitation = \
 """\\bibitem[Punjani et~al., 2017]{Punjani2017b}

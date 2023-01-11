@@ -29,7 +29,7 @@ import os
 import pyworkflow.plugin as pwplugin
 
 from validationReport import plotMicrograph
-from resourceManager import waitOutput, sendToSlurm
+from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
 def importMicrographs(project, label, fnMics, TsMics, kV, Cs, Q0):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -47,7 +47,8 @@ def importMicrographs(project, label, fnMics, TsMics, kV, Cs, Q0):
         protImport.filesPattern.set(fnMics)
     sendToSlurm(protImport)
     project.launchProtocol(protImport)
-    waitOutput(project, protImport, 'outputMicrographs')
+    #waitOutput(project, protImport, 'outputMicrographs')
+    waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import micrographs did not work")
 
@@ -62,7 +63,8 @@ def extractCoords(project, label, protImportParticles, protMics):
     prot.inputMicrographs.set(protMics.outputMicrographs)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputCoordinates')
+    #waitOutput(project, prot, 'outputCoordinates')
+    waitUntilFinishes(project, prot)
     if prot.isFailed():
         raise Exception("Extract coordinates did not work")
 
@@ -110,7 +112,8 @@ def micCleaner(project, report, label, protCoords):
 
     sendToSlurm(prot, GPU=True)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputCoordinates_Auto_090')
+    #waitOutput(project, prot, 'outputCoordinates_Auto_090')
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
 """\\bibitem[Sanchez-Garcia et~al., 2020]{Sanchez2020}

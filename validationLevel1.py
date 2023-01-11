@@ -57,7 +57,9 @@ def importMap(project, label, fnMap, Ts):
                                z=0)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputVolume')
+    #waitOutput(project, prot, 'outputVolume')
+    waitUntilFinishes(project, prot)
+
     return prot
 
 def findFirstCross(x,y,y0,mode):
@@ -86,7 +88,8 @@ def globalResolution(project, report, label, protImportMap1, protImportMap2, res
 
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputFSC')
+    #waitOutput(project, prot, 'outputFSC')
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
 """\\bibitem[Sorzano et~al., 2017]{Sorzano2017}
@@ -296,7 +299,8 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
 
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputFSC')
+    #waitOutput(project, prot, 'outputFSC')
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("1.b FSC permutation", secLabel, "{\\color{red} Could not be measured}")
@@ -384,7 +388,8 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
 
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'resolution_Volume')
+    #waitOutput(project, prot, 'resolution_Volume')
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("1.c Blocres", secLabel, "{\\color{red} Could not be measured}")
@@ -600,8 +605,9 @@ def monores(project, report, label, protImportMap, protCreateMask, resolution):
     prot.mask.set(protCreateMask.outputMask)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'resolution_Volume')
-    waitOutputFile(project, prot, "hist.xmd")
+    #waitOutput(project, prot, 'resolution_Volume')
+    #waitOutputFile(project, prot, "hist.xmd")
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
 """\\bibitem[Vilas et~al., 2018]{Vilas2018}
@@ -718,9 +724,10 @@ def monodir(project, report, label, protImportMap, protCreateMask, resolution):
     prot.Mask.set(protCreateMask.outputMask)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputVolume_doa')
-    waitOutput(project, prot, 'azimuthalVolume')
-    waitOutput(project, prot, 'radialVolume')
+    #waitOutput(project, prot, 'outputVolume_doa')
+    #waitOutput(project, prot, 'azimuthalVolume')
+    #waitOutput(project, prot, 'radialVolume')
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
 """\\bibitem[Vilas et~al., 2020]{Vilas2020}
@@ -969,8 +976,7 @@ def resizeMapToTargetResolution(project, map, TsTarget):
                                         windowOperation=1,
                                         windowSize=Xdimp)
     protResizeMap.inputVolumes.set(map)
-    sendToSlurm(protResizeMap)
-    project.launchProtocol(protResizeMap)
+    project.launchProtocol(protResizeMap, wait=True)
     return protResizeMap
 
 
@@ -993,7 +999,8 @@ def fsc3d(project, report, label, protImportMapResize, protImportMap1, protImpor
 
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputVolume')
+    #waitOutput(project, prot, 'outputVolume')
+    waitUntilFinishes(project, prot)
 
     secLabel = "sec:fsc3d"
     msg = \
@@ -1081,7 +1088,8 @@ smaller than 0.8 the resolution estimated by the first cross of the global direc
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.h FSC3D", secLabel)
-    report.addResolutionEstimate(1/fg)
+    if fg is not None:
+        report.addResolutionEstimate(1/fg)
 
 
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):

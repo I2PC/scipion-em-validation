@@ -37,7 +37,7 @@ from validationReport import readMap, readGuinier, latexEnumerate, calculateSha2
 
 import xmipp3
 
-from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile
+from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes
 
 def importMap(project, label, fnMap, fnMap1, fnMap2, Ts):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -58,7 +58,8 @@ def importMap(project, label, fnMap, fnMap1, fnMap2, Ts):
 
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputVolume')
+    #waitOutput(project, prot, 'outputVolume')
+    waitUntilFinishes(project, prot)
     return prot
 
 def createMask(project, label, map, Ts, threshold):
@@ -73,7 +74,8 @@ def createMask(project, label, map, Ts, threshold):
                                elementSize=math.ceil(2/Ts)) # Dilation by 2A
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputMask')
+    #waitOutput(project, prot, 'outputMask')
+    waitUntilFinishes(project, prot)
     return prot
 
 def resizeProject(project, protMap, protMask, resolution):
@@ -97,7 +99,8 @@ def resizeProject(project, protMap, protMask, resolution):
     protResizeMap.inputVolumes.set(protMap.outputVolume)
     sendToSlurm(protResizeMap)
     project.launchProtocol(protResizeMap)
-    waitOutput(project, protResizeMap, 'outputVol')
+    #waitOutput(project, protResizeMap, 'outputVol')
+    waitUntilFinishes(project, protResizeMap)
 
     projectPath = os.path.join(project.getPath())
     subprocess.call(['chmod', '-R', 'o+r', projectPath])
@@ -112,7 +115,8 @@ def resizeProject(project, protMap, protMask, resolution):
     protResizeMask.inputVolumes.set(protMask.outputMask)
     sendToSlurm(protResizeMask)
     project.launchProtocol(protResizeMask)
-    waitOutput(project, protResizeMask, 'outputVol')
+    #waitOutput(project, protResizeMask, 'outputVol')
+    waitUntilFinishes(project, protResizeMask)
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtPreprocessVolumes', doRaise=True)
@@ -125,7 +129,8 @@ def resizeProject(project, protMap, protMask, resolution):
     protPreprocessMask.inputVolumes.set(protResizeMask.outputVol)
     sendToSlurm(protPreprocessMask)
     project.launchProtocol(protPreprocessMask)
-    waitOutput(project, protPreprocessMask, 'outputVol')
+    #waitOutput(project, protPreprocessMask, 'outputVol')
+    waitUntilFinishes(project, protPreprocessMask)
 
     return protResizeMap, protPreprocessMask
 
@@ -602,7 +607,8 @@ input map to the appearance of the atomic structures a local resolution label ca
                                Mask=mask)
     skipSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'resolution_Volume')
+    #waitOutput(project, prot, 'resolution_Volume')
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("0.e DeepRes", secLabel, "{\\color{red} Could not be measured}")
@@ -718,8 +724,9 @@ local magnitude and phase term using the spiral transform.\\\\
                                numberOfThreads=1)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'bmap')
-    waitOutputFile(project, prot, "bmap.mrc")
+    #waitOutput(project, prot, 'bmap')
+    #waitOutputFile(project, prot, "bmap.mrc")
+    waitUntilFinishes(project, prot)
 
     fnBfactor = prot._getExtraPath("bmap.mrc")
     if prot.isFailed() or not os.path.exists(fnBfactor):
@@ -825,7 +832,8 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
                                numberOfThreads=1)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'omap')
+    #waitOutput(project, prot, 'omap')
+    waitUntilFinishes(project, prot)
 
     fnOccupancy = prot._getExtraPath("omap.mrc")
     if prot.isFailed() or not os.path.exists(fnOccupancy):
@@ -928,8 +936,9 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
                                threshold=threshold)
     sendToSlurm(prot)
     project.launchProtocol(prot)
-    waitOutput(project, prot, 'outputHand')
-    waitOutput(project, prot, 'outputVol')
+    #waitOutput(project, prot, 'outputHand')
+    #waitOutput(project, prot, 'outputVol')
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("0.h DeepHand", secLabel, "{\\color{red} Could not be measured}")
