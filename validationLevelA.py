@@ -51,7 +51,6 @@ def importMap(project, label, protImportMap):
     sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
-    #prueba
     waitUntilFinishes(project, prot)
     return prot
 
@@ -66,7 +65,6 @@ def importModel(project, label, protImportMap, FNMODEL):
     sendToSlurm(protImport)
     project.launchProtocol(protImport)
     #waitOutput(project, protImport, 'outputPdb')
-    #prueba
     waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import atomic model did not work")
@@ -106,7 +104,6 @@ have a Gaussian shape.\\\\
     sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'scoredStructures')
-    #prueba
     waitUntilFinishes(project, prot)
     if prot.isFailed():
         report.writeSummary("A.a MapQ", secLabel, "{\\color{red} Could not be measured}")
@@ -226,7 +223,6 @@ def convertPDB(project, report, protImportMap, protAtom):
     sendToSlurm(protConvert)
     project.launchProtocol(protConvert)
     #waitOutput(project, protConvert, 'outputVolume')
-    #prueba
     waitUntilFinishes(project, protConvert)
     if protConvert.isFailed():
         report.writeSummary("A. Conversion to PDB", secLabel, "{\\color{red} Could not be converted}")
@@ -274,7 +270,6 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
     sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputAtomStruct')
-    #prueba
     waitUntilFinishes(project, prot)
 
     if prot.isFailed():
@@ -362,7 +357,6 @@ the different local resolutions or local heterogeneity.\\\\
     sendToSlurm(prot1, GPU=True)
     project.launchProtocol(prot1)
     #waitOutput(project, prot1, 'outputAtomStructs')
-    #prueba
     waitUntilFinishes(project, prot1)
 
 
@@ -379,7 +373,6 @@ the different local resolutions or local heterogeneity.\\\\
     sendToSlurm(prot2)
     project.launchProtocol(prot2)
     #waitOutput(project, prot2, 'outputAtomStructs')
-    #prueba
     waitUntilFinishes(project, prot2)
     if prot2.isFailed():
         report.writeSummary("A.c Multimodel", secLabel, "{\\color{red} Could not be measured}")
@@ -857,7 +850,6 @@ that may need improvement.
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'stringDataDict')
     #waitOutputFile(project, prot, '*_emringer_plots')
-    #prueba
     waitUntilFinishes(project, prot)
 
     if prot.isFailed():
@@ -983,7 +975,6 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputAtomStruct')
-    #prueba
     waitUntilFinishes(project, prot)
 
     if prot.isFailed():
