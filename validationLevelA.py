@@ -41,13 +41,17 @@ import xmipp3
 from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot
 from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
-def importMap(project, label, protImportMap):
+def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel=label,
                                filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
-                               samplingRate=protImportMap.outputVolume.getSamplingRate())
+                               samplingRate=protImportMap.outputVolume.getSamplingRate(),
+                               setOrigCoord=True,
+                               x=mapCoordX,
+                               y=mapCoordY,
+                               z=mapCoordZ)
     sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
@@ -1067,9 +1071,9 @@ Atomic model: %s \\\\
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
     return False
 
-def levelA(project, report, protImportMap, FNMODEL, resolution, doMultimodel, skipAnalysis=False):
+def levelA(project, report, protImportMap, FNMODEL, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis=False):
     if protImportMap.outputVolume.hasHalfMaps():
-        protImportMapWOHalves = importMap(project, "Import map2", protImportMap)
+        protImportMapWOHalves = importMap(project, "Import map2", protImportMap, mapCoordX, mapCoordY, mapCoordZ)
         protImportForPhenix = protImportMapWOHalves
     else:
         protImportForPhenix = protImportMap
