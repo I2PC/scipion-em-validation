@@ -27,11 +27,13 @@
 import os
 import sys
 import math
+import numpy as np
 
 import pyworkflow.plugin as pwplugin
 from pyworkflow.project import Manager
 from pyworkflow.utils.path import makePath, copyFile, cleanPath
 from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes
+from validationReport import readMap
 
 def usage(message=''):
     print("\nMake a Map Validation Report"
@@ -252,7 +254,7 @@ from validationReport import ValidationReport
 report = ValidationReport(fnProjectDir, levels)
 
 # Validate inputs formats
-wrongInputs = []
+wrongInputs = {'errors':[], 'warnings':[]}
 # check 'map' arg
 fnDir, fnBase = os.path.split(FNMAP)
 protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
@@ -268,7 +270,25 @@ project.launchProtocol(protImportMapChecker)
 #waitOutput(project, protImportMapChecker, 'outputVolume')
 waitUntilFinishes(project, protImportMapChecker)
 if protImportMapChecker.isFailed():
-    wrongInputs.append(FNMAP)
+    wrongInputs['errors'].append({'param': 'map', 'value': FNMAP, 'cause': 'There is a problem reading the volume map file'})
+
+else:
+    # check if we can have a proper mask with the thresold specified
+    protCreateMaskChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
+                                                objLabel='check proper mask',
+                                                inputVolume=protImportMapChecker.outputVolume,
+                                                threshold=MAPTHRESHOLD,
+                                                doBig=True,
+                                                doMorphological=True,
+                                                elementSize=math.ceil(2/TS)) # Dilation by 2A
+    sendToSlurm(protCreateMaskChecker)
+    project.launchProtocol(protCreateMaskChecker)
+    waitUntilFinishes(project, protCreateMaskChecker)
+
+    M = readMap(protCreateMaskChecker.outputMask.getFileName()).getData()
+    totalMass = np.sum(M)
+    if not totalMass > 0:
+        wrongInputs['errors'].append({'param': 'threshold', 'value': MAPTHRESHOLD, 'cause': 'The mask obtained from the volume map is empty, try to lower the threshold value'})
 
 if "1" in levels:
     # check 'map1' and 'map2' arg
@@ -289,7 +309,7 @@ if "1" in levels:
     #waitOutput(project, protImportMap1Checker, 'outputVolume')
     waitUntilFinishes(project, protImportMap1Checker)
     if protImportMap1Checker.isFailed():
-        wrongInputs.append(FNMAP1)
+        wrongInputs['errors'].append({'param': 'map1', 'value': FNMAP1, 'cause': 'There is a problem reading the half-map1 file'})
 
     # 'map2'
     fnDir, fnBase = os.path.split(FNMAP2)
@@ -308,7 +328,7 @@ if "1" in levels:
     #waitOutput(project, protImportMap2Checker, 'outputVolume')
     waitUntilFinishes(project, protImportMap2Checker)
     if protImportMap2Checker.isFailed():
-        wrongInputs.append(FNMAP2)
+        wrongInputs['errors'].append({'param': 'map2', 'value': FNMAP2, 'cause': 'There is a problem reading the half-map2 file'})
 
 if "2" in levels:
     # Check 'avgs' arg
@@ -321,7 +341,7 @@ if "2" in levels:
     #waitOutput(project, protImportAvgsChecker, 'outputAverages')
     waitUntilFinishes(project, protImportAvgsChecker)
     if protImportAvgsChecker.isFailed():
-        wrongInputs.append(FNAVGS)
+        wrongInputs['errors'].append({'param': 'avgs', 'value': FNAVGS, 'cause': 'There is a problem reading the 2D Classes file'})
 
 if "3" in levels:
     # Check 'particles' arg
@@ -347,7 +367,7 @@ if "3" in levels:
     waitUntilFinishes(project, protImportParticlesChecker)
     # check if particles has alignment
     if protImportParticlesChecker.isFailed() or not protImportParticlesChecker.outputParticles.hasAlignment():
-        wrongInputs.append(FNPARTICLES)
+        wrongInputs['errors'].append({'param': 'particles', 'value': FNPARTICLES, 'cause': 'There is a problem reading the particles file'})
 
 if "5" in levels:
     # Check 'micrographs' arg
@@ -367,7 +387,7 @@ if "5" in levels:
     #waitOutput(project, protImportMicrographsChecker, 'outputMicrographs')
     waitUntilFinishes(project, protImportMicrographsChecker)
     if protImportMicrographsChecker.isFailed():
-        wrongInputs.append(MICPATTERN)
+        wrongInputs['errors'].append({'param': 'micrographs', 'value': MICPATTERN, 'cause': 'There is a problem reading the micrographs file'})
 
 if "A" in levels and not protImportMapChecker.isFailed():
     # Check 'atomicModel' arg
@@ -381,7 +401,7 @@ if "A" in levels and not protImportMapChecker.isFailed():
     #waitOutput(project, protImportAtomicModelChecker, 'outputPdb')
     waitUntilFinishes(project, protImportAtomicModelChecker)
     if protImportAtomicModelChecker.isFailed():
-        wrongInputs.append(FNMODEL)
+        wrongInputs['errors'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'There is a problem reading the atomic model file'})
 
     try:
         from pwem.convert.atom_struct import AtomicStructHandler
@@ -391,7 +411,7 @@ if "A" in levels and not protImportMapChecker.isFailed():
         h.writeAsPdb(fnPdb)
         cleanPath(fnPdb)
     except:
-        wrongInputs.append("There is a problem reading %s or writing it as PDB"%FNMODEL)
+        wrongInputs['errors'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'There is a problem writing the atomic model file as PDB'})
 
 if "O" in levels and not protImportMapChecker.isFailed():
     # Check 'xlm', 'saxs', 'untiltedMic', 'tiltedMic', 'untiltedCoords', 'tiltedCoords' args
@@ -407,7 +427,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
         waitUntilFinishes(project, protImportXLMChecker)
 
         if protImportXLMChecker.isFailed():
-            wrongInputs.append(XLM)
+            wrongInputs['errors'].append({'param': 'xlm', 'value': XLM, 'cause': 'There is a problem reading the XML file'})
     # 'sax'
     protCreateMask = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
                                          objLabel='check format - create mask',
@@ -443,7 +463,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
     sendToSlurm(protImportSaxsChecker)
     project.launchProtocol(protImportSaxsChecker)
     if protImportSaxsChecker.isFailed():
-        wrongInputs.append(SAXS)
+        wrongInputs['errors'].append({'param': 'saxs', 'value': SAXS, 'cause': 'There is a problem reading the SAXS file'})
 
     # 'untiltedMic' and 'tiltedMic'
     protImportTiltPairsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportMicrographsTiltPairs', doRaise=True),
@@ -460,7 +480,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
     waitUntilFinishes(project, protImportTiltPairsChecker)
 
     if protImportTiltPairsChecker.isFailed():
-        wrongInputs.extend([UNTILTEDMIC, TILTEDMIC])
+        wrongInputs['errors'].append( {'param': 'untiltedMic', 'value': UNTILTEDMIC, 'cause': 'There is a problem reading the untilted mic file'})
+        wrongInputs['errors'].append({'param': 'tiltedMic', 'value': TILTEDMIC, 'cause': 'There is a problem reading the tilted mic file'})
 
     # 'untiltedCoords' and 'tiltedCoords'
     x, y, z = protImportMapChecker.outputVolume.getDimensions()
@@ -480,8 +501,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
     #waitOutput(project, protImportCoordsChecker, 'outputCoordinatesTiltPair')
     waitUntilFinishes(project, protImportCoordsChecker)
     if protImportCoordsChecker.isFailed():
-        wrongInputs.extend([UNTILTEDCOORDS, TILTEDCOORDS])
-
+        wrongInputs['errors'].append({'param': 'untiltedCoords', 'value': UNTILTEDCOORDS, 'cause': 'There is a problem reading the untilted coords file'})
+        wrongInputs['errors'].append({'param': 'tiltedCoords', 'value': TILTEDCOORDS, 'cause': 'There is a problem reading the tilted coords file'})
 
 # if some input data was wrong do whatever we want: inform the user, write error msg in report, etc.
 #if protImportMapChecker.isFailed() or protImportMap1Checker.isFailed() or protImportMap2Checker.isFailed() or \
@@ -498,9 +519,8 @@ if protImportMapChecker.isFailed() or \
         (protImportCoordsChecker.isFailed() if "O" in levels and 'protImportCoordsChecker' in locals() else None) or \
         len(wrongInputs)>0:
     print("Some input data was not correct")
-    with open (os.path.join(report.fnReportDir, 'wrongInputs.log'), 'w') as f:
-        for input in wrongInputs:
-            f.write(input+'\n')
+    with open (os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f:
+        f.write(str(wrongInputs))
 
 else: # go ahead
     print("All inputs were correct, let's process them!")
