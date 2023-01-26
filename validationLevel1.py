@@ -42,7 +42,7 @@ import xmipp3
 
 from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFinishes
 
-def importMap(project, label, fnMap, Ts):
+def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
     fnDir, fnBase = os.path.split(fnMap)
@@ -52,9 +52,9 @@ def importMap(project, label, fnMap, Ts):
                                filesPattern=fnMap,
                                samplingRate=Ts,
                                setOrigCoord=True,
-                               x=0,
-                               y=0,
-                               z=0)
+                               x=mapCoordX,
+                               y=mapCoordY,
+                               z=mapCoordZ)
     sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
@@ -1124,13 +1124,13 @@ any structure in this difference. Sometimes some patterns are seen if the map is
                             "Slices of maximum variation in the three dimensions of the difference Half1-Half2.", Vdiff,
                             "fig:maxVarHalfDiff", maxVar=True)
 
-def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protImportMapResized,
+def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized,
            protCreateMask, protCreateMaskResized, skipAnalysis = False):
     # Import maps
-    protImportMap1 = importMap(project, "import half1", fnMap1, Ts)
+    protImportMap1 = importMap(project, "import half1", fnMap1, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap1.isFailed():
         raise Exception("Import map did not work")
-    protImportMap2 = importMap(project, "import half2", fnMap2, Ts)
+    protImportMap2 = importMap(project, "import half2", fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap2.isFailed():
         raise Exception("Import map did not work")
     reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2)

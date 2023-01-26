@@ -39,7 +39,7 @@ import xmipp3
 
 from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes
 
-def importMap(project, label, fnMap, fnMap1, fnMap2, Ts):
+def importMap(project, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
     fnDir, fnBase = os.path.split(fnMap)
@@ -48,9 +48,9 @@ def importMap(project, label, fnMap, fnMap1, fnMap2, Ts):
                                filesPath=os.path.join(fnDir,fnMap),
                                samplingRate=Ts,
                                setOrigCoord=True,
-                               x=0,
-                               y=0,
-                               z=0)
+                               x=mapCoordX,
+                               y=mapCoordY,
+                               z=mapCoordZ)
     if fnMap1 is not None and fnMap2 is not None:
         prot.setHalfMaps.set(True)
         prot.half1map.set(fnMap1)
@@ -1020,9 +1020,9 @@ Resolution estimated by user: %f \\\\
     report.orthogonalSlices("maxVarMask", msg, "Slices of maximum variation in the three dimensions of the mask",
                             fnMask, "fig:maxVarMask")
 
-def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, skipAnalysis = False):
+def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False):
     # Import map
-    protImportMap = importMap(project, "import map", fnMap, fnMap1, fnMap2, Ts)
+    protImportMap = importMap(project, "import map", fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap.isFailed():
         raise Exception("Import map did not work")
     protCreateMask = createMask(project, "create mask", protImportMap.outputVolume, Ts, threshold)
