@@ -517,7 +517,7 @@ if protImportMapChecker.isFailed() or \
         (protImportSaxsChecker.isFailed() if "O" in levels and 'protImportSaxsChecker' in locals() else None) or \
         (protImportTiltPairsChecker.isFailed() if "O" in levels and 'protImportTiltPairsChecker' in locals() else None) or \
         (protImportCoordsChecker.isFailed() if "O" in levels and 'protImportCoordsChecker' in locals() else None) or \
-        len(wrongInputs)>0:
+        len(wrongInputs['errors'])>0:
     print("Some input data was not correct")
     with open (os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f:
         f.write(str(wrongInputs))
