@@ -27,12 +27,14 @@
 import os
 import sys
 import math
+import numpy as np
 
 import pyworkflow.plugin as pwplugin
 from pyworkflow.project import Manager
 from pyworkflow.utils.path import makePath, copyFile, cleanPath
 from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes
 from pwem.convert.atom_struct import AtomicStructHandler
+from validationReport import readMap
 
 class OutOfChainsError(Exception):
     pass
@@ -160,6 +162,9 @@ if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
 manager = Manager()
 
 # Fixing some parameters depending on the arguments or taking the default ones
+MAPCOORDX = 0
+MAPCOORDY = 0
+MAPCOORDZ = 0
 FNMAP1 = None
 FNMAP2 = None
 XLM = None
@@ -186,6 +191,12 @@ for arg in sys.argv:
         MAPTHRESHOLD = float(arg.split("threshold=")[1])
     if arg.startswith('resolution='):
         MAPRESOLUTION = float(arg.split("resolution=")[1])
+    if arg.startswith('mapCoordX='):
+        MAPCOORDX = float(arg.split("mapCoordX=")[1])
+    if arg.startswith('mapCoordY='):
+        MAPCOORDY = float(arg.split("mapCoordY=")[1])
+    if arg.startswith('mapCoordZ='):
+        MAPCOORDZ = float(arg.split("mapCoordZ=")[1])
     if arg.startswith('map1='):
         FNMAP1 = arg.split("map1=")[1]
     if arg.startswith('map2='):
@@ -305,7 +316,7 @@ from validationReport import ValidationReport
 report = ValidationReport(fnProjectDir, levels)
 
 # Validate inputs formats
-wrongInputs = []
+wrongInputs = {'errors':[], 'warnings':[]}
 # check 'map' arg
 fnDir, fnBase = os.path.split(FNMAP)
 protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
@@ -313,15 +324,33 @@ protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwe
                                            filesPath=os.path.join(fnDir,FNMAP),
                                            samplingRate=TS,
                                            setOrigCoord=True,
-                                           x=0,
-                                           y=0,
-                                           z=0)
+                                           x=MAPCOORDX,
+                                           y=MAPCOORDY,
+                                           z=MAPCOORDZ)
 sendToSlurm(protImportMapChecker)
 project.launchProtocol(protImportMapChecker)
 #waitOutput(project, protImportMapChecker, 'outputVolume')
 waitUntilFinishes(project, protImportMapChecker)
 if protImportMapChecker.isFailed():
-    wrongInputs.append(FNMAP)
+    wrongInputs['errors'].append({'param': 'map', 'value': FNMAP, 'cause': 'There is a problem reading the volume map file'})
+
+else:
+    # check if we can have a proper mask with the thresold specified
+    protCreateMaskChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
+                                                objLabel='check proper mask',
+                                                inputVolume=protImportMapChecker.outputVolume,
+                                                threshold=MAPTHRESHOLD,
+                                                doBig=True,
+                                                doMorphological=True,
+                                                elementSize=math.ceil(2/TS)) # Dilation by 2A
+    sendToSlurm(protCreateMaskChecker)
+    project.launchProtocol(protCreateMaskChecker)
+    waitUntilFinishes(project, protCreateMaskChecker)
+
+    M = readMap(protCreateMaskChecker.outputMask.getFileName()).getData()
+    totalMass = np.sum(M)
+    if not totalMass > 0:
+        wrongInputs['errors'].append({'param': 'threshold', 'value': MAPTHRESHOLD, 'cause': 'The mask obtained from the volume map is empty, try to lower the threshold value'})
 
 if "1" in levels:
     # check 'map1' and 'map2' arg
@@ -333,16 +362,16 @@ if "1" in levels:
                                                 filesPattern=FNMAP1,
                                                 samplingRate=TS,
                                                 setOrigCoord=True,
-                                                x=0,
-                                                y=0,
-                                                z=0)
+                                                x=MAPCOORDX,
+                                                y=MAPCOORDY,
+                                                z=MAPCOORDZ)
 
     sendToSlurm(protImportMap1Checker)
     project.launchProtocol(protImportMap1Checker)
     #waitOutput(project, protImportMap1Checker, 'outputVolume')
     waitUntilFinishes(project, protImportMap1Checker)
     if protImportMap1Checker.isFailed():
-        wrongInputs.append(FNMAP1)
+        wrongInputs['errors'].append({'param': 'map1', 'value': FNMAP1, 'cause': 'There is a problem reading the half-map1 file'})
 
     # 'map2'
     fnDir, fnBase = os.path.split(FNMAP2)
@@ -352,16 +381,16 @@ if "1" in levels:
                                                 filesPattern=FNMAP2,
                                                 samplingRate=TS,
                                                 setOrigCoord=True,
-                                                x=0,
-                                                y=0,
-                                                z=0)
+                                                x=MAPCOORDX,
+                                                y=MAPCOORDY,
+                                                z=MAPCOORDZ)
 
     sendToSlurm(protImportMap2Checker)
     project.launchProtocol(protImportMap2Checker)
     #waitOutput(project, protImportMap2Checker, 'outputVolume')
     waitUntilFinishes(project, protImportMap2Checker)
     if protImportMap2Checker.isFailed():
-        wrongInputs.append(FNMAP2)
+        wrongInputs['errors'].append({'param': 'map2', 'value': FNMAP2, 'cause': 'There is a problem reading the half-map2 file'})
 
 if "2" in levels:
     # Check 'avgs' arg
@@ -374,7 +403,7 @@ if "2" in levels:
     #waitOutput(project, protImportAvgsChecker, 'outputAverages')
     waitUntilFinishes(project, protImportAvgsChecker)
     if protImportAvgsChecker.isFailed():
-        wrongInputs.append(FNAVGS)
+        wrongInputs['errors'].append({'param': 'avgs', 'value': FNAVGS, 'cause': 'There is a problem reading the 2D Classes file'})
 
 if "3" in levels:
     # Check 'particles' arg
@@ -400,7 +429,7 @@ if "3" in levels:
     waitUntilFinishes(project, protImportParticlesChecker)
     # check if particles has alignment
     if protImportParticlesChecker.isFailed() or not protImportParticlesChecker.outputParticles.hasAlignment():
-        wrongInputs.append(FNPARTICLES)
+        wrongInputs['errors'].append({'param': 'particles', 'value': FNPARTICLES, 'cause': 'There is a problem reading the particles file'})
 
 if "5" in levels:
     # Check 'micrographs' arg
@@ -420,7 +449,7 @@ if "5" in levels:
     #waitOutput(project, protImportMicrographsChecker, 'outputMicrographs')
     waitUntilFinishes(project, protImportMicrographsChecker)
     if protImportMicrographsChecker.isFailed():
-        wrongInputs.append(MICPATTERN)
+        wrongInputs['errors'].append({'param': 'micrographs', 'value': MICPATTERN, 'cause': 'There is a problem reading the micrographs file'})
 
 if "A" in levels and not protImportMapChecker.isFailed():
     # Check 'atomicModel' arg
@@ -434,7 +463,7 @@ if "A" in levels and not protImportMapChecker.isFailed():
     #waitOutput(project, protImportAtomicModelChecker, 'outputPdb')
     waitUntilFinishes(project, protImportAtomicModelChecker)
     if protImportAtomicModelChecker.isFailed():
-        wrongInputs.append(FNMODEL)
+        wrongInputs['errors'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'There is a problem reading the atomic model file'})
 
     try:
         from pwem.convert.atom_struct import AtomicStructHandler
@@ -444,7 +473,7 @@ if "A" in levels and not protImportMapChecker.isFailed():
         h.writeAsPdb(fnPdb)
         cleanPath(fnPdb)
     except:
-        wrongInputs.append("There is a problem reading %s or writing it as PDB"%FNMODEL)
+        wrongInputs['errors'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'There is a problem writing the atomic model file as PDB'})
 
 
     # try:
@@ -479,7 +508,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
         waitUntilFinishes(project, protImportXLMChecker)
 
         if protImportXLMChecker.isFailed():
-            wrongInputs.append(XLM)
+            wrongInputs['errors'].append({'param': 'xlm', 'value': XLM, 'cause': 'There is a problem reading the XML file'})
     # 'sax'
     protCreateMask = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
                                          objLabel='check format - create mask',
@@ -515,7 +544,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
     sendToSlurm(protImportSaxsChecker)
     project.launchProtocol(protImportSaxsChecker)
     if protImportSaxsChecker.isFailed():
-        wrongInputs.append(SAXS)
+        wrongInputs['errors'].append({'param': 'saxs', 'value': SAXS, 'cause': 'There is a problem reading the SAXS file'})
 
     # 'untiltedMic' and 'tiltedMic'
     protImportTiltPairsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportMicrographsTiltPairs', doRaise=True),
@@ -532,7 +561,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
     waitUntilFinishes(project, protImportTiltPairsChecker)
 
     if protImportTiltPairsChecker.isFailed():
-        wrongInputs.extend([UNTILTEDMIC, TILTEDMIC])
+        wrongInputs['errors'].append( {'param': 'untiltedMic', 'value': UNTILTEDMIC, 'cause': 'There is a problem reading the untilted mic file'})
+        wrongInputs['errors'].append({'param': 'tiltedMic', 'value': TILTEDMIC, 'cause': 'There is a problem reading the tilted mic file'})
 
     # 'untiltedCoords' and 'tiltedCoords'
     x, y, z = protImportMapChecker.outputVolume.getDimensions()
@@ -552,8 +582,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
     #waitOutput(project, protImportCoordsChecker, 'outputCoordinatesTiltPair')
     waitUntilFinishes(project, protImportCoordsChecker)
     if protImportCoordsChecker.isFailed():
-        wrongInputs.extend([UNTILTEDCOORDS, TILTEDCOORDS])
-
+        wrongInputs['errors'].append({'param': 'untiltedCoords', 'value': UNTILTEDCOORDS, 'cause': 'There is a problem reading the untilted coords file'})
+        wrongInputs['errors'].append({'param': 'tiltedCoords', 'value': TILTEDCOORDS, 'cause': 'There is a problem reading the tilted coords file'})
 
 # if some input data was wrong do whatever we want: inform the user, write error msg in report, etc.
 #if protImportMapChecker.isFailed() or protImportMap1Checker.isFailed() or protImportMap2Checker.isFailed() or \
@@ -570,21 +600,20 @@ if protImportMapChecker.isFailed() or \
         (protImportCoordsChecker.isFailed() if "O" in levels and 'protImportCoordsChecker' in locals() else None) or \
         len(wrongInputs)>0:
     print("Some input data was not correct")
-    with open (os.path.join(report.fnReportDir, 'wrongInputs.log'), 'w') as f:
-        for input in wrongInputs:
-            f.write(input+'\n')
+    with open (os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f:
+        f.write(str(wrongInputs))
 
 else: # go ahead
     print("All inputs were correct, let's process them!")
     # Level 0
     from validationLevel0 import level0
     protImportMap, protCreateMask, bfactor, protResizeMap, protResizeMask = level0(
-        project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, skipAnalysis = False)
+        project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False)
 
     # Level 1
     if "1" in levels:
         from validationLevel1 import level1
-        protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION,
+        protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ,
                                                 protImportMap, protResizeMap, protCreateMask, protResizeMask,
                                                 skipAnalysis = False)
 
@@ -614,7 +643,7 @@ else: # go ahead
     # Level A
     if "A" in levels:
         from validationLevelA import levelA
-        protAtom = levelA(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, skipAnalysis = False)
+        protAtom = levelA(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False)
     else:
         protAtom = None
 
