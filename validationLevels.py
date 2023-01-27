@@ -32,6 +32,68 @@ import pyworkflow.plugin as pwplugin
 from pyworkflow.project import Manager
 from pyworkflow.utils.path import makePath, copyFile, cleanPath
 from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes
+from pwem.convert.atom_struct import AtomicStructHandler
+
+class OutOfChainsError(Exception):
+    pass
+
+class OutOfAtomsError(Exception):
+    pass
+class UpdatedAtomicStructHandler(AtomicStructHandler):
+    """
+    Class that contain utilities to handle pdb/cif files.
+    Updates: get the number of atoms in the structure and raise an error 
+    when trying to write a structure with more tha 99999 atoms as a PDB file
+    """
+
+    def numberAtomsInStructure(self, structure, writeAsPdb=False):
+        """
+        Get number of atoms in the given structure.
+
+        When using this function to write a PDB file (writeAsPdb=True) 
+        and the number of atoms is greater than 99999 raises an OutOfAtomsError
+        """
+        atom_records = structure.get_atoms()
+        n_atoms = len(list(atom_records))
+
+        if writeAsPdb and n_atoms > 99999:
+            raise OutOfAtomsError
+        else:
+            return n_atoms
+        
+    def writeAsPdb(self, pdbFile):
+        """ 
+        Save structure as PDB. Be aware that this is not a lossless conversion
+        Returns False is conversion is not possible. True otherwise.
+        Updates: check that the number of atoms present in the structure
+        is not greater than 99999.
+        """
+        # check input is not PDB
+        if self.type == self.PDB:
+            pass
+        else:
+            # rename long chains
+            try:
+                chainmap = self.renameChains(self.structure)
+            except OutOfChainsError:
+                print("Too many chains to represent in PDB format")
+                return False
+
+            for new, old in chainmap.items():
+                # for new, old in list(chainmap.items()):
+                if new != old:
+                    print("Renaming chain {0} to {1}".format(old, new))
+            
+            # Get number of atoms
+            try:
+                atoms = self.numberAtomsInStructure(self.getStructure(), writeAsPdb=True)
+            except OutOfAtomsError:
+                print("Too many atoms to represent in PDB format")
+                return False
+
+        self._write(pdbFile)
+
+        return True
 
 def usage(message=''):
     print("\nMake a Map Validation Report"
@@ -383,6 +445,25 @@ if "A" in levels and not protImportMapChecker.isFailed():
         cleanPath(fnPdb)
     except:
         wrongInputs.append("There is a problem reading %s or writing it as PDB"%FNMODEL)
+
+
+    # try:
+        
+    #     h = UpdatedAtomicStructHandler()
+    #     h.read(FNMODEL)
+    #     fnPdb = os.path.join(report.getReportDir(),"tmp.pdb")
+    #     created = h.writeAsPdb(fnPdb)
+    #     if created:
+    #         cleanPath(fnPdb)
+    #     else:
+    #         #TODO: coger el output del print y añadirlo a wrong inputs
+    #         #TODO: mira el nuevo formato json que va a tener el wrongInputs.log (que ahora se llama wrongInputs.json)
+    #         wrongInputs.append("%s has too many chains to represent in PDB format" % FNMODEL)
+    #         raise Exception("%s has too many chains to represent in PDB format" % FNMODEL)
+    # except Exception as exc:
+    #     wrongInputs.append("There is a problem reading %s or writing it as PDB"%FNMODEL)
+    #     #TODO: escribirlo en el report
+
 
 if "O" in levels and not protImportMapChecker.isFailed():
     # Check 'xlm', 'saxs', 'untiltedMic', 'tiltedMic', 'untiltedCoords', 'tiltedCoords' args
