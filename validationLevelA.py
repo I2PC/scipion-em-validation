@@ -36,10 +36,74 @@ from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPath, copyFile
 from pwem.convert.atom_struct import AtomicStructHandler
+import pwem.convert.atom_struct
 import xmipp3
 
 from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot
 from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
+
+class OutOfChainsError(Exception):
+    pass
+
+class OutOfAtomsError(Exception):
+    pass
+class UpdatedAtomicStructHandler(AtomicStructHandler):
+    """
+    Class that contain utilities to handle pdb/cif files.
+    Updates: get the number of atoms in the structure and raise an error 
+    when trying to write a structure with more tha 99999 atoms as a PDB file
+    """
+
+    def numberAtomsInStructure(self, structure, writeAsPdb=False):
+        """
+        Get number of atoms in the given structure.
+
+        When using this function to write a PDB file (writeAsPdb=True) 
+        and the number of atoms is greater than 99999 raises an OutOfAtomsError
+        """
+        atom_records = structure.get_atoms()
+        n_atoms = len(list(atom_records))
+
+        if writeAsPdb and n_atoms > 99999:
+            raise OutOfAtomsError
+        else:
+            return n_atoms
+        
+    def writeAsPdb(self, pdbFile):
+        """ 
+        Save structure as PDB. Be aware that this is not a lossless conversion
+        Returns False if conversion is not possible. 
+        True otherwise.
+        Updates: check that the number of atoms present in the structure
+        is not greater than 99999.
+        """
+        # check input is not PDB
+        if self.type == self.PDB:
+            pass
+        else:
+            # rename long chains
+            try:
+                chainmap = self.renameChains(self.structure)
+            except OutOfChainsError:
+                print("Too many chains to represent in PDB format")
+                return False
+
+            for new, old in chainmap.items():
+                # for new, old in list(chainmap.items()):
+                if new != old:
+                    print("Renaming chain {0} to {1}".format(old, new))
+            
+            # Get number of atoms
+            try:
+                atoms = self.numberAtomsInStructure(self.getStructure(), writeAsPdb=True)
+            except OutOfAtomsError:
+                print("Too many atoms to represent in PDB format")
+                return False
+
+        self._write(pdbFile)
+
+        return True
+
 
 def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -215,6 +279,10 @@ percentiles are:
 
 
 def convertPDB(project, report, protImportMap, protAtom):
+
+    #TODO: fix write report sections for ConverToPdb when fails
+    # secLabel = "sec:convertPdb2Map"
+
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtConvertPdb', doRaise=True)
     protConvert = project.newProtocol(Prot,
@@ -228,6 +296,8 @@ def convertPDB(project, report, protImportMap, protAtom):
     project.launchProtocol(protConvert)
     #waitOutput(project, protConvert, 'outputVolume')
     waitUntilFinishes(project, protConvert)
+    print('IS FAILED??')
+    print(protConvert.isFailed())
     if protConvert.isFailed():
         report.writeSummary("A. Conversion to PDB", secLabel, "{\\color{red} Could not be converted}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -1049,7 +1119,7 @@ Atomic model: %s \\\\
     report.write(msg)
 
     try:
-        h = AtomicStructHandler()
+        h = UpdatedAtomicStructHandler()
         h.read(FNMODEL)
     except:
         warnings = []
@@ -1061,6 +1131,16 @@ Atomic model: %s \\\\
         fnPdb = os.path.join(report.getReportDir(),"tmp.pdb")
         h.writeAsPdb(fnPdb)
         cleanPath(fnPdb)
+    except pwem.convert.atom_struct.OutOfChainsError:
+        warnings = []
+        warnings.append("{\\color{red} \\textbf{Biopython cannot safely write this PDB: Too many chains to represent}}")
+        report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
+        return True
+    except OutOfAtomsError:
+        warnings = []
+        warnings.append("{\\color{red} \\textbf{Biopython cannot safely write this PDB: Too many atoms to represent}}")
+        report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
+        return True
     except:
         warnings = []
         warnings.append("{\\color{red} \\textbf{Biopython cannot safely write this PDB}}")
@@ -1080,20 +1160,22 @@ def levelA(project, report, protImportMap, FNMODEL, resolution, doMultimodel, ma
 
     protAtom = importModel(project, "Import atomic", protImportMap, FNMODEL)
 
-    skipAnalysis = skipAnalysis or reportInput(project, report, FNMODEL)
+    #skipAnalysis = skipAnalysis or reportInput(project, report, FNMODEL)
 
     # Quality Measures
     if not skipAnalysis:
-        report.writeSection('Level A analysis')
-        protConvert = convertPDB(project, report, protImportMap, protAtom)
-        if protConvert is not None:
-            mapq(project, report, protImportMap, protAtom, resolution)
-            fscq(project, report, protImportMap, protAtom, protConvert)
-            if doMultimodel:
-                multimodel(project, report, protImportMap, protAtom, resolution)
-            guinierModel(project, report, protImportMap, protConvert, resolution)
-            phenix(project, report, protImportForPhenix, protAtom, resolution)
-            emringer(project, report, protImportForPhenix, protAtom)
-            daq(project, report, protImportMap, protAtom)
+        inputIssues = reportInput(project, report, FNMODEL)
+        if not inputIssues:
+            report.writeSection('Level A analysis')
+            protConvert = convertPDB(project, report, protImportMap, protAtom)
+            if protConvert is not None:
+                mapq(project, report, protImportMap, protAtom, resolution)
+                fscq(project, report, protImportMap, protAtom, protConvert)
+                if doMultimodel:
+                    multimodel(project, report, protImportMap, protAtom, resolution)
+                guinierModel(project, report, protImportMap, protConvert, resolution)
+                phenix(project, report, protImportForPhenix, protAtom, resolution)
+                emringer(project, report, protImportForPhenix, protAtom)
+                daq(project, report, protImportMap, protAtom)
 
     return protAtom
