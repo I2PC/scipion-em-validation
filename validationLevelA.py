@@ -42,12 +42,12 @@ import xmipp3
 from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot
 from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
-class OutOfChainsError(Exception):
+class OutOfChainsError(Exception): 
     pass
 
-class OutOfAtomsError(Exception):
+class OutOfAtomsError(Exception): 
     pass
-class UpdatedAtomicStructHandler(AtomicStructHandler):
+class UpdatedAtomicStructHandler(AtomicStructHandler): 
     """
     Class that contain utilities to handle pdb/cif files.
     Updates: get the number of atoms in the structure and raise an error 
@@ -280,9 +280,6 @@ percentiles are:
 
 def convertPDB(project, report, protImportMap, protAtom):
 
-    #TODO: fix write report sections for ConverToPdb when fails
-    # secLabel = "sec:convertPdb2Map"
-
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtConvertPdb', doRaise=True)
     protConvert = project.newProtocol(Prot,
@@ -296,10 +293,21 @@ def convertPDB(project, report, protImportMap, protAtom):
     project.launchProtocol(protConvert)
     #waitOutput(project, protConvert, 'outputVolume')
     waitUntilFinishes(project, protConvert)
-    print('IS FAILED??')
-    print(protConvert.isFailed())
-    if protConvert.isFailed():
-        report.writeSummary("A. Conversion to PDB", secLabel, "{\\color{red} Could not be converted}")
+    if protConvert.isFailed():     
+        secLabel = "sec:convertPdb2Map"
+        report.writeSummary("A. Conversion PDB to map", secLabel, "{\\color{red} Could not be converted}")
+
+        msg = \
+    """
+    \\subsection{Level A.a Conversion PDB to map}
+    \\label{%s}
+    \\textbf{Explanation}:\\\\ 
+    Convert a PDB file into a volume.\\\\
+    \\\\
+    \\textbf{Results:}\\\\
+    \\\\
+    """ % secLabel
+        report.write(msg)
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return None
 
