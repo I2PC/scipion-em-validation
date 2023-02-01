@@ -66,7 +66,8 @@ class UpdatedAtomicStructHandler(AtomicStructHandler):
     def writeAsPdb(self, pdbFile):
         """ 
         Save structure as PDB. Be aware that this is not a lossless conversion
-        Returns False is conversion is not possible. True otherwise.
+        Returns False if conversion is not possible. 
+        True otherwise.
         Updates: check that the number of atoms present in the structure
         is not greater than 99999.
         """
@@ -465,33 +466,16 @@ if "A" in levels and not protImportMapChecker.isFailed():
     if protImportAtomicModelChecker.isFailed():
         wrongInputs['errors'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'There is a problem reading the atomic model file'})
 
-    try:
-        from pwem.convert.atom_struct import AtomicStructHandler
-        h = AtomicStructHandler()
-        h.read(FNMODEL)
-        fnPdb = os.path.join(report.getReportDir(),"tmp.pdb")
-        h.writeAsPdb(fnPdb)
+    # Read atomic model file and check if there is any problem converting mmCIF to PDB
+    h = UpdatedAtomicStructHandler()
+    h.read(FNMODEL)
+    fnPdb = os.path.join(report.getReportDir(),"tmp.pdb")
+    created = h.writeAsPdb(fnPdb)
+    if created:
         cleanPath(fnPdb)
-    except:
-        wrongInputs['errors'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'There is a problem writing the atomic model file as PDB'})
-
-
-    # try:
-        
-    #     h = UpdatedAtomicStructHandler()
-    #     h.read(FNMODEL)
-    #     fnPdb = os.path.join(report.getReportDir(),"tmp.pdb")
-    #     created = h.writeAsPdb(fnPdb)
-    #     if created:
-    #         cleanPath(fnPdb)
-    #     else:
-    #         #TODO: coger el output del print y añadirlo a wrong inputs
-    #         #TODO: mira el nuevo formato json que va a tener el wrongInputs.log (que ahora se llama wrongInputs.json)
-    #         wrongInputs.append("%s has too many chains to represent in PDB format" % FNMODEL)
-    #         raise Exception("%s has too many chains to represent in PDB format" % FNMODEL)
-    # except Exception as exc:
-    #     wrongInputs.append("There is a problem reading %s or writing it as PDB"%FNMODEL)
-    #     #TODO: escribirlo en el report
+    else:
+        wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'There is a problem reading the atomic model file: Too many chains/atoms to represent in PDB format'})
+        #TODO: escribirlo en el report
 
 
 if "O" in levels and not protImportMapChecker.isFailed():
