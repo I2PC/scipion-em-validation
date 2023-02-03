@@ -42,12 +42,12 @@ import xmipp3
 from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot
 from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
-class OutOfChainsError(Exception): 
+class OutOfChainsError(Exception): #TODO: quitar de aqui??
     pass
 
-class OutOfAtomsError(Exception): 
+class OutOfAtomsError(Exception): #TODO: quitar de aqui??
     pass
-class UpdatedAtomicStructHandler(AtomicStructHandler): 
+class UpdatedAtomicStructHandler(AtomicStructHandler): #TODO: quitar de aqui??
     """
     Class that contain utilities to handle pdb/cif files.
     Updates: get the number of atoms in the structure and raise an error 
@@ -293,7 +293,7 @@ def convertPDB(project, report, protImportMap, protAtom):
     project.launchProtocol(protConvert)
     #waitOutput(project, protConvert, 'outputVolume')
     waitUntilFinishes(project, protConvert)
-    if protConvert.isFailed():     
+    if protConvert.isFailed():     #TODO: check texts for ConverToPdb when fails
         secLabel = "sec:convertPdb2Map"
         report.writeSummary("A. Conversion PDB to map", secLabel, "{\\color{red} Could not be converted}")
 
@@ -1125,7 +1125,7 @@ def reportInput(project, report, FNMODEL):
 Atomic model: %s \\\\
 \\\\"""%FNMODEL.replace('_','\_').replace('/','/\-')
     report.write(msg)
-
+#TODO: quitar de aqui??
     try:
         h = UpdatedAtomicStructHandler()
         h.read(FNMODEL)

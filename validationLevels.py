@@ -36,12 +36,12 @@ from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes
 from pwem.convert.atom_struct import AtomicStructHandler
 from validationReport import readMap
 
-class OutOfChainsError(Exception):
+class OutOfChainsError(Exception): #TODO: remove it when updating pwem repo
     pass
 
-class OutOfAtomsError(Exception):
+class OutOfAtomsError(Exception): #TODO: remove it when updating pwem repo
     pass
-class UpdatedAtomicStructHandler(AtomicStructHandler):
+class UpdatedAtomicStructHandler(AtomicStructHandler): #TODO: remove it when updating pwem repo
     """
     Class that contain utilities to handle pdb/cif files.
     Updates: get the number of atoms in the structure and raise an error 
@@ -294,10 +294,10 @@ if detectLevel(LEVELW, argsPresent):
     levels.append("W")
 if detectLevel(LEVELOa, argsPresent) and detectLevel(LEVELA, argsPresent):
     levels.append("O")
-if detectLevel(LEVELOb, argsPresent) and detectLevel(LEVELA, argsPresent):
+if detectLevel(LEVELOb, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO tiene sentido que chequee el nivel A cuando este nivel no depende del atomic model?? Mejor detectLevel(LEVEL0, ...)?
     if not "O" in levels:
         levels.append("O")
-if detectLevel(LEVELOc, argsPresent) and detectLevel(LEVELA, argsPresent):
+if detectLevel(LEVELOc, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO tiene sentido que chequee el nivel A cuando este nivel no depende del atomic model?? Mejor detectLevel(LEVEL0, ...)?
     if not "O" in levels:
         levels.append("O")
 
@@ -497,7 +497,7 @@ if "A" in levels and not protImportMapChecker.isFailed():
 if "O" in levels and not protImportMapChecker.isFailed():
     # Check 'xlm', 'saxs', 'untiltedMic', 'tiltedMic', 'untiltedCoords', 'tiltedCoords' args
     # 'xlm'
-    if "A" in levels and not writeAtomicModelFailed and not protImportAtomicModelChecker.isFailed():
+    if "A" in levels and not writeAtomicModelFailed and not protImportAtomicModelChecker.isFailed():  #TODO: add  ... and XLM is not None:
         protImportXLMChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xlmtools.protocols', 'ProtWLM', doRaise=True),
                                                    objLabel="check format - XLM",
                                                    xlList=XLM)
@@ -509,7 +509,9 @@ if "O" in levels and not protImportMapChecker.isFailed():
 
         if protImportXLMChecker.isFailed():
             wrongInputs['errors'].append({'param': 'xlm', 'value': XLM, 'cause': 'There is a problem reading the XML file'})
+    #TODO: por que se ejecutan todos los checkers si yo solo he especificado los argumentos del nivel O.a?? No deberia puesto que esta fallando el job porque ejecuta los chequers de postseudo sin tener suficientes parametros (no se especifican en el comando de lanzamiento). REVISAR!!!!!!!!!! 
     # 'sax'
+    #TODO: Add 'if SAXS is not None:'
     protCreateMask = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
                                          objLabel='check format - create mask',
                                          inputVolume=protImportMapChecker.outputVolume,
@@ -547,6 +549,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
         wrongInputs['errors'].append({'param': 'saxs', 'value': SAXS, 'cause': 'There is a problem reading the SAXS file'})
 
     # 'untiltedMic' and 'tiltedMic'
+    #TODO: Add 'if not [x for x in (UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS) if x is None]: # Checks that none of the variables are None'
     protImportTiltPairsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportMicrographsTiltPairs', doRaise=True),
                                                      objLabel="check format - import tilt pairs",
                                                      patternUntilted=UNTILTEDMIC,
@@ -641,6 +644,7 @@ else: # go ahead
         level5(project, report, protImportParticles, KV, CS, Q0, MICPATTERN, TSMIC, skipAnalysis = False)
 
     # Level A
+    #TODO: pass writeAtomicModelFailed to levelA() to write the warning in the report
     if "A" in levels:
         from validationLevelA import levelA
         protAtom = levelA(project, report, protImportMap, FNMODEL, fnPdb, MAPRESOLUTION, doMultimodel, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False)
@@ -653,6 +657,7 @@ else: # go ahead
         levelW(project, report, WORKFLOW, skipAnalysis = False)
 
     # Level O
+    #TODO: pass writeAtomicModelFailed to levelO() to write the warning in the report (section O.a.)
     if "O" in levels:
         from validationLevelO import levelO
         levelO(project, report, protImportMap, protCreateMask, protAtom, XLM, SAXS,
