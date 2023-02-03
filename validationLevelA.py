@@ -566,6 +566,11 @@ quality of the map.
     if prot.isFailed():
         report.writeSummary("A.e Phenix", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        phenixStdout = open(os.path.join(project.getPath(), prot.getStdoutLog()), "r").read()
+        controlledErrors = ["Sorry: Input map is all zero after boxing", "Sorry: Map and model are not aligned"]
+        for error in controlledErrors:
+            if error in phenixStdout:
+                report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % error)
         return prot
 
     fnPkl = os.path.join(project.getPath(),prot._getExtraPath("validation_cryoem.pkl"))
