@@ -588,6 +588,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
         wrongInputs['errors'].append({'param': 'untiltedCoords', 'value': UNTILTEDCOORDS, 'cause': 'There is a problem reading the untilted coords file'})
         wrongInputs['errors'].append({'param': 'tiltedCoords', 'value': TILTEDCOORDS, 'cause': 'There is a problem reading the tilted coords file'})
 
+with open (os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f: #TODO: sacar del if para que se cree el wrongInputs.json siempre
+    f.write(str(wrongInputs))
 # if some input data was wrong do whatever we want: inform the user, write error msg in report, etc.
 #if protImportMapChecker.isFailed() or protImportMap1Checker.isFailed() or protImportMap2Checker.isFailed() or \
 if protImportMapChecker.isFailed() or \
@@ -603,8 +605,6 @@ if protImportMapChecker.isFailed() or \
         (protImportCoordsChecker.isFailed() if "O" in levels and 'protImportCoordsChecker' in locals() else None) or \
         len(wrongInputs['errors'])>0:
     print("Some input data was not correct")
-    with open (os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f:
-        f.write(str(wrongInputs))
 
 else: # go ahead
     print("All inputs were correct, let's process them!")
