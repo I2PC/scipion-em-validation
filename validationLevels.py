@@ -454,34 +454,50 @@ if "5" in levels:
 
 if "A" in levels and not protImportMapChecker.isFailed():
     # Check 'atomicModel' arg
-    protImportAtomicModelChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportPdb', doRaise=True),
-                                                       objLabel='check format - import atomic',
-                                                       inputPdbData=1,
-                                                       pdbFile=FNMODEL)
-    protImportAtomicModelChecker.inputVolume.set(protImportMapChecker.outputVolume)
-    sendToSlurm(protImportAtomicModelChecker)
-    project.launchProtocol(protImportAtomicModelChecker)
-    #waitOutput(project, protImportAtomicModelChecker, 'outputPdb')
-    waitUntilFinishes(project, protImportAtomicModelChecker)
-    if protImportAtomicModelChecker.isFailed():
-        wrongInputs['errors'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'There is a problem reading the atomic model file'})
 
-    # Read atomic model file and check if there is any problem converting mmCIF to PDB
-    h = UpdatedAtomicStructHandler()
-    h.read(FNMODEL)
-    fnPdb = os.path.join(report.getReportDir(),"tmp.pdb")
-    created = h.writeAsPdb(fnPdb)
-    if created:
-        cleanPath(fnPdb)
-    else:
-        wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'There is a problem reading the atomic model file: Too many chains/atoms to represent in PDB format'})
-        #TODO: escribirlo en el report
+    writeAtomicModelFailed = False
+    try: # Check if biopython can read atomic model file
+        h = UpdatedAtomicStructHandler()
+        h.read(FNMODEL)
+        try:  # Check if biopython can convert atomic file to PDB
+            # Get structure ID
+            structure_id = os.path.basename(FNMODEL)
+            structure_id = structure_id[:4] if len(structure_id) > 4 else "1xxx"
+            pdbFile = '%s.pdb' % (structure_id)
+            
+            # Get tmp pdb  from imput atomic model to work on
+            fnPdb = os.path.join(project.getTmpPath(), pdbFile) #TODO: poner en otra carpet??
+            h.writeAsPdb(fnPdb)
+        except OutOfChainsError:
+            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Biopython cannot safely write this PDB: Too many chains to represent in PDB format'})
+            writeAtomicModelFailed = True
+        except OutOfAtomsError:
+            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Biopython cannot safely write this PDB: Too many atoms to represent in PDB format'})
+            writeAtomicModelFailed = True
+        except:
+            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Biopython cannot safely write this PDB: Too many atoms to represent in PDB format'})
+            writeAtomicModelFailed = True
+    except:
+        wrongInputs['error'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Biopython cannot safely read this atomic model'})
+
+    if not writeAtomicModelFailed:
+        protImportAtomicModelChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportPdb', doRaise=True),
+                                                        objLabel='check format - import atomic',
+                                                        inputPdbData=1,
+                                                        pdbFile=fnPdb)
+        protImportAtomicModelChecker.inputVolume.set(protImportMapChecker.outputVolume)
+        sendToSlurm(protImportAtomicModelChecker)
+        project.launchProtocol(protImportAtomicModelChecker)
+        #waitOutput(project, protImportAtomicModelChecker, 'outputPdb')
+        waitUntilFinishes(project, protImportAtomicModelChecker)
+        if protImportAtomicModelChecker.isFailed():
+            wrongInputs['errors'].append({'param': 'atomicModel', 'value': fnPdb, 'cause': 'There is a problem reading the atomic model file'})
 
 
 if "O" in levels and not protImportMapChecker.isFailed():
     # Check 'xlm', 'saxs', 'untiltedMic', 'tiltedMic', 'untiltedCoords', 'tiltedCoords' args
     # 'xlm'
-    if "A" in levels and not protImportAtomicModelChecker.isFailed():
+    if "A" in levels and not writeAtomicModelFailed and not protImportAtomicModelChecker.isFailed():
         protImportXLMChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xlmtools.protocols', 'ProtWLM', doRaise=True),
                                                    objLabel="check format - XLM",
                                                    xlList=XLM)
@@ -627,7 +643,7 @@ else: # go ahead
     # Level A
     if "A" in levels:
         from validationLevelA import levelA
-        protAtom = levelA(project, report, protImportMap, FNMODEL, MAPRESOLUTION, doMultimodel, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False)
+        protAtom = levelA(project, report, protImportMap, FNMODEL, fnPdb, MAPRESOLUTION, doMultimodel, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False)
     else:
         protAtom = None
 

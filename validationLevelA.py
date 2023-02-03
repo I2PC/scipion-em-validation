@@ -122,13 +122,13 @@ def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
     waitUntilFinishes(project, prot)
     return prot
 
-def importModel(project, label, protImportMap, FNMODEL):
+def importModel(project, label, protImportMap, fnPdb):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportPdb', doRaise=True)
     protImport = project.newProtocol(Prot,
                                      objLabel=label,
                                      inputPdbData=1,
-                                     pdbFile=FNMODEL)
+                                     pdbFile=fnPdb)
     protImport.inputVolume.set(protImportMap.outputVolume)
     sendToSlurm(protImport)
     project.launchProtocol(protImport)
@@ -1159,14 +1159,14 @@ Atomic model: %s \\\\
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
     return False
 
-def levelA(project, report, protImportMap, FNMODEL, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis=False):
+def levelA(project, report, protImportMap, FNMODEL, fnPdb, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis=False):
     if protImportMap.outputVolume.hasHalfMaps():
         protImportMapWOHalves = importMap(project, "Import map2", protImportMap, mapCoordX, mapCoordY, mapCoordZ)
         protImportForPhenix = protImportMapWOHalves
     else:
         protImportForPhenix = protImportMap
 
-    protAtom = importModel(project, "Import atomic", protImportMap, FNMODEL)
+    protAtom = importModel(project, "Import atomic", protImportMap, fnPdb)
 
     #skipAnalysis = skipAnalysis or reportInput(project, report, FNMODEL)
 
