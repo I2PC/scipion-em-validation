@@ -35,6 +35,7 @@ from validationReport import calculateSha256, reportMultiplePlots, radialPlot, r
 
 from resourceManager import waitOutput, sendToSlurm, waitOutputFile, waitUntilFinishes
 
+
 def xlmValidation(project, report, protAtom, XLM):
     bblCitation = \
 """\\bibitem[Sinnott et~al., 2020]{Sinnott2020}
@@ -412,7 +413,7 @@ def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS,
         msg = "\\section{Other experimental techniques}\n\n"
         report.write(msg)
 
-        if checkXlm:
+        if checkXlm: 
             xlmValidation(project, report, protAtom, XLM)
         if checkSaxs:
             saxsValidation(project, report, protMap, protMask, SAXS)

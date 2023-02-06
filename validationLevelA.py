@@ -36,10 +36,12 @@ from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPath, copyFile
 from pwem.convert.atom_struct import AtomicStructHandler
+import pwem.convert.atom_struct
 import xmipp3
 
 from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot
 from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
+
 
 def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -58,13 +60,13 @@ def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
     waitUntilFinishes(project, prot)
     return prot
 
-def importModel(project, label, protImportMap, FNMODEL):
+def importModel(project, label, protImportMap, fnPdb):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportPdb', doRaise=True)
     protImport = project.newProtocol(Prot,
                                      objLabel=label,
                                      inputPdbData=1,
-                                     pdbFile=FNMODEL)
+                                     pdbFile=fnPdb)
     protImport.inputVolume.set(protImportMap.outputVolume)
     sendToSlurm(protImport)
     project.launchProtocol(protImport)
@@ -215,6 +217,7 @@ percentiles are:
 
 
 def convertPDB(project, report, protImportMap, protAtom):
+
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtConvertPdb', doRaise=True)
     protConvert = project.newProtocol(Prot,
@@ -228,8 +231,21 @@ def convertPDB(project, report, protImportMap, protAtom):
     project.launchProtocol(protConvert)
     #waitOutput(project, protConvert, 'outputVolume')
     waitUntilFinishes(project, protConvert)
-    if protConvert.isFailed():
-        report.writeSummary("A. Conversion to PDB", secLabel, "{\\color{red} Could not be converted}")
+    if protConvert.isFailed():     #TODO: check texts for ConverToPdb when fails
+        secLabel = "sec:convertPdb2Map"
+        report.writeSummary("A. Conversion PDB to map", secLabel, "{\\color{red} Could not be converted}")
+
+        msg = \
+    """
+    \\subsection{Level A.a Conversion PDB to map}
+    \\label{%s}
+    \\textbf{Explanation}:\\\\ 
+    Convert a PDB file into a volume.\\\\
+    \\\\
+    \\textbf{Results:}\\\\
+    \\\\
+    """ % secLabel
+        report.write(msg)
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return None
 
@@ -1044,7 +1060,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
 
     return prot
 
-def reportInput(project, report, FNMODEL):
+def reportInput(project, report, FNMODEL, writeAtomicModelFailed=False):
     msg = \
 """
 \\section{Atomic model}
@@ -1053,52 +1069,63 @@ Atomic model: %s \\\\
 \\\\"""%FNMODEL.replace('_','\_').replace('/','/\-')
     report.write(msg)
 
-    try:
-        h = AtomicStructHandler()
-        h.read(FNMODEL)
-    except:
-        warnings = []
-        warnings.append("{\\color{red} \\textbf{Biopython cannot safely read this atomic model}}")
-        report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
-        return True
-
-    try:
-        fnPdb = os.path.join(report.getReportDir(),"tmp.pdb")
-        h.writeAsPdb(fnPdb)
-        cleanPath(fnPdb)
-    except:
+    if writeAtomicModelFailed:
         warnings = []
         warnings.append("{\\color{red} \\textbf{Biopython cannot safely write this PDB}}")
         report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
         return True
 
+    # try:
+    #     h = AtomicStructHandler()
+    #     h.read(FNMODEL)
+    # except:
+    #     warnings = []
+    #     warnings.append("{\\color{red} \\textbf{Biopython cannot safely read this atomic model}}")
+    #     report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
+    #     return True
+
+    # try:
+    #     fnPdb = os.path.join(report.getReportDir(),"tmp.pdb")
+    #     h.writeAsPdb(fnPdb)
+    #     cleanPath(fnPdb)
+    # except:
+    #     warnings = []
+    #     warnings.append("{\\color{red} \\textbf{Biopython cannot safely write this PDB}}")
+    #     report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
+    #     return True
+
     msg = "See Fig. \\ref{fig:modelInput}.\\\\"
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
     return False
 
-def levelA(project, report, protImportMap, FNMODEL, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis=False):
-    if protImportMap.outputVolume.hasHalfMaps():
-        protImportMapWOHalves = importMap(project, "Import map2", protImportMap, mapCoordX, mapCoordY, mapCoordZ)
-        protImportForPhenix = protImportMapWOHalves
+def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis=False):
+    if writeAtomicModelFailed:
+        reportInput(project, report, FNMODEL, writeAtomicModelFailed)
+        protAtom = None
+        return protAtom
     else:
-        protImportForPhenix = protImportMap
+        if protImportMap.outputVolume.hasHalfMaps():
+            protImportMapWOHalves = importMap(project, "Import map2", protImportMap, mapCoordX, mapCoordY, mapCoordZ)
+            protImportForPhenix = protImportMapWOHalves
+        else:
+            protImportForPhenix = protImportMap
 
-    protAtom = importModel(project, "Import atomic", protImportMap, FNMODEL)
+        protAtom = importModel(project, "Import atomic", protImportMap, fnPdb)
 
-    skipAnalysis = skipAnalysis or reportInput(project, report, FNMODEL)
+        skipAnalysis = skipAnalysis or reportInput(project, report, FNMODEL)
 
-    # Quality Measures
-    if not skipAnalysis:
-        report.writeSection('Level A analysis')
-        protConvert = convertPDB(project, report, protImportMap, protAtom)
-        if protConvert is not None:
-            mapq(project, report, protImportMap, protAtom, resolution)
-            fscq(project, report, protImportMap, protAtom, protConvert)
-            if doMultimodel:
-                multimodel(project, report, protImportMap, protAtom, resolution)
-            guinierModel(project, report, protImportMap, protConvert, resolution)
-            phenix(project, report, protImportForPhenix, protAtom, resolution)
-            emringer(project, report, protImportForPhenix, protAtom)
-            daq(project, report, protImportMap, protAtom)
+        # Quality Measures
+        if not skipAnalysis:
+            report.writeSection('Level A analysis')
+            protConvert = convertPDB(project, report, protImportMap, protAtom)
+            if protConvert is not None:
+                mapq(project, report, protImportMap, protAtom, resolution)
+                fscq(project, report, protImportMap, protAtom, protConvert)
+                if doMultimodel:
+                    multimodel(project, report, protImportMap, protAtom, resolution)
+                guinierModel(project, report, protImportMap, protConvert, resolution)
+                phenix(project, report, protImportForPhenix, protAtom, resolution)
+                emringer(project, report, protImportForPhenix, protAtom)
+                daq(project, report, protImportMap, protAtom)
 
     return protAtom
