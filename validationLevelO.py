@@ -35,7 +35,6 @@ from validationReport import calculateSha256, reportMultiplePlots, radialPlot, r
 
 from resourceManager import waitOutput, sendToSlurm, waitOutputFile, waitUntilFinishes
 
-#TODO: check here if there will be issues when converting mmCIF to PDB, and skipping xlmValidation if so
 
 def xlmValidation(project, report, protAtom, XLM):
     bblCitation = \
@@ -414,8 +413,8 @@ def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS,
         msg = "\\section{Other experimental techniques}\n\n"
         report.write(msg)
 
-        if checkXlm:
-            xlmValidation(project, report, protAtom, XLM) #TODO: para que funcone bien este protocolo solo se puede dar un archivo pdb, porque no lee el pdbObj. Por tanto, tendrias que hacer el cambio de cif a pdb con writeAsPdb antes de lanzar el protocolo
+        if checkXlm: 
+            xlmValidation(project, report, protAtom, XLM)
         if checkSaxs:
             saxsValidation(project, report, protMap, protMask, SAXS)
         if checkPair:
