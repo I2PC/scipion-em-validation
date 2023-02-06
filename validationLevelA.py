@@ -1055,7 +1055,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
 
     return prot
 
-def reportInput(project, report, FNMODEL):
+def reportInput(project, report, FNMODEL, writeAtomicModelFailed=False):
     msg = \
 """
 \\section{Atomic model}
@@ -1063,6 +1063,12 @@ def reportInput(project, report, FNMODEL):
 Atomic model: %s \\\\
 \\\\"""%FNMODEL.replace('_','\_').replace('/','/\-')
     report.write(msg)
+
+    if writeAtomicModelFailed:
+        warnings = []
+        warnings.append("{\\color{red} \\textbf{Biopython cannot safely write this PDB}}")
+        report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
+        return True
 
     # try:
     #     h = AtomicStructHandler()
@@ -1087,29 +1093,34 @@ Atomic model: %s \\\\
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
     return False
 
-def levelA(project, report, protImportMap, FNMODEL, fnPdb, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis=False):
-    if protImportMap.outputVolume.hasHalfMaps():
-        protImportMapWOHalves = importMap(project, "Import map2", protImportMap, mapCoordX, mapCoordY, mapCoordZ)
-        protImportForPhenix = protImportMapWOHalves
+def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis=False):
+    if writeAtomicModelFailed:
+        reportInput(project, report, FNMODEL, writeAtomicModelFailed)
+        protAtom = None
+        return protAtom
     else:
-        protImportForPhenix = protImportMap
+        if protImportMap.outputVolume.hasHalfMaps():
+            protImportMapWOHalves = importMap(project, "Import map2", protImportMap, mapCoordX, mapCoordY, mapCoordZ)
+            protImportForPhenix = protImportMapWOHalves
+        else:
+            protImportForPhenix = protImportMap
 
-    protAtom = importModel(project, "Import atomic", protImportMap, fnPdb)
+        protAtom = importModel(project, "Import atomic", protImportMap, fnPdb)
 
-    skipAnalysis = skipAnalysis or reportInput(project, report, FNMODEL)
+        skipAnalysis = skipAnalysis or reportInput(project, report, FNMODEL)
 
-    # Quality Measures
-    if not skipAnalysis:
-        report.writeSection('Level A analysis')
-        protConvert = convertPDB(project, report, protImportMap, protAtom)
-        if protConvert is not None:
-            mapq(project, report, protImportMap, protAtom, resolution)
-            fscq(project, report, protImportMap, protAtom, protConvert)
-            if doMultimodel:
-                multimodel(project, report, protImportMap, protAtom, resolution)
-            guinierModel(project, report, protImportMap, protConvert, resolution)
-            phenix(project, report, protImportForPhenix, protAtom, resolution)
-            emringer(project, report, protImportForPhenix, protAtom)
-            daq(project, report, protImportMap, protAtom)
+        # Quality Measures
+        if not skipAnalysis:
+            report.writeSection('Level A analysis')
+            protConvert = convertPDB(project, report, protImportMap, protAtom)
+            if protConvert is not None:
+                mapq(project, report, protImportMap, protAtom, resolution)
+                fscq(project, report, protImportMap, protAtom, protConvert)
+                if doMultimodel:
+                    multimodel(project, report, protImportMap, protAtom, resolution)
+                guinierModel(project, report, protImportMap, protConvert, resolution)
+                phenix(project, report, protImportForPhenix, protAtom, resolution)
+                emringer(project, report, protImportForPhenix, protAtom)
+                daq(project, report, protImportMap, protAtom)
 
     return protAtom
