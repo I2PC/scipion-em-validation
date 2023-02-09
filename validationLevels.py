@@ -475,7 +475,7 @@ if "A" in levels and not protImportMapChecker.isFailed():
             wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Biopython cannot safely write this PDB: Too many atoms to represent in PDB format'})
             writeAtomicModelFailed = True
         except:
-            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Biopython cannot safely write this PDB: Too many atoms to represent in PDB format'})
+            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Biopython cannot safely write this PDB'})
             writeAtomicModelFailed = True
     except:
         wrongInputs['error'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Biopython cannot safely read this atomic model'})
@@ -549,6 +549,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
             wrongInputs['errors'].append({'param': 'saxs', 'value': SAXS, 'cause': 'There is a problem reading the SAXS file'})
 
     # 'untiltedMic', 'tiltedMic', 'untiltedCoords' and 'tiltedCoords' (level Oc)
+    #TODO: add or instead of and as logical operator to check level Oc inputs
     if not [x for x in (UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS) if x is None]: # Checks that none of the variables are None
         # 'untiltedMic' and 'tiltedMic'
         protImportTiltPairsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportMicrographsTiltPairs', doRaise=True),
