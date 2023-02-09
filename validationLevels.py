@@ -495,9 +495,9 @@ if "A" in levels and not protImportMapChecker.isFailed():
 
 
 if "O" in levels and not protImportMapChecker.isFailed():
-    # Check 'xlm', 'saxs', 'untiltedMic', 'tiltedMic', 'untiltedCoords', 'tiltedCoords' args
-    # 'xlm'
-    if "A" in levels and not writeAtomicModelFailed and not protImportAtomicModelChecker.isFailed():  #TODO: add  ... and XLM is not None:
+    # Check 'xlm' (level Oa), 'saxs' (level Ob), 'untiltedMic', 'tiltedMic', 'untiltedCoords', 'tiltedCoords' args (level Oc)
+    # 'xlm' (level Oa)
+    if "A" in levels and not writeAtomicModelFailed and not protImportAtomicModelChecker.isFailed() and XLM is not None:
         protImportXLMChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xlmtools.protocols', 'ProtWLM', doRaise=True),
                                                    objLabel="check format - XLM",
                                                    xlList=XLM)
@@ -509,86 +509,87 @@ if "O" in levels and not protImportMapChecker.isFailed():
 
         if protImportXLMChecker.isFailed():
             wrongInputs['errors'].append({'param': 'xlm', 'value': XLM, 'cause': 'There is a problem reading the XML file'})
-    #TODO: por que se ejecutan todos los checkers si yo solo he especificado los argumentos del nivel O.a?? No deberia puesto que esta fallando el job porque ejecuta los chequers de postseudo sin tener suficientes parametros (no se especifican en el comando de lanzamiento). REVISAR!!!!!!!!!! 
-    # 'sax'
-    #TODO: Add 'if SAXS is not None:'
-    protCreateMask = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
-                                         objLabel='check format - create mask',
-                                         inputVolume=protImportMapChecker.outputVolume,
-                                         threshold=MAPTHRESHOLD,
-                                         doBig=True,
-                                         doMorphological=True,
-                                         elementSize=math.ceil(2/TS)) # Dilation by 2A
-    sendToSlurm(protCreateMask)
-    project.launchProtocol(protCreateMask)
-    #waitOutput(project, protCreateMask, 'outputMask')
-    waitUntilFinishes(project, protCreateMask)
+
+    # 'sax' (level Ob)
+    if SAXS is not None:
+        protCreateMask = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
+                                            objLabel='check format - create mask',
+                                            inputVolume=protImportMapChecker.outputVolume,
+                                            threshold=MAPTHRESHOLD,
+                                            doBig=True,
+                                            doMorphological=True,
+                                            elementSize=math.ceil(2/TS)) # Dilation by 2A
+        sendToSlurm(protCreateMask)
+        project.launchProtocol(protCreateMask)
+        #waitOutput(project, protCreateMask, 'outputMask')
+        waitUntilFinishes(project, protCreateMask)
 
 
-    protPseudo = project.newProtocol(pwplugin.Domain.importFromPlugin('continuousflex.protocols', 'FlexProtConvertToPseudoAtoms', doRaise=True),
-                                     objLabel="check format - convert Map to Pseudo",
-                                     maskMode=2,
-                                     pseudoAtomRadius=1.5)
-    protPseudo.inputStructure.set(protImportMapChecker.outputVolume)
-    protPseudo.volumeMask.set(protCreateMask.outputMask)
-    sendToSlurm(protPseudo)
-    project.launchProtocol(protPseudo)
-    #waitOutput(project, protPseudo, 'outputVolume')
-    #waitOutput(project, protPseudo, 'outputPdb')
-    waitUntilFinishes(project, protPseudo)
+        protPseudo = project.newProtocol(pwplugin.Domain.importFromPlugin('continuousflex.protocols', 'FlexProtConvertToPseudoAtoms', doRaise=True),
+                                        objLabel="check format - convert Map to Pseudo",
+                                        maskMode=2,
+                                        pseudoAtomRadius=1.5)
+        protPseudo.inputStructure.set(protImportMapChecker.outputVolume)
+        protPseudo.volumeMask.set(protCreateMask.outputMask)
+        sendToSlurm(protPseudo)
+        project.launchProtocol(protPseudo)
+        #waitOutput(project, protPseudo, 'outputVolume')
+        #waitOutput(project, protPseudo, 'outputPdb')
+        waitUntilFinishes(project, protPseudo)
 
 
-    protImportSaxsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('atsas.protocols',
-                                                                                 'AtsasProtConvertPdbToSAXS', doRaise=True),
-                                                objLabel="check format - SAXS",
-                                                experimentalSAXS=SAXS)
-    protImportSaxsChecker.inputStructure.set(protPseudo.outputPdb)
-    sendToSlurm(protImportSaxsChecker)
-    project.launchProtocol(protImportSaxsChecker)
-    if protImportSaxsChecker.isFailed():
-        wrongInputs['errors'].append({'param': 'saxs', 'value': SAXS, 'cause': 'There is a problem reading the SAXS file'})
+        protImportSaxsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('atsas.protocols',
+                                                                                    'AtsasProtConvertPdbToSAXS', doRaise=True),
+                                                    objLabel="check format - SAXS",
+                                                    experimentalSAXS=SAXS)
+        protImportSaxsChecker.inputStructure.set(protPseudo.outputPdb)
+        sendToSlurm(protImportSaxsChecker)
+        project.launchProtocol(protImportSaxsChecker)
+        if protImportSaxsChecker.isFailed():
+            wrongInputs['errors'].append({'param': 'saxs', 'value': SAXS, 'cause': 'There is a problem reading the SAXS file'})
 
-    # 'untiltedMic' and 'tiltedMic'
-    #TODO: Add 'if not [x for x in (UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS) if x is None]: # Checks that none of the variables are None'
-    protImportTiltPairsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportMicrographsTiltPairs', doRaise=True),
-                                                     objLabel="check format - import tilt pairs",
-                                                     patternUntilted=UNTILTEDMIC,
-                                                     patternTilted=TILTEDMIC,
-                                                     voltage=TILTKV,
-                                                     ampContrast=TILTQ0,
-                                                     sphericalAberration=TILTCS,
-                                                     samplingRate=TILTTS)
-    sendToSlurm(protImportTiltPairsChecker)
-    project.launchProtocol(protImportTiltPairsChecker)
-    #waitOutput(project, protImportTiltPairsChecker, 'outputMicrographsTiltPair')
-    waitUntilFinishes(project, protImportTiltPairsChecker)
+    # 'untiltedMic', 'tiltedMic', 'untiltedCoords' and 'tiltedCoords' (level Oc)
+    if not [x for x in (UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS) if x is None]: # Checks that none of the variables are None
+        # 'untiltedMic' and 'tiltedMic'
+        protImportTiltPairsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportMicrographsTiltPairs', doRaise=True),
+                                                        objLabel="check format - import tilt pairs",
+                                                        patternUntilted=UNTILTEDMIC,
+                                                        patternTilted=TILTEDMIC,
+                                                        voltage=TILTKV,
+                                                        ampContrast=TILTQ0,
+                                                        sphericalAberration=TILTCS,
+                                                        samplingRate=TILTTS)
+        sendToSlurm(protImportTiltPairsChecker)
+        project.launchProtocol(protImportTiltPairsChecker)
+        #waitOutput(project, protImportTiltPairsChecker, 'outputMicrographsTiltPair')
+        waitUntilFinishes(project, protImportTiltPairsChecker)
 
-    if protImportTiltPairsChecker.isFailed():
-        wrongInputs['errors'].append( {'param': 'untiltedMic', 'value': UNTILTEDMIC, 'cause': 'There is a problem reading the untilted mic file'})
-        wrongInputs['errors'].append({'param': 'tiltedMic', 'value': TILTEDMIC, 'cause': 'There is a problem reading the tilted mic file'})
+        if protImportTiltPairsChecker.isFailed():
+            wrongInputs['errors'].append( {'param': 'untiltedMic', 'value': UNTILTEDMIC, 'cause': 'There is a problem reading the untilted mic file'})
+            wrongInputs['errors'].append({'param': 'tiltedMic', 'value': TILTEDMIC, 'cause': 'There is a problem reading the tilted mic file'})
 
-    # 'untiltedCoords' and 'tiltedCoords'
-    x, y, z = protImportMapChecker.outputVolume.getDimensions()
-    Ts = protImportMapChecker.outputVolume.getSamplingRate()
-    dMap = x * Ts
-    boxSize = int(dMap / TILTTS)
-    protImportCoordsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportCoordinatesPairs', doRaise=True),
-                                                  objLabel="check format - import paired coordinates",
-                                                  patternUntilted=UNTILTEDCOORDS,
-                                                  patternTilted=TILTEDCOORDS,
-                                                  boxSize=boxSize)
-    if UNTILTEDCOORDS.endswith('.json'):
-        protImportCoordsChecker.importFrom.set(1)
-    protImportCoordsChecker.inputMicrographsTiltedPair.set(protImportTiltPairsChecker.outputMicrographsTiltPair)
-    sendToSlurm(protImportCoordsChecker)
-    project.launchProtocol(protImportCoordsChecker)
-    #waitOutput(project, protImportCoordsChecker, 'outputCoordinatesTiltPair')
-    waitUntilFinishes(project, protImportCoordsChecker)
-    if protImportCoordsChecker.isFailed():
-        wrongInputs['errors'].append({'param': 'untiltedCoords', 'value': UNTILTEDCOORDS, 'cause': 'There is a problem reading the untilted coords file'})
-        wrongInputs['errors'].append({'param': 'tiltedCoords', 'value': TILTEDCOORDS, 'cause': 'There is a problem reading the tilted coords file'})
+        # 'untiltedCoords' and 'tiltedCoords'
+        x, y, z = protImportMapChecker.outputVolume.getDimensions()
+        Ts = protImportMapChecker.outputVolume.getSamplingRate()
+        dMap = x * Ts
+        boxSize = int(dMap / TILTTS)
+        protImportCoordsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportCoordinatesPairs', doRaise=True),
+                                                    objLabel="check format - import paired coordinates",
+                                                    patternUntilted=UNTILTEDCOORDS,
+                                                    patternTilted=TILTEDCOORDS,
+                                                    boxSize=boxSize)
+        if UNTILTEDCOORDS.endswith('.json'):
+            protImportCoordsChecker.importFrom.set(1)
+        protImportCoordsChecker.inputMicrographsTiltedPair.set(protImportTiltPairsChecker.outputMicrographsTiltPair)
+        sendToSlurm(protImportCoordsChecker)
+        project.launchProtocol(protImportCoordsChecker)
+        #waitOutput(project, protImportCoordsChecker, 'outputCoordinatesTiltPair')
+        waitUntilFinishes(project, protImportCoordsChecker)
+        if protImportCoordsChecker.isFailed():
+            wrongInputs['errors'].append({'param': 'untiltedCoords', 'value': UNTILTEDCOORDS, 'cause': 'There is a problem reading the untilted coords file'})
+            wrongInputs['errors'].append({'param': 'tiltedCoords', 'value': TILTEDCOORDS, 'cause': 'There is a problem reading the tilted coords file'})
 
-with open (os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f: #TODO: sacar del if para que se cree el wrongInputs.json siempre
+with open (os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f:
     f.write(str(wrongInputs))
 # if some input data was wrong do whatever we want: inform the user, write error msg in report, etc.
 #if protImportMapChecker.isFailed() or protImportMap1Checker.isFailed() or protImportMap2Checker.isFailed() or \
@@ -644,7 +645,6 @@ else: # go ahead
         level5(project, report, protImportParticles, KV, CS, Q0, MICPATTERN, TSMIC, skipAnalysis = False)
 
     # Level A
-    #TODO: pass writeAtomicModelFailed to levelA() to write the warning in the report
     if "A" in levels:
         from validationLevelA import levelA
         protAtom = levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, MAPRESOLUTION, doMultimodel, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False)
