@@ -168,6 +168,7 @@ MAPCOORDY = 0
 MAPCOORDZ = 0
 FNMAP1 = None
 FNMAP2 = None
+SYM = 'c1'
 XLM = None
 SAXS = None
 
