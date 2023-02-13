@@ -294,13 +294,11 @@ if detectLevel(LEVELA, argsPresent) and detectLevel(LEVEL0, argsPresent):
 if detectLevel(LEVELW, argsPresent):
     levels.append("W")
 if detectLevel(LEVELOa, argsPresent) and detectLevel(LEVELA, argsPresent):
-    levels.append("O")
-if detectLevel(LEVELOb, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO tiene sentido que chequee el nivel A cuando este nivel no depende del atomic model?? Mejor detectLevel(LEVEL0, ...)?
-    if not "O" in levels:
-        levels.append("O")
-if detectLevel(LEVELOc, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO tiene sentido que chequee el nivel A cuando este nivel no depende del atomic model?? Mejor detectLevel(LEVEL0, ...)?
-    if not "O" in levels:
-        levels.append("O")
+    levels.append("Oa")
+if detectLevel(LEVELOb, argsPresent) and detectLevel(LEVEL0, argsPresent):
+    levels.append("Ob")
+if detectLevel(LEVELOc, argsPresent) and detectLevel(LEVEL0, argsPresent):
+    levels.append("Oc")
 
 if len(levels)==0 or not "0" in levels:
     usage()
