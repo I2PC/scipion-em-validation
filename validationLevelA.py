@@ -880,6 +880,11 @@ that may need improvement.
     if prot.isFailed():
         report.writeSummary("A.f EMRinger", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        emringerStdout = open(os.path.join(project.getPath(), prot.getStdoutLog()), "r").read()
+        controlledErrors = ["Sorry: No residues could be scanned by EMRinger, so scores cannot be generated"]
+        for error in controlledErrors:
+            if error in emringerStdout:
+                report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % error)
         return prot
 
     dataDict=json.loads(str(prot.stringDataDict), object_pairs_hook=collections.OrderedDict)
