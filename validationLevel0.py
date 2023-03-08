@@ -613,6 +613,9 @@ input map to the appearance of the atomic structures a local resolution label ca
     if prot.isFailed():
         report.writeSummary("0.e DeepRes", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        deepresStderr = open(os.path.join(project.getPath(), prot.getStderrLog()), "r").read()
+        if "ran out of memory trying to allocate" in deepresStderr:
+            report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % "System ran out of memory. Try to launch it again.")
         return prot
 
     fnRes = os.path.join(project.getPath(), prot._getExtraPath("deepRes_resolution.vol"))
