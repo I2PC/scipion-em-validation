@@ -42,6 +42,12 @@ import xmipp3
 from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot
 from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.yaml')
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+
 
 def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -54,7 +60,8 @@ def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
                                x=mapCoordX,
                                y=mapCoordY,
                                z=mapCoordZ)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
     waitUntilFinishes(project, prot)
@@ -68,7 +75,8 @@ def importModel(project, label, protImportMap, fnPdb):
                                      inputPdbData=1,
                                      pdbFile=fnPdb)
     protImport.inputVolume.set(protImportMap.outputVolume)
-    sendToSlurm(protImport)
+    if useSlurm:
+        sendToSlurm(protImport)
     project.launchProtocol(protImport)
     #waitOutput(project, protImport, 'outputPdb')
     waitUntilFinishes(project, protImport)
@@ -107,7 +115,8 @@ have a Gaussian shape.\\\\
                                inputVol=protImportMap.outputVolume,
                                pdbs=[protAtom.outputPdb],
                                mapRes=resolution)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'scoredStructures')
     waitUntilFinishes(project, prot)
@@ -227,7 +236,8 @@ def convertPDB(project, report, protImportMap, protAtom):
                                       vol=True)
     protConvert.pdbObj.set(protAtom.outputPdb)
     protConvert.volObj.set(protImportMap.outputVolume)
-    sendToSlurm(protConvert)
+    if useSlurm:
+        sendToSlurm(protConvert)
     project.launchProtocol(protConvert)
     #waitOutput(project, protConvert, 'outputVolume')
     waitUntilFinishes(project, protConvert)
@@ -287,7 +297,8 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
                                inputPDBObj=protAtom.outputPdb)
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.pdbMap.set(protConvert.outputVolume)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputAtomStruct')
     waitUntilFinishes(project, prot)
@@ -374,7 +385,8 @@ the different local resolutions or local heterogeneity.\\\\
                                  inputVolume=protImportMap.outputVolume,
                                  resolution=resolution,
                                  numMods=2)
-    sendToSlurm(prot1, GPU=True)
+    if useSlurm:
+        sendToSlurm(prot1, GPU=True)
     project.launchProtocol(prot1)
     #waitOutput(project, prot1, 'outputAtomStructs')
     waitUntilFinishes(project, prot1)
@@ -390,7 +402,8 @@ the different local resolutions or local heterogeneity.\\\\
     prot2 = project.newProtocol(Prot,
                                 objLabel="A.c RMSD",
                                 inputStructureSet=prot1.outputAtomStructs)
-    sendToSlurm(prot2)
+    if useSlurm:
+        sendToSlurm(prot2)
     project.launchProtocol(prot2)
     #waitOutput(project, prot2, 'outputAtomStructs')
     waitUntilFinishes(project, prot2)
@@ -575,7 +588,8 @@ quality of the map.
                                resolution=max(resolution,3.0))
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
 
@@ -871,7 +885,8 @@ that may need improvement.
                                objLabel="A.f EMRinger")
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'stringDataDict')
     #waitOutputFile(project, prot, '*_emringer_plots')
@@ -1002,7 +1017,8 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
                                stride=3)
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputAtomStruct.set(protAtom.outputPdb)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputAtomStruct')
     waitUntilFinishes(project, prot)

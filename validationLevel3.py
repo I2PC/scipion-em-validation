@@ -36,6 +36,12 @@ import xmipp3
 from validationReport import reportHistogram, reportPlot, reportMultiplePlots, readStack
 from resourceManager import waitOutput, sendToSlurm, skipSlurm, waitUntilFinishes
 
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.yaml')
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+
 def importParticles(project, label, protImportMap, protImportClasses, fnParticles, TsParticles, kV, Cs, Q0):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportParticles', doRaise=True)
@@ -55,7 +61,8 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
     elif fnParticles.endswith(".star"):
         protImport.importFrom.set(protImport.IMPORT_FROM_RELION)
         protImport.starFile.set(fnParticles)
-    sendToSlurm(protImport)
+    if useSlurm:
+        sendToSlurm(protImport)
     project.launchProtocol(protImport)
     #waitOutput(project, protImport, 'outputParticles')
     waitUntilFinishes(project, protImport)
@@ -80,7 +87,8 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
                                           windowOperation=1,
                                           windowSize=XdimPtclsp)
         protResize1.inputParticles.set(protImport.outputParticles)
-        sendToSlurm(protResize1)
+        if useSlurm:
+            sendToSlurm(protResize1)
         project.launchProtocol(protResize1)
         waitUntilFinishes(project, protResize1)
 
@@ -92,7 +100,8 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
                                           windowOperation=1,
                                           windowSize=XdimMap)
         protResize2.inputParticles.set(protResize1.outputParticles)
-        sendToSlurm(protResize2)
+        if useSlurm:
+            sendToSlurm(protResize2)
         project.launchProtocol(protResize2)
         waitUntilFinishes(project, protResize2)
         protResizeMap = protResize2
@@ -114,7 +123,8 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
                                           windowOperation=1,
                                           windowSize=XdimPtclsp)
         protResize1.inputParticles.set(protImport.outputParticles)
-        sendToSlurm(protResize1)
+        if useSlurm:
+            sendToSlurm(protResize1)
         project.launchProtocol(protResize1)
         #waitOutput(project, protResize1, 'outputParticles')
         waitUntilFinishes(project, protResize1)
@@ -127,7 +137,8 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
                                           windowOperation=1,
                                           windowSize=XdimClasses)
         protResize2.inputParticles.set(protResize1.outputParticles)
-        sendToSlurm(protResize2)
+        if useSlurm:
+            sendToSlurm(protResize2)
         project.launchProtocol(protResize2)
         #waitOutput(project, protResize2, 'outputParticles')
         waitUntilFinishes(project, protResize2)
@@ -143,7 +154,8 @@ def classAnalysis(project, report, protParticles, protClasses):
     protGL2D.inputRefs.set(protClasses.outputAverages)
     protGL2D.inputParticles.set(protParticles.outputParticles)
 
-    sendToSlurm(protGL2D, GPU=True)
+    if useSlurm:
+        sendToSlurm(protGL2D, GPU=True)
     project.launchProtocol(protGL2D)
     #waitOutput(project, protGL2D, 'outputClasses')
     waitUntilFinishes(project, protGL2D)
@@ -184,7 +196,8 @@ the images assigned to that class.\\\\
     protCore = project.newProtocol(Prot,
                                    objLabel="3.ab Core analysis")
     protCore.inputClasses.set(protGL2D.outputClasses)
-    sendToSlurm(protCore)
+    if useSlurm:
+        sendToSlurm(protCore)
     project.launchProtocol(protCore)
     #waitOutput(project, protCore, 'outputClasses_core')
     waitUntilFinishes(project, protCore)

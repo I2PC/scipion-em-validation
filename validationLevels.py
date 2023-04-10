@@ -36,6 +36,12 @@ from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes
 from pwem.convert.atom_struct import AtomicStructHandler
 from validationReport import readMap
 
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.yaml')
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+
 class OutOfChainsError(Exception): #TODO: remove it when updating pwem repo
     pass
 
@@ -328,7 +334,8 @@ protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwe
                                            x=MAPCOORDX,
                                            y=MAPCOORDY,
                                            z=MAPCOORDZ)
-sendToSlurm(protImportMapChecker)
+if useSlurm:
+    sendToSlurm(protImportMapChecker)
 project.launchProtocol(protImportMapChecker)
 #waitOutput(project, protImportMapChecker, 'outputVolume')
 waitUntilFinishes(project, protImportMapChecker)
@@ -344,7 +351,8 @@ else:
                                                 doBig=True,
                                                 doMorphological=True,
                                                 elementSize=math.ceil(2/TS)) # Dilation by 2A
-    sendToSlurm(protCreateMaskChecker)
+    if useSlurm:
+        sendToSlurm(protCreateMaskChecker)
     project.launchProtocol(protCreateMaskChecker)
     waitUntilFinishes(project, protCreateMaskChecker)
 
@@ -367,7 +375,8 @@ if "1" in levels:
                                                 y=MAPCOORDY,
                                                 z=MAPCOORDZ)
 
-    sendToSlurm(protImportMap1Checker)
+    if useSlurm:
+        sendToSlurm(protImportMap1Checker)
     project.launchProtocol(protImportMap1Checker)
     #waitOutput(project, protImportMap1Checker, 'outputVolume')
     waitUntilFinishes(project, protImportMap1Checker)
@@ -386,7 +395,8 @@ if "1" in levels:
                                                 y=MAPCOORDY,
                                                 z=MAPCOORDZ)
 
-    sendToSlurm(protImportMap2Checker)
+    if useSlurm:
+        sendToSlurm(protImportMap2Checker)
     project.launchProtocol(protImportMap2Checker)
     #waitOutput(project, protImportMap2Checker, 'outputVolume')
     waitUntilFinishes(project, protImportMap2Checker)
@@ -399,7 +409,8 @@ if "2" in levels:
                                                 objLabel='check format - import averages',
                                                 filesPath=FNAVGS,
                                                 samplingRate=TSAVG)
-    sendToSlurm(protImportAvgsChecker)
+    if useSlurm:
+        sendToSlurm(protImportAvgsChecker)
     project.launchProtocol(protImportAvgsChecker)
     #waitOutput(project, protImportAvgsChecker, 'outputAverages')
     waitUntilFinishes(project, protImportAvgsChecker)
@@ -424,7 +435,8 @@ if "3" in levels:
     elif FNPARTICLES.endswith(".star"):
         protImportParticlesChecker.importFrom.set(protImportParticlesChecker.IMPORT_FROM_RELION)
         protImportParticlesChecker.starFile.set(FNPARTICLES)
-    sendToSlurm(protImportParticlesChecker)
+    if useSlurm:
+        sendToSlurm(protImportParticlesChecker)
     project.launchProtocol(protImportParticlesChecker)
     #waitOutput(project, protImportParticlesChecker, 'outputParticles')
     waitUntilFinishes(project, protImportParticlesChecker)
@@ -445,7 +457,8 @@ if "5" in levels:
         protImportMicrographsChecker.sqliteFile.set(MICPATTERN)
     else:
         protImportMicrographsChecker.filesPattern.set(MICPATTERN)
-    sendToSlurm(protImportMicrographsChecker)
+    if useSlurm:
+        sendToSlurm(protImportMicrographsChecker)
     project.launchProtocol(protImportMicrographsChecker)
     #waitOutput(project, protImportMicrographsChecker, 'outputMicrographs')
     waitUntilFinishes(project, protImportMicrographsChecker)
@@ -486,7 +499,8 @@ if "A" in levels and not protImportMapChecker.isFailed():
                                                         inputPdbData=1,
                                                         pdbFile=fnPdb)
         protImportAtomicModelChecker.inputVolume.set(protImportMapChecker.outputVolume)
-        sendToSlurm(protImportAtomicModelChecker)
+        if useSlurm:
+            sendToSlurm(protImportAtomicModelChecker)
         project.launchProtocol(protImportAtomicModelChecker)
         #waitOutput(project, protImportAtomicModelChecker, 'outputPdb')
         waitUntilFinishes(project, protImportAtomicModelChecker)
@@ -502,7 +516,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                                    objLabel="check format - XLM",
                                                    xlList=XLM)
         protImportXLMChecker.pdbs.set([protImportAtomicModelChecker.outputPdb])
-        sendToSlurm(protImportXLMChecker)
+        if useSlurm:
+            sendToSlurm(protImportXLMChecker)
         project.launchProtocol(protImportXLMChecker)
         #waitOutput(project, protImportXLMChecker, 'crosslinkStruct_1')
         waitUntilFinishes(project, protImportXLMChecker)
@@ -519,7 +534,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                          doBig=True,
                                          doMorphological=True,
                                          elementSize=math.ceil(2/TS)) # Dilation by 2A
-    sendToSlurm(protCreateMask)
+    if useSlurm:
+        sendToSlurm(protCreateMask)
     project.launchProtocol(protCreateMask)
     #waitOutput(project, protCreateMask, 'outputMask')
     waitUntilFinishes(project, protCreateMask)
@@ -531,7 +547,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                      pseudoAtomRadius=1.5)
     protPseudo.inputStructure.set(protImportMapChecker.outputVolume)
     protPseudo.volumeMask.set(protCreateMask.outputMask)
-    sendToSlurm(protPseudo)
+    if useSlurm:
+        sendToSlurm(protPseudo)
     project.launchProtocol(protPseudo)
     #waitOutput(project, protPseudo, 'outputVolume')
     #waitOutput(project, protPseudo, 'outputPdb')
@@ -543,7 +560,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                                 objLabel="check format - SAXS",
                                                 experimentalSAXS=SAXS)
     protImportSaxsChecker.inputStructure.set(protPseudo.outputPdb)
-    sendToSlurm(protImportSaxsChecker)
+    if useSlurm:
+        sendToSlurm(protImportSaxsChecker)
     project.launchProtocol(protImportSaxsChecker)
     if protImportSaxsChecker.isFailed():
         wrongInputs['errors'].append({'param': 'saxs', 'value': SAXS, 'cause': 'There is a problem reading the SAXS file'})
@@ -558,7 +576,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                                      ampContrast=TILTQ0,
                                                      sphericalAberration=TILTCS,
                                                      samplingRate=TILTTS)
-    sendToSlurm(protImportTiltPairsChecker)
+    if useSlurm:
+        sendToSlurm(protImportTiltPairsChecker)
     project.launchProtocol(protImportTiltPairsChecker)
     #waitOutput(project, protImportTiltPairsChecker, 'outputMicrographsTiltPair')
     waitUntilFinishes(project, protImportTiltPairsChecker)
@@ -580,7 +599,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
     if UNTILTEDCOORDS.endswith('.json'):
         protImportCoordsChecker.importFrom.set(1)
     protImportCoordsChecker.inputMicrographsTiltedPair.set(protImportTiltPairsChecker.outputMicrographsTiltPair)
-    sendToSlurm(protImportCoordsChecker)
+    if useSlurm:
+        sendToSlurm(protImportCoordsChecker)
     project.launchProtocol(protImportCoordsChecker)
     #waitOutput(project, protImportCoordsChecker, 'outputCoordinatesTiltPair')
     waitUntilFinishes(project, protImportCoordsChecker)

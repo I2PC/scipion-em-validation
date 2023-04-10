@@ -42,6 +42,12 @@ import xmipp3
 
 from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFinishes
 
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.yaml')
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+
 def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
@@ -55,7 +61,8 @@ def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ):
                                x=mapCoordX,
                                y=mapCoordY,
                                z=mapCoordZ)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
     waitUntilFinishes(project, prot)
@@ -86,7 +93,8 @@ def globalResolution(project, report, label, protImportMap1, protImportMap2, res
     prot.inputVolume.set(protImportMap1.outputVolume)
     prot.referenceVolume.set(protImportMap2.outputVolume)
 
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputFSC')
     waitUntilFinishes(project, prot)
@@ -297,7 +305,8 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
     prot.halfTwo.set(protImportMap2.outputVolume)
     prot.mask.set(protMask.outputMask)
 
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputFSC')
     waitUntilFinishes(project, prot)
@@ -386,7 +395,8 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
     prot.inputVolume2.set(protImportMap2.outputVolume)
     prot.mask.set(protMask.outputMask)
 
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'resolution_Volume')
     waitUntilFinishes(project, prot)
@@ -603,7 +613,8 @@ def monores(project, report, label, protImportMap, protCreateMask, resolution):
                                maxRes=max(10,5*resolution))
     prot.associatedHalves.set(protImportMap.outputVolume)
     prot.mask.set(protCreateMask.outputMask)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'resolution_Volume')
     #waitOutputFile(project, prot, "hist.xmd")
@@ -722,7 +733,8 @@ def monodir(project, report, label, protImportMap, protCreateMask, resolution):
                                resstep=resolution/3)
     prot.inputVolumes.set(protImportMap.outputVolume)
     prot.Mask.set(protCreateMask.outputMask)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume_doa')
     #waitOutput(project, prot, 'azimuthalVolume')
@@ -865,7 +877,8 @@ def fso(project, report, label, protImportMap, protMask, resolution):
     prot.inputHalves.set(protImportMap.outputVolume)
     prot.mask.set(protMask.outputMask)
 
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
 
@@ -997,7 +1010,8 @@ def fsc3d(project, report, label, protImportMapResize, protImportMap1, protImpor
     prot.volumeHalf2.set(protResizeHalf2.outputVol)
     prot.maskVolume.set(protMaskResize.outputVol)
 
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
     waitUntilFinishes(project, prot)

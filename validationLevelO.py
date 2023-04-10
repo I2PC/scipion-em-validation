@@ -35,6 +35,12 @@ from validationReport import calculateSha256, reportMultiplePlots, radialPlot, r
 
 from resourceManager import waitOutput, sendToSlurm, waitOutputFile, waitUntilFinishes
 
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.yaml')
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+
 
 def xlmValidation(project, report, protAtom, XLM):
     bblCitation = \
@@ -69,7 +75,8 @@ be thought as a measure of the residue surface exposure.\\\\
                                objLabel="O.a XLM",
                                xlList=XLM)
     prot.pdbs.set([protAtom.outputPdb])
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'crosslinkStruct_1')
     waitUntilFinishes(project, prot)
@@ -173,7 +180,8 @@ obtained by a SAXS experiment. \\\\
                                      pseudoAtomRadius=1.5)
     protPseudo.inputStructure.set(protMap.outputVolume)
     protPseudo.volumeMask.set(protMask.outputMask)
-    sendToSlurm(protPseudo)
+    if useSlurm:
+        sendToSlurm(protPseudo)
     project.launchProtocol(protPseudo)
     #waitOutput(project, protPseudo, 'outputVolume')
     #waitOutput(project, protPseudo, 'outputPdb')
@@ -189,7 +197,8 @@ obtained by a SAXS experiment. \\\\
                                objLabel="O.b SAXS",
                                experimentalSAXS=SAXS)
     prot.inputStructure.set(protPseudo.outputPdb)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutputFile(project, prot, "crysol_summary.txt")
     waitUntilFinishes(project, prot)
@@ -266,7 +275,8 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
                                ampContrast=TILTQ0,
                                sphericalAberration=TILTCS,
                                samplingRate=TILTTS)
-    sendToSlurm(protImport)
+    if useSlurm:
+        sendToSlurm(protImport)
     project.launchProtocol(protImport)
     #waitOutput(project, protImport, 'outputMicrographsTiltPair')
     waitUntilFinishes(project, protImport)
@@ -290,7 +300,8 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     if UNTILTEDCOORDS.endswith('.json'):
         protCoords.importFrom.set(1)
     protCoords.inputMicrographsTiltedPair.set(protImport.outputMicrographsTiltPair)
-    sendToSlurm(protCoords)
+    if useSlurm:
+        sendToSlurm(protCoords)
     project.launchProtocol(protCoords)
     #waitOutput(project, protCoords, 'outputCoordinatesTiltPair')
     waitUntilFinishes(project, protCoords)
@@ -306,7 +317,8 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
                                       boxSize=boxSize,
                                       doInvert=True)
     protExtract.inputCoordinatesTiltedPairs.set(protCoords.outputCoordinatesTiltPair)
-    sendToSlurm(protExtract)
+    if useSlurm:
+        sendToSlurm(protExtract)
     project.launchProtocol(protExtract)
     #waitOutput(project, protExtract, 'outputParticlesTiltPair')
     waitUntilFinishes(project, protExtract)
@@ -325,7 +337,8 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
                                       windowOperation=1,
                                       windowSize=boxSize)
     protResize.inputVolumes.set(protMap.outputVolume)
-    sendToSlurm(protResize)
+    if useSlurm:
+        sendToSlurm(protResize)
     project.launchProtocol(protResize)
     #waitOutput(project, protResize, 'outputVol')
     waitUntilFinishes(project, protResize)
@@ -344,7 +357,8 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
         prot.symmetry.set("icos")
     prot.inputVolume.set(protResize.outputVol)
     prot.inputTiltPair.set(protExtract.outputParticlesTiltPair)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitUntilFinishes(project, prot)
     waitUntilFinishes(project, prot)

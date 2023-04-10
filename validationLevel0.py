@@ -39,6 +39,12 @@ import xmipp3
 
 from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes
 
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.yaml')
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+
 def importMap(project, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
@@ -56,7 +62,8 @@ def importMap(project, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, m
         prot.half1map.set(fnMap1)
         prot.half2map.set(fnMap2)
 
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
     waitUntilFinishes(project, prot)
@@ -72,7 +79,8 @@ def createMask(project, label, map, Ts, threshold):
                                doBig=True,
                                doMorphological=True,
                                elementSize=math.ceil(2/Ts)) # Dilation by 2A
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputMask')
     waitUntilFinishes(project, prot)
@@ -97,7 +105,8 @@ def resizeProject(project, protMap, protMask, resolution):
                                         windowOperation=1,
                                         windowSize=Xdimp)
     protResizeMap.inputVolumes.set(protMap.outputVolume)
-    sendToSlurm(protResizeMap)
+    if useSlurm:
+        sendToSlurm(protResizeMap)
     project.launchProtocol(protResizeMap)
     #waitOutput(project, protResizeMap, 'outputVol')
     waitUntilFinishes(project, protResizeMap)
@@ -113,7 +122,8 @@ def resizeProject(project, protMap, protMask, resolution):
                                          windowOperation=1,
                                          windowSize=Xdimp)
     protResizeMask.inputVolumes.set(protMask.outputMask)
-    sendToSlurm(protResizeMask)
+    if useSlurm:
+        sendToSlurm(protResizeMask)
     project.launchProtocol(protResizeMask)
     #waitOutput(project, protResizeMask, 'outputVol')
     waitUntilFinishes(project, protResizeMask)
@@ -127,7 +137,8 @@ def resizeProject(project, protMap, protMask, resolution):
                                              threshold=0.5,
                                              fillType=1)
     protPreprocessMask.inputVolumes.set(protResizeMask.outputVol)
-    sendToSlurm(protPreprocessMask)
+    if useSlurm:
+        sendToSlurm(protPreprocessMask)
     project.launchProtocol(protPreprocessMask)
     #waitOutput(project, protPreprocessMask, 'outputVol')
     waitUntilFinishes(project, protPreprocessMask)
@@ -730,7 +741,8 @@ local magnitude and phase term using the spiral transform.\\\\
                                mask_in_molecule=mask,
                                max_res=resolution,
                                numberOfThreads=1)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'bmap')
     #waitOutputFile(project, prot, "bmap.mrc")
@@ -838,7 +850,8 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
                                mask_in_molecule=mask,
                                max_res=resolution,
                                numberOfThreads=1)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'omap')
     waitUntilFinishes(project, prot)
@@ -942,7 +955,8 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
                                objLabel=label,
                                inputVolume=map,
                                threshold=threshold)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputHand')
     #waitOutput(project, prot, 'outputVol')

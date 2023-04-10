@@ -36,6 +36,12 @@ from validationReport import reportHistogram
 
 from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.yaml')
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+
 def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportAverages', doRaise=True)
@@ -43,7 +49,8 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                objLabel=label,
                                filesPath=fnAvgs,
                                samplingRate=TsAvg)
-    sendToSlurm(protImport)
+    if useSlurm:
+        sendToSlurm(protImport)
     project.launchProtocol(protImport)
     #waitOutput(project, protImport, 'outputAverages')
     waitUntilFinishes(project, protImport)
@@ -68,7 +75,8 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                       windowOperation=1,
                                       windowSize=XdimAvgsp)
     protResize1.inputParticles.set(protImport.outputAverages)
-    sendToSlurm(protResize1)
+    if useSlurm:
+        sendToSlurm(protResize1)
     project.launchProtocol(protResize1)
     #waitOutput(project, protResize1, 'outputAverages')
     waitUntilFinishes(project, protResize1)
@@ -81,7 +89,8 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                       windowOperation=1,
                                       windowSize=XdimMap)
     protResize2.inputParticles.set(protResize1.outputAverages)
-    sendToSlurm(protResize2)
+    if useSlurm:
+        sendToSlurm(protResize2)
     project.launchProtocol(protResize2)
     waitUntilFinishes(project, protResize2)
 
@@ -98,7 +107,8 @@ def compareReprojections(project, report, protImportMap, protAvgs, symmetry):
                                symmetryGroup=symmetry)
     prot.inputSet.set(protAvgs.outputAverages)
     prot.inputVolume.set(protImportMap.outputVolume)
-    sendToSlurm(prot)
+    if useSlurm:
+        sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'reprojections')
     waitUntilFinishes(project, prot)
