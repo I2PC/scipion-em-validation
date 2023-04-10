@@ -39,7 +39,7 @@ from validationReport import readMap
 import configparser
 
 config = configparser.ConfigParser()
-config.read('config.yaml')
+config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 
 class OutOfChainsError(Exception): #TODO: remove it when updating pwem repo

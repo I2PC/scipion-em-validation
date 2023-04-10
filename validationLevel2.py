@@ -39,7 +39,7 @@ from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 import configparser
 
 config = configparser.ConfigParser()
-config.read('config.yaml')
+config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 
 def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):

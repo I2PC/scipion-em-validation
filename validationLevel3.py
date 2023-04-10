@@ -39,7 +39,7 @@ from resourceManager import waitOutput, sendToSlurm, skipSlurm, waitUntilFinishe
 import configparser
 
 config = configparser.ConfigParser()
-config.read('config.yaml')
+config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 
 def importParticles(project, label, protImportMap, protImportClasses, fnParticles, TsParticles, kV, Cs, Q0):

@@ -45,7 +45,7 @@ from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFi
 import configparser
 
 config = configparser.ConfigParser()
-config.read('config.yaml')
+config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 
 def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ):
