@@ -599,6 +599,11 @@ input map to the appearance of the atomic structures a local resolution label ca
         report.write("This method cannot be applied to maps with a resolution better than 2\\AA.\\\\ \n")
         return None
 
+    if resolution>13:
+        report.writeSummary("0.e DeepRes", secLabel, "{\\color{brown} Does not apply}")
+        report.write("This method cannot be applied to maps with a resolution worse than 13\\AA.\\\\ \n")
+        return None
+
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtDeepRes', doRaise=True)
     prot = project.newProtocol(Prot,
