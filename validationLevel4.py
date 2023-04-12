@@ -231,6 +231,11 @@ of the smoothed cross-correlation landscape.\\\\
     #waitOutput(project, prot, 'outputParticlesAux')
     waitUntilFinishes(project, prot)
 
+    if prot.isFailed():
+        report.writeSummary("4.b Alignability smoothness", secLabel, "{\\color{red} Could not be measured}")
+        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        return prot
+
     md = xmipp3.MetaData(prot._getExtraPath("Iter1/anglesDisc.xmd"))
     dist2Max = np.array(md.getColumnValues(xmipp3.MDL_GRAPH_DISTANCE2MAX_PREVIOUS))
 
