@@ -41,6 +41,7 @@ import configparser
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+gpuIdSkipSlurm = config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
 
 def importParticles(project, label, protImportMap, protImportClasses, fnParticles, TsParticles, kV, Cs, Q0):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -356,7 +357,9 @@ def newClassification(project, report, protParticles, protClasses):
                                         objLabel="3.c CryoSparc 2D",
                                         numberOfClasses=protClasses.outputAverages.getSize())
     protClassif2D.inputParticles.set(protParticles.outputParticles)
-    skipSlurm(protClassif2D)
+    if useSlurm:
+        skipSlurm(protClassif2D, gpuIdSkipSlurm)
+
     project.launchProtocol(protClassif2D)
     #waitOutput(project, protClassif2D, 'outputClasses')
     waitUntilFinishes(project, protClassif2D)

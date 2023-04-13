@@ -44,6 +44,7 @@ import configparser
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+gpuIdSkipSlurm = config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
 
 def importMap(project, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -621,7 +622,8 @@ input map to the appearance of the atomic structures a local resolution label ca
                                objLabel=label,
                                inputVolume=map,
                                Mask=mask)
-    skipSlurm(prot)
+    if useSlurm:
+        skipSlurm(prot, gpuIdSkipSlurm)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'resolution_Volume')
     waitUntilFinishes(project, prot)

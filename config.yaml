@@ -1,2 +1,5 @@
 [QUEUE]
+# Do you want to use Slurm?
 USE_SLURM = False
+# GPU ID to be used when Slurm is set up and you do want to skip it
+GPU_ID_SKIP_SLURM = 7

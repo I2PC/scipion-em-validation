@@ -40,6 +40,7 @@ import configparser
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+gpuIdSkipSlurm = config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
 
 def resizeProject(project, protMap, protParticles, resolution):
     Xdim = protMap.outputVolume.getDim()[0]
@@ -580,8 +581,8 @@ def cryosparcAlignment(project, report, protMap, protMask, protParticles, symmet
         prot.symmetryGroup.set(4)
     elif symmetry=="i2":
         prot.symmetryGroup.set(5)
-
-    skipSlurm(prot)
+    if useSlurm:
+        skipSlurm(protClassif2D, gpuIdSkipSlurm)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
     #waitOutput(project, prot, 'outputParticles')

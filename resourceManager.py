@@ -95,6 +95,6 @@ def sendToSlurm(prot, GPU=False, nGPUs=1):
     QUEUE_PARAMS = (u'myslurmqueue', {u'JOB_TIME': u'120', u'JOB_MEMORY': u'8192', u'GPU_COUNT': u'%s' % (nGPUs if GPU else 0)})
     prot._queueParams.set(json.dumps(QUEUE_PARAMS))
 
-def skipSlurm(prot):
+def skipSlurm(prot, GPUId):
     prot._useQueue.set(Boolean(False))
-    prot.gpuList.set(7)
+    prot.gpuList.set(GPUId)
