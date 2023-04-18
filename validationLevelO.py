@@ -207,16 +207,16 @@ obtained by a SAXS experiment. \\\\
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return None
 
-    fnSummary = prot._getExtraPath("crysol_summary.txt")
+    fnSummary = prot._getExtraPath("pseudoatoms_experimental_SAXS_curve.fit")
     fh = open(fnSummary)
     for line in fh.readlines():
         tokens = line.strip().split()
-        if len(tokens)>0 and tokens[0]=="Model:":
+        if len(tokens)>0 and tokens[0]=="Dro:":
             Rg = float(tokens[3])
-            chi2 = float(tokens[7])
+            chi2 = float(tokens[6].split(":")[1])
 
             fnSaxs = os.path.join(report.getReportDir(),"saxs.png")
-            fnResults = prot._getPath("pseudoatoms00.fit")
+            fnResults = prot._getExtraPath("pseudoatoms_experimental_SAXS_curve.fit")
             X = np.loadtxt(fnResults, skiprows=1)
             reportMultiplePlots(X[:,0],[np.log10(X[:,1]), np.log10(X[:,3])], 'Frequency (A^-1)', 'log10(SAXS)',
                                 fnSaxs,['Simulated', 'Experimental'])
