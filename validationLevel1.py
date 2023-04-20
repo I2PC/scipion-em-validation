@@ -333,6 +333,11 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
+    fscFile = np.loadtxt(prot._getExtraPath("FSC.txt"))
+    fsc = fscFile[0]
+    frecuency = fscFile[1]
+    reportPlot(fsc, frecuency, "Frecuency (1/A)", "FSC", prot._getExtraPath("FSC.png"))
+
     msg=\
 """The resolution at 1\\%% of FDR was %4.1f. The estimated B-factor was %5.1f. Fig. \\ref{fig:fdrfsc} shows the
 estimated FSC and resolution.
@@ -344,7 +349,7 @@ estimated FSC and resolution.
     \\label{fig:fdrfsc}
 \\end{figure}
 
-"""%(FDRResolution, Bfactor, os.path.join(project.getPath(),prot._getExtraPath("FSC.pdf")))
+"""%(FDRResolution, Bfactor, os.path.join(project.getPath(),prot._getExtraPath("FSC.png")))
     report.write(msg)
 
     warnings=[]
