@@ -516,7 +516,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
     if resmap is None:
         report.writeSummary("1.d Resmap", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: Cannot find the binary}}\\\\ \n")
-    return
+        return
 
     fnMask = os.path.join(project.getPath(),protMask.outputMask.getFileName())
     args = "--doBenchMarking --noguiSplit %s %s --vxSize=%f  --maskVol=%s"%(fnVol1, fnVol2, Ts, fnMask)
