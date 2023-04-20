@@ -216,7 +216,7 @@ behavior. If they have, this is typically due to the presence of a mask in real 
                         ['log10(SSNR)','0'], invertXLabels=True)
 
     # Mean and uncertainty
-    resolutionList = [1/fFSC, 1/fDPR, 1/fSSNR]
+    resolutionList = [1/value for value in [fFSC, fDPR, fSSNR] if value is not None]
 
     msg = \
 """Fig. \\ref{fig:FSC} shows the FSC and the 0.143 threshold. %s\\\\
