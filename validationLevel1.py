@@ -344,7 +344,7 @@ estimated FSC and resolution.
 
 \\begin{figure}[H]
     \centering
-    \includegraphics[width=14cm]{%s}
+    \includegraphics[width=9cm]{%s}
     \\caption{FSC and resolution estimated by a permutation test.}
     \\label{fig:fdrfsc}
 \\end{figure}
