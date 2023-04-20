@@ -233,7 +233,8 @@ def convertPDB(project, report, protImportMap, protAtom):
                                       objLabel="Convert Pdb to map",
                                       inputPdbData=1,
                                       sampling=protImportMap.outputVolume.getSamplingRate(),
-                                      vol=True)
+                                      vol=True,
+                                      centerPdb=False)
     protConvert.pdbObj.set(protAtom.outputPdb)
     protConvert.volObj.set(protImportMap.outputVolume)
     if useSlurm:
