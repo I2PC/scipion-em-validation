@@ -686,4 +686,9 @@ else: # go ahead
 
     # Close report
     report.abstractResolution(MAPRESOLUTION)
+    # Check if there are warnings
+    with open(os.path.join(fnProjectDir, "validationReport", "summaryWarnings.tex")) as summaryWarnings:
+        content = summaryWarnings.read()
+        if "STATUS" not in content and "WARNINGS" not in content:
+            report.fhSummaryWarnings.write("No warnings.")
     report.closeReport()
