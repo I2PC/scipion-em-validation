@@ -324,15 +324,17 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercenta
     idx = np.argsort(-np.asarray(individualMass)) # Minus is for sorting i descending order
     cumulatedMass = 0
     i = 0
+    toWrite2 = ""
     while cumulatedMass/sumRawM<0.95:
         if idx[i]>0:
             massi = individualMass[idx[i]]
             cumulatedMass += massi
             if i<100:
-                # if i>0:
-                #     toWrite+=", "
+                if len(toWrite2)>0:
+                    toWrite2 += ", "
                 toWrite+="(%d (%5.2f), %5.2f, %5.2f)"%(massi, massi*Ts3, 100.0*massi/sumRawM, 100.0*cumulatedMass/sumRawM)
         i+=1
+    toWrite += toWrite2
     ncomponents95 = i
     toWrite+="\\\\ \\\\Number of components to reach 95\\%% of the mass: %d\\\\ \\\\"%ncomponents95
     ncomponentsRemaining = ncomponents-ncomponents95
