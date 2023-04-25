@@ -933,26 +933,32 @@ respectively. This region is shaded in the plot.
     tilt = md.getColumnValues(xmipp3.MDL_ANGLE_TILT)
     counts = md.getColumnValues(xmipp3.MDL_RESOLUTION_FRC)
     fnContour = os.path.join(report.getReportDir(), "fsoDirectional.png")
-    radialPlot(rot, tilt, counts, fnContour, plotType="contour")
+    try:
+        radialPlot(rot, tilt, counts, fnContour, plotType="contour")
+    except:
+        pass
 
     msg = \
-"""Fig. \\ref{fig:fso} shows the Fourier Shell Occupancy and its anisotropy. The directional resolution is shown in
-Fig. \\ref{fig:fsoContour}. %s
-
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=9cm]{%s}
-    \\caption{FSO and anisotropy.}
-    \\label{fig:fso}
-\\end{figure}
-
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=9cm]{%s}
-    \\caption{Directional resolution in the projection sphere.}
-    \\label{fig:fsoContour}
-\\end{figure}
-""" % (strFSO, fnFSO, fnContour)
+        """Fig. \\ref{fig:fso} shows the Fourier Shell Occupancy and its anisotropy. The directional resolution is shown in
+        Fig. \\ref{fig:fsoContour}. %s
+    
+        \\begin{figure}[H]
+            \centering
+            \includegraphics[width=9cm]{%s}
+            \\caption{FSO and anisotropy.}
+            \\label{fig:fso}
+        \\end{figure}
+        """ % (strFSO, fnFSO)
+    if os.path.exists(fnContour):
+        msg += \
+            """
+            \\begin{figure}[H]
+                \centering
+                \includegraphics[width=9cm]{%s}
+                \\caption{Directional resolution in the projection sphere.}
+                \\label{fig:fsoContour}
+            \\end{figure}
+            """ % (fnContour)
     report.write(msg)
 
     # Warnings
