@@ -65,6 +65,8 @@ def createMask(project, label, map, Ts, threshold):
                                threshold=threshold,
                                doBig=True,
                                doMorphological=True,
+                               doSmooth=True,
+                               sigmaConvolution=2.0,
                                elementSize=math.ceil(2/Ts)) # Dilation by 2A
     project.launchProtocol(prot, wait=True)
     return prot
