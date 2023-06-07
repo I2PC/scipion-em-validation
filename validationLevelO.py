@@ -249,7 +249,7 @@ Henderson, R., Chen, S., Chen, J.~Z., Grigorieff, N., Passmore, L.~A.,
 \\subsection{O.c Tilt pair}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-this method is capable of experimentally validating the hand of the reconstructed map by comparing the angular 
+This method is capable of experimentally validating the hand of the reconstructed map by comparing the angular 
 assignment of two sets of particles related by a single-axis tilt \\cite{Henderson2011}.\\\\
 \\\\
 \\textbf{Results:}\\\\
@@ -402,21 +402,53 @@ the experimental one is smaller than 15 degrees.
         report.writeAbstract("It seems that the map does not fulfill the tilt pair validation (see Sec. \\ref{%s}). "%\
                              secLabel)
 
-def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS,
-           UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
-           skipAnalysis=False):
-    checkXlm = XLM is not None and protAtom is not None
-    checkSaxs = SAXS is not None
-    checkPair = UNTILTEDMIC is not None
+# def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS,
+#            UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
+#            skipAnalysis=False):
+#     checkXlm = XLM is not None and protAtom is not None
+#     checkSaxs = SAXS is not None
+#     checkPair = UNTILTEDMIC is not None
 
-    if not skipAnalysis and (checkXlm or checkSaxs or checkPair):
+#     if not skipAnalysis and (checkXlm or checkSaxs or checkPair):
+#         msg = "\\section{Other experimental techniques}\n\n"
+#         report.write(msg)
+
+#         if checkXlm:
+#             xlmValidation(project, report, protAtom, XLM)
+#         if checkSaxs:
+#             saxsValidation(project, report, protMap, protMask, SAXS)
+#         if checkPair:
+#             tiltPairValidation(project, report, protMap, UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE,
+#                                UNTILTEDCOORDS, TILTEDCOORDS, SYM)
+
+def levelOa(project, report, protAtom, XLM, skipAnalysis=False):
+
+    if not skipAnalysis:
         msg = "\\section{Other experimental techniques}\n\n"
         report.write(msg)
 
-        if checkXlm: 
-            xlmValidation(project, report, protAtom, XLM)
-        if checkSaxs:
-            saxsValidation(project, report, protMap, protMask, SAXS)
-        if checkPair:
-            tiltPairValidation(project, report, protMap, UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE,
-                               UNTILTEDCOORDS, TILTEDCOORDS, SYM)
+        xlmValidation(project, report, protAtom, XLM)
+
+def levelOb(project, report, protMap, protMask, SAXS, skipAnalysis=False):
+
+    if not skipAnalysis:
+        # Check if Other experimental techniques section exists
+        finded = report.findSection('Other experimental techniques')
+        if not finded:
+            msg = "\\section{Other experimental techniques}\n\n"
+            report.write(msg)
+        
+        saxsValidation(project, report, protMap, protMask, SAXS)
+
+def levelOc(project, report, protMap, UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, 
+            UNTILTEDCOORDS, TILTEDCOORDS, SYM, skipAnalysis=False):
+    
+    if not skipAnalysis:
+        # Check if Other experimental techniques section exists
+        finded = report.findSection('Other experimental techniques')
+        if not finded:
+            msg = "\\section{Other experimental techniques}\n\n"
+            report.write(msg)
+        
+        tiltPairValidation(project, report, protMap, UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE,
+                            UNTILTEDCOORDS, TILTEDCOORDS, SYM)

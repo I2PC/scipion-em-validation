@@ -231,9 +231,21 @@ def convertPDB(project, report, protImportMap, protAtom):
     project.launchProtocol(protConvert)
     #waitOutput(project, protConvert, 'outputVolume')
     waitUntilFinishes(project, protConvert)
-    if protConvert.isFailed():     #TODO: check texts for ConverToPdb when fails
+    if protConvert.isFailed():     #TODO: check texts for ConverToPdb when fails #TODO:añadir citacion: C.O.S. Sorzano, J. Vargas, J. Oton, V. Abrishami, J.M. de la Rosa-Trevin, S. del Riego, A. Fernandez-Alderete, C. Martinez-Rey, R. Marabini, J.M. Carazo. Fast and accurate conversion of atomic models into electron density maps. AIMS Biophysics, 2: 8-20 (2015)
         secLabel = "sec:convertPdb2Map"
         report.writeSummary("A. Conversion PDB to map", secLabel, "{\\color{red} Could not be converted}")
+
+#TODO: añadir slides
+        '''
+        fnConvertMap = os.path.join(project.getPath(),protConvert.outputVolume.getFileName())
+    msg = "\\underline{\\textbf{Orthogonal slices of the input map}}\\\\"\
+          "\\textbf{Explanation}:\\\\ In the orthogonal slices of the map, the noise outside the protein should not "\
+          "have any structure (stripes going out, small blobs, particularly high or low densities, ...)\\\\ \\\\"\
+          "\\textbf{Results}:\\\\"\
+          "See Fig. \\ref{fig:centralConverted}.\\\\"
+    report.orthogonalSlices("centralSlicesInputMap", msg, "Central slices of the input map in the three dimensions",
+                            fnImportMap, "fig:centralConverted")
+        '''
 
         msg = \
     """

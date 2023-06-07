@@ -7,6 +7,7 @@ import os
 import scipy
 import subprocess
 import PIL
+import re
 
 from pyworkflow.protocol import StringParam
 from pyworkflow.utils.path import makePath, cleanPath
@@ -695,3 +696,8 @@ class ValidationReport:
                        stdout=subprocess.DEVNULL,
                        stderr=subprocess.STDOUT)
         os.chdir(self.fnProjectDir)
+
+    def findSection(self, sectionName):
+        report = open(self.fnReport, 'r') #TODO: try with open('BeforeKichiku.txt', encoding='utf-8') as fileobj: ....
+        section = '\section{%s}' % (sectionName)
+        return bool(re.search(section, report)) #TODO: str(report) to fix TypeError: expected string or bytes-like object (https://stackoverflow.com/questions/38191161/regex-search-expected-strings-or-byte-like-objects)

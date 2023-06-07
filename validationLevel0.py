@@ -1042,8 +1042,8 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
     bfactor=bFactorAnalysis(report, protImportMap.outputVolume, resolution)
 
     if not skipAnalysis:
-        xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
+        #xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
         locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protResizeMask.outputVol, resolution)
-        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protResizeMask.outputVol, resolution)
-        deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, threshold)
+        #locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protResizeMask.outputVol, resolution)
+        #deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, threshold)
     return protImportMap, protCreateMask, bfactor, protResizeMap, protResizeMask

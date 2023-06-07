@@ -654,13 +654,23 @@ else: # go ahead
         from validationLevelW import levelW
         levelW(project, report, WORKFLOW, skipAnalysis = False)
 
-    # Level O
+    # Level Oa
     #TODO: pass writeAtomicModelFailed to levelO() to write the warning in the report (section O.a.)
-    if "O" in levels:
-        from validationLevelO import levelO
-        levelO(project, report, protImportMap, protCreateMask, protAtom, XLM, SAXS,
-               UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
-               skipAnalysis = False)
+    if "Oa" in levels:
+        from validationLevelO import levelOa
+        levelOa(project, report, protAtom, XLM, skipAnalysis = False)
+    
+    # Level Ob
+    if "Ob" in levels:
+        from validationLevelO import levelOb
+        levelOb(project, report, protImportMap, protCreateMask, SAXS, skipAnalysis = False)
+
+    # Level Oc
+    if "Oc" in levels:
+        from validationLevelO import levelOc
+        levelOc(project, report, protImportMap,
+                UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
+                skipAnalysis = False)
 
     # Close report
     report.abstractResolution(MAPRESOLUTION)
