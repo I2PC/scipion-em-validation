@@ -482,16 +482,16 @@ if "A" in levels and not protImportMapChecker.isFailed():
             fnPdb = os.path.join(project.getTmpPath(), pdbFile) #TODO: poner en otra carpet??
             h.writeAsPdb(fnPdb)
         except OutOfChainsError:
-            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Biopython cannot safely write this PDB: Too many chains to represent in PDB format'})
+            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Atomic model file not valid. Some programs cannot handle it due to size: Too many chains to represent in PDB format'})
             writeAtomicModelFailed = True
         except OutOfAtomsError:
-            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Biopython cannot safely write this PDB: Too many atoms to represent in PDB format'})
+            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Atomic model file not valid. Some programs cannot handle it due to size: Too many atoms to represent in PDB format'})
             writeAtomicModelFailed = True
         except:
-            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Biopython cannot safely write this PDB: Too many atoms to represent in PDB format'})
+            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Atomic model file not valid. Some programs cannot handle it because it cannot be safely written in PDB format'})
             writeAtomicModelFailed = True
     except:
-        wrongInputs['error'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Biopython cannot safely read this atomic model'})
+        wrongInputs['error'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Atomic model file not valid. It cannot be safely read'})
 
     if not writeAtomicModelFailed:
         protImportAtomicModelChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportPdb', doRaise=True),
