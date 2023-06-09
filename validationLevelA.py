@@ -1093,7 +1093,7 @@ Atomic model: %s \\\\
 
     if writeAtomicModelFailed:
         warnings = []
-        warnings.append("{\\color{red} \\textbf{Biopython cannot safely write this PDB}}")
+        warnings.append("{\\color{red} \\textbf{Atomic model file not valid. Some programs cannot handle it due to size or related issues.}}")
         report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
         return True
 
