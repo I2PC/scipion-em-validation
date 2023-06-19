@@ -1015,7 +1015,8 @@ def fsc3d(project, report, label, protImportMapResize, protImportMap1, protImpor
                                             'Prot3DFSC', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel=label,
-                               applyMask=True)
+                               applyMask=True,
+                               useGpu=True)
     prot.inputVolume.set(protImportMapResize.outputVol)
     prot.volumeHalf1.set(protResizeHalf1.outputVol)
     prot.volumeHalf2.set(protResizeHalf2.outputVol)
