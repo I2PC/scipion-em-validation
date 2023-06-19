@@ -355,7 +355,7 @@ estimated FSC and resolution.
     warnings=[]
     testWarnings = False
     if resolution<0.8*FDRResolution or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
                         "to the resolution calculated by the FSC permutation, %5.2f \\AA}}"%(resolution,FDRResolution))
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the user provided resolution is larger than 0.8 times the
@@ -468,7 +468,7 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
     warnings = []
     testWarnings = False
     if resolutionP < 0.1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
                         (resolution, resolutionP))
     msg = \
@@ -590,7 +590,7 @@ Fig. \\ref{fig:resmapColor} shows some representative views of the local resolut
     warnings = []
     testWarnings = False
     if resolutionP < 0.1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
                         (resolution, resolutionP))
     msg = \
@@ -716,7 +716,7 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
     warnings=[]
     testWarnings = False
     if resolutionP<0.001 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
                         "to the local resolution distribution. It occupies the %5.2f percentile}}"%\
                         (resolution,resolutionP*100))
     msg = \

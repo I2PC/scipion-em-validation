@@ -703,7 +703,7 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
     warnings = []
     testWarnings = False
     if resolutionP < 0.1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
                         (resolution, resolutionP))
     msg = \
