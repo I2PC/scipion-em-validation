@@ -408,7 +408,8 @@ raw and constructed mask is %5.2f.\\\\
     testWarnings = False
     if ncomponents95>5 or testWarnings:
         warnings.append("{\\color{red} \\textbf{There might be a problem of connectivity at this threshold because "\
-                        "more than 5 connected components are needed to reach 95\\% of the total mask.}}")
+                        "more than 5 connected components are needed to reach 95\\% of the total mask. Probably a "\
+                        "smaller threshold will not cause this issue.}}")
     if avgVolumeRemaining>5 or testWarnings:
         warnings.append("{\\color{red} \\textbf{There might be a problem with noise and artifacts, because the "\
                         "average noise blob has a volume of %f \AA$^3$.}}"%avgVolumeRemaining)
