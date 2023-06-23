@@ -231,7 +231,7 @@ depends on the CTF) on each side to make sure that the CTF can be appropriately 
         toWrite += \
     """
     The center of mass is at (x,y,z)=(%6.2f,%6.2f,%6.2f). The decentering of the center of mass (abs(Center)/Size)\\%% is
-    %5.2f, %5.2f, and %5.2f, respectively.\\%%\\\\
+    %5.2f, %5.2f, and %5.2f, respectively. A center of mass significantly shifted is common in local refinements.\\\\
     
     """%(cx,cy,cz,dcx,dcy,dcz)
 
