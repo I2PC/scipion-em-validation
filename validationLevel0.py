@@ -996,6 +996,10 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
         report.writeAbstract("There seems to be a problem with the map hand (see Sec. \\ref{%s}). "%secLabel)
 
 def reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateMask):
+
+    # Get file basename to write it in the report
+    basenameFnMap = os.path.basename(fnMap)
+
     toWrite=\
 """
 \\section{Input data}
@@ -1005,7 +1009,7 @@ Voxel size: %f (\AA) \\\\
 Visualization threshold: %f \\\\
 Resolution estimated by user: %f \\\\
 
-"""%(fnMap.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap), Ts, threshold, resolution)
+"""%(basenameFnMap.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap), Ts, threshold, resolution)
     report.write(toWrite)
 
     fnImportMap = os.path.join(project.getPath(),protImportMap.outputVolume.getFileName())

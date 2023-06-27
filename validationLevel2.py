@@ -192,13 +192,17 @@ reported resolution of the map.
 def reportInput(project, report, fnAvgs, protAvgs):
     avgStack = os.path.join(report.getReportDir(),"avgs.xmd")
     writeSetOfParticles(protAvgs.outputAverages, avgStack)
+
+    # Get file basename to write it in the report
+    basenameFnAvgs = os.path.basename(fnAvgs)
+
     toWrite = \
 """
 \\section{2D Classes}
 Set of 2D classes: %s \\\\
 \\\\
 The classes can be seen in Fig. \\ref{fig:classes2D}.\\\\
-""" % (fnAvgs.replace('_','\_').replace('/','/\-'))
+""" % (basenameFnAvgs.replace('_','\_').replace('/','/\-'))
     report.write(toWrite)
 
     report.setOfImages(avgStack, xmipp3.MDL_IMAGE, "Set of 2D classes provided by the user",

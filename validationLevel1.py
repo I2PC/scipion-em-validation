@@ -1119,6 +1119,11 @@ smaller than 0.8 the resolution estimated by the first cross of the global direc
 
 
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):
+
+    # Get file basenames to write them in the report
+    basenameFnMap1 = os.path.basename(fnMap1)
+    basenameFnMap2 = os.path.basename(fnMap2)
+
     toWrite=\
 """
 \\section{Half maps}
@@ -1132,8 +1137,8 @@ Slices of the first half map can be seen in Fig. \\ref{fig:maxVarHalf1}.\\\\
 Slices of the second half map can be seen in Fig. \\ref{fig:maxVarHalf2}.\\\\
 Slices of the difference between both maps can be seen in Fig. \\ref{fig:maxVarHalfDiff}. There should not be 
 any structure in this difference. Sometimes some patterns are seen if the map is symmetric.\\\\
-"""%(fnMap1.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap1),\
-     fnMap2.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap2))
+"""%(basenameFnMap1.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap1),\
+     basenameFnMap2.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap2))
     report.write(toWrite)
 
     fnMap1 = os.path.join(project.getPath(), protImportMap1.outputVolume.getFileName())

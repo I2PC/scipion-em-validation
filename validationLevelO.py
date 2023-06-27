@@ -157,6 +157,10 @@ Jim\\'enez, A., Jonic, S., Majtner, T., O\\'on, J., Vilas, J.~L., Maluenda, D.,
     report.addCitation("Jimenez2019", bblCitation)
 
     secLabel = "sec:saxs"
+
+    # Get file basename to write it in the report
+    basenameSAXS = os.path.basename(SAXS)
+
     msg = \
 """
 \\subsection{O.b SAXS}
@@ -169,7 +173,7 @@ The method in \\cite{Jimenez2019} compares the expected energy profile from the 
 obtained by a SAXS experiment. \\\\
 \\\\
 \\textbf{Results:}\\\\
-""" % (secLabel, SAXS.replace('_', '\_').replace('/', '/\-'), calculateSha256(SAXS))
+""" % (secLabel, basenameSAXS.replace('_', '\_').replace('/', '/\-'), calculateSha256(SAXS))
     report.write(msg)
 
     Prot = pwplugin.Domain.importFromPlugin('continuousflex.protocols',

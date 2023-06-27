@@ -536,13 +536,17 @@ be rejected with a threshold for the p-value of 0.001.
 def reportInput(project, report, fnParticles, protParticles):
     particlesStack = os.path.join(report.getReportDir(),"particles.xmd")
     writeSetOfParticles(protParticles.outputParticles, particlesStack)
+
+    # Get file basename to write it in the report
+    basenameFnParticles = os.path.basename(fnParticles)
+
     toWrite = \
 """
 \\section{Particles}
 Set of Particles: %s \\\\
 \\\\
 %d images were provided by the user. The first 32 can be seen in Fig. \\ref{fig:particles}.\\\\
-""" % (fnParticles.replace('_','\_').replace('/','/\-'), protParticles.outputParticles.getSize())
+""" % (basenameFnParticles.replace('_','\_').replace('/','/\-'), protParticles.outputParticles.getSize())
     report.write(toWrite)
 
     report.setOfImages(particlesStack, xmipp3.MDL_IMAGE, "First particles of the set of particles provided by the user",

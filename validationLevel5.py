@@ -85,6 +85,9 @@ def reportInput(project, report, MICPATTERN, protCoords, protMics):
     boxSize = setOfCoords.getBoxSize()
     Ts = protMics.outputMicrographs.getSamplingRate()
 
+    # Get file basename to write it in the report
+    basenameMICPATTERN = os.path.basename(MICPATTERN)
+
     msg = \
 """
 \\section{Micrographs}
@@ -94,7 +97,7 @@ Set of Micrographs: %s \\\\
 
 \\begin{figure}[H]
     \centering
-"""%(MICPATTERN.replace('_','\_').replace('/','/\-'), len(fnMics))
+"""%(basenameMICPATTERN.replace('_','\_').replace('/','/\-'), len(fnMics))
 
     for i in range(min(2,len(fnMics))):
         micId, fnMic = fnMics[i]

@@ -1083,12 +1083,16 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     return prot
 
 def reportInput(project, report, FNMODEL, writeAtomicModelFailed=False):
+
+    # Get file basename to write it in the report
+    basenameFNMODEL = os.path.basename(FNMODEL)
+
     msg = \
 """
 \\section{Atomic model}
 \\label{sec:atomicModel}\n\n
 Atomic model: %s \\\\
-\\\\"""%FNMODEL.replace('_','\_').replace('/','/\-')
+\\\\"""%basenameFNMODEL.replace('_','\_').replace('/','/\-')
     report.write(msg)
 
     if writeAtomicModelFailed:
