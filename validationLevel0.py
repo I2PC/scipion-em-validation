@@ -231,7 +231,7 @@ depends on the CTF) on each side to make sure that the CTF can be appropriately 
         toWrite += \
     """
     The center of mass is at (x,y,z)=(%6.2f,%6.2f,%6.2f). The decentering of the center of mass (abs(Center)/Size)\\%% is
-    %5.2f, %5.2f, and %5.2f, respectively. A center of mass significantly shifted is common in local refinements.\\\\
+    %5.2f, %5.2f, and %5.2f, respectively.\\\\
     
     """%(cx,cy,cz,dcx,dcy,dcz)
 
@@ -270,7 +270,8 @@ depends on the CTF) on each side to make sure that the CTF can be appropriately 
 
     msg=\
 """\\textbf{Automatic criteria}: The validation is OK if 1) the decentering and center of mass less than 20\\% of the map 
-dimensions in all directions, and 2) the extra space on each direction is more than 20\\% of the map dimensions.
+dimensions in all directions, and 2) the extra space on each direction is more than 20\\% of the map dimensions. For local
+and focused refinement, or similar, warnings are expected. 
 \\\\
     
     """
