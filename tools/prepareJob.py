@@ -285,6 +285,7 @@ def main(argv):
         # Download PDB atomic models
         for pdbId in atomModelIDs:
             atomModelFiles.append(downloadPdbModel(pdbId, jobDir))
+        aModelId = atomModelIDs[0]
         aModel = os.path.basename(atomModelFiles[0])
         logger.info("Atomic model %s" % aModel)
 
@@ -308,6 +309,7 @@ def main(argv):
         inputParams["map1"] = halfmapFiles[0].replace('.gz', '')
         inputParams["map2"] = halfmapFiles[1].replace('.gz', '')
     if aModel:
+        inputParams["pdbId"] = aModelId
         inputParams["modelFileName"] = aModel
     save_json(data=inputParams, path=jobDir, filename=FN_LOCAL_JSON_PARAMS)
 
