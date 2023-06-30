@@ -27,42 +27,59 @@
 import collections
 import glob
 import json
-import math
 import numpy as np
 import os
 import pickle
-import scipy
 import subprocess
 
 from scipion.utils import getScipionHome
-from pwem.emlib.metadata import iterRows
 import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPath, copyFile
 from pwem.convert.atom_struct import AtomicStructHandler
-from xmipp3.convert import writeSetOfParticles
+import pwem.convert.atom_struct
 import xmipp3
 
 from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot
+from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
-def importMap(project, label, protImportMap):
+import configparser
+
+config = configparser.ConfigParser()
+config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+
+
+def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel=label,
                                filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
-                               samplingRate=protImportMap.outputVolume.getSamplingRate())
-    project.launchProtocol(prot, wait=True)
+                               samplingRate=protImportMap.outputVolume.getSamplingRate(),
+                               setOrigCoord=True,
+                               x=mapCoordX,
+                               y=mapCoordY,
+                               z=mapCoordZ)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputVolume')
+    waitUntilFinishes(project, prot)
     return prot
 
-def importModel(project, label, protImportMap, FNMODEL):
+def importModel(project, label, protImportMap, fnPdb):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportPdb', doRaise=True)
     protImport = project.newProtocol(Prot,
                                      objLabel=label,
                                      inputPdbData=1,
-                                     pdbFile=FNMODEL)
+                                     pdbFile=fnPdb)
     protImport.inputVolume.set(protImportMap.outputVolume)
-    project.launchProtocol(protImport, wait=True)
+    if useSlurm:
+        sendToSlurm(protImport)
+    project.launchProtocol(protImport)
+    #waitOutput(project, protImport, 'outputPdb')
+    waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import atomic model did not work")
 
@@ -98,7 +115,11 @@ have a Gaussian shape.\\\\
                                inputVol=protImportMap.outputVolume,
                                pdbs=[protAtom.outputPdb],
                                mapRes=resolution)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'scoredStructures')
+    waitUntilFinishes(project, prot)
     if prot.isFailed():
         report.writeSummary("A.a MapQ", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -204,19 +225,38 @@ percentiles are:
         report.writeAbstract("There seems to be a problem with its MapQ scores (see Sec. \\ref{%s}). "%secLabel)
 
 
-def convertPDB(project, protImportMap, protAtom):
+def convertPDB(project, report, protImportMap, protAtom):
+
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtConvertPdb', doRaise=True)
     protConvert = project.newProtocol(Prot,
                                       objLabel="Convert Pdb to map",
                                       inputPdbData=1,
                                       sampling=protImportMap.outputVolume.getSamplingRate(),
-                                      vol=True)
+                                      vol=True,
+                                      centerPdb=False)
     protConvert.pdbObj.set(protAtom.outputPdb)
     protConvert.volObj.set(protImportMap.outputVolume)
-    project.launchProtocol(protConvert, wait=True)
-    if protConvert.isFailed():
-        report.writeSummary("A. Conversion to PDB", secLabel, "{\\color{red} Could not be converted}")
+    if useSlurm:
+        sendToSlurm(protConvert)
+    project.launchProtocol(protConvert)
+    #waitOutput(project, protConvert, 'outputVolume')
+    waitUntilFinishes(project, protConvert)
+    if protConvert.isFailed():     #TODO: check texts for ConverToPdb when fails
+        secLabel = "sec:convertPdb2Map"
+        report.writeSummary("A. Conversion PDB to map", secLabel, "{\\color{red} Could not be converted}")
+
+        msg = \
+    """
+    \\subsection{Level A.a Conversion PDB to map}
+    \\label{%s}
+    \\textbf{Explanation}:\\\\ 
+    Convert a PDB file into a volume.\\\\
+    \\\\
+    \\textbf{Results:}\\\\
+    \\\\
+    """ % secLabel
+        report.write(msg)
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return None
 
@@ -258,7 +298,11 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
                                inputPDBObj=protAtom.outputPdb)
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.pdbMap.set(protConvert.outputVolume)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputAtomStruct')
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("A.b FSC-Q", secLabel, "{\\color{red} Could not be measured}")
@@ -342,7 +386,12 @@ the different local resolutions or local heterogeneity.\\\\
                                  inputVolume=protImportMap.outputVolume,
                                  resolution=resolution,
                                  numMods=2)
-    project.launchProtocol(prot1, wait=True)
+    if useSlurm:
+        sendToSlurm(prot1, GPU=True)
+    project.launchProtocol(prot1)
+    #waitOutput(project, prot1, 'outputAtomStructs')
+    waitUntilFinishes(project, prot1)
+
 
     if prot1.isFailed() or not hasattr(prot1,"outputAtomStructs"):
         report.writeSummary("A.c Multimodel", secLabel, "{\\color{red} Could not be measured}")
@@ -354,7 +403,11 @@ the different local resolutions or local heterogeneity.\\\\
     prot2 = project.newProtocol(Prot,
                                 objLabel="A.c RMSD",
                                 inputStructureSet=prot1.outputAtomStructs)
-    project.launchProtocol(prot2, wait=True)
+    if useSlurm:
+        sendToSlurm(prot2)
+    project.launchProtocol(prot2)
+    #waitOutput(project, prot2, 'outputAtomStructs')
+    waitUntilFinishes(project, prot2)
     if prot2.isFailed():
         report.writeSummary("A.c Multimodel", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -536,11 +589,19 @@ quality of the map.
                                resolution=max(resolution,3.0))
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("A.e Phenix", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        phenixStdout = open(os.path.join(project.getPath(), prot.getStdoutLog()), "r").read()
+        controlledErrors = ["Sorry: Input map is all zero after boxing", "Sorry: Map and model are not aligned", "Sorry: Fatal problems interpreting model file"]
+        for error in controlledErrors:
+            if error in phenixStdout:
+                report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % error)
         return prot
 
     fnPkl = os.path.join(project.getPath(),prot._getExtraPath("validation_cryoem.pkl"))
@@ -825,11 +886,21 @@ that may need improvement.
                                objLabel="A.f EMRinger")
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'stringDataDict')
+    #waitOutputFile(project, prot, '*_emringer_plots')
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("A.f EMRinger", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        emringerStdout = open(os.path.join(project.getPath(), prot.getStdoutLog()), "r").read()
+        controlledErrors = ["Sorry: No residues could be scanned by EMRinger, so scores cannot be generated"]
+        for error in controlledErrors:
+            if error in emringerStdout:
+                report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % error)
         return prot
 
     dataDict=json.loads(str(prot.stringDataDict), object_pairs_hook=collections.OrderedDict)
@@ -947,7 +1018,11 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
                                stride=3)
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputAtomStruct.set(protAtom.outputPdb)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputAtomStruct')
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("A.f DAQ", secLabel, "{\\color{red} Could not be measured}")
@@ -1007,61 +1082,76 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
 
     return prot
 
-def reportInput(project, report, FNMODEL):
+def reportInput(project, report, FNMODEL, writeAtomicModelFailed=False):
+
+    # Get file basename to write it in the report
+    basenameFNMODEL = os.path.basename(FNMODEL)
+
     msg = \
 """
 \\section{Atomic model}
 \\label{sec:atomicModel}\n\n
 Atomic model: %s \\\\
-\\\\"""%FNMODEL.replace('_','\_').replace('/','/\-')
+\\\\"""%basenameFNMODEL.replace('_','\_').replace('/','/\-')
     report.write(msg)
 
-    try:
-        h = AtomicStructHandler()
-        h.read(FNMODEL)
-    except:
+    if writeAtomicModelFailed:
         warnings = []
-        warnings.append("{\\color{red} \\textbf{Biopython cannot safely read this atomic model}}")
+        warnings.append("{\\color{red} \\textbf{Atomic model file not valid. Some programs cannot handle it due to size or related issues.}}")
         report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
         return True
 
-    try:
-        fnPdb = os.path.join(self.getReportDir(),"tmp.pdb")
-        h.writeAsPdb(fnPdb)
-        cleanPath(fnPdb)
-    except:
-        warnings = []
-        warnings.append("{\\color{red} \\textbf{Biopython cannot safely write this PDB}}")
-        report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
-        return True
+    # try:
+    #     h = AtomicStructHandler()
+    #     h.read(FNMODEL)
+    # except:
+    #     warnings = []
+    #     warnings.append("{\\color{red} \\textbf{Biopython cannot safely read this atomic model}}")
+    #     report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
+    #     return True
+
+    # try:
+    #     fnPdb = os.path.join(report.getReportDir(),"tmp.pdb")
+    #     h.writeAsPdb(fnPdb)
+    #     cleanPath(fnPdb)
+    # except:
+    #     warnings = []
+    #     warnings.append("{\\color{red} \\textbf{Biopython cannot safely write this PDB}}")
+    #     report.writeWarningsAndSummary(warnings, "Atomic model", "sec:atomicModel")
+    #     return True
 
     msg = "See Fig. \\ref{fig:modelInput}.\\\\"
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
     return False
 
-def levelA(project, report, protImportMap, FNMODEL, resolution, doMultimodel, skipAnalysis=False):
-    if protImportMap.outputVolume.hasHalfMaps():
-        protImportMapWOHalves = importMap(project, "Import map2", protImportMap)
-        protImportForPhenix = protImportMapWOHalves
+def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis=False):
+    if writeAtomicModelFailed:
+        reportInput(project, report, FNMODEL, writeAtomicModelFailed)
+        protAtom = None
+        return protAtom
     else:
-        protImportForPhenix = protImportMap
+        if protImportMap.outputVolume.hasHalfMaps():
+            protImportMapWOHalves = importMap(project, "Import map2", protImportMap, mapCoordX, mapCoordY, mapCoordZ)
+            protImportForPhenix = protImportMapWOHalves
+        else:
+            protImportForPhenix = protImportMap
 
-    protAtom = importModel(project, "Import atomic", protImportMap, FNMODEL)
+        protAtom = importModel(project, "Import atomic", protImportMap, fnPdb)
 
-    skipAnalysis = skipAnalysis or reportInput(project, report, FNMODEL)
+        skipAnalysis = skipAnalysis or reportInput(project, report, FNMODEL)
 
-    # Quality Measures
-    if not skipAnalysis:
-        report.writeSection('Level A analysis')
-        protConvert = convertPDB(project, protImportMap, protAtom)
-        if protConvert is not None:
-            mapq(project, report, protImportMap, protAtom, resolution)
-            fscq(project, report, protImportMap, protAtom, protConvert)
-            if doMultimodel:
-                multimodel(project, report, protImportMap, protAtom, resolution)
-            guinierModel(project, report, protImportMap, protConvert, resolution)
-            phenix(project, report, protImportForPhenix, protAtom, resolution)
-            emringer(project, report, protImportForPhenix, protAtom)
-            daq(project, report, protImportMap, protAtom)
+        # Quality Measures
+        if not skipAnalysis:
+            report.writeSection('Level A analysis')
+            protConvert = convertPDB(project, report, protImportMap, protAtom)
+            if protConvert is not None:
+                mapq(project, report, protImportMap, protAtom, resolution)
+                fscq(project, report, protImportMap, protAtom, protConvert)
+                if doMultimodel:
+                    multimodel(project, report, protImportMap, protAtom, resolution)
+                guinierModel(project, report, protImportMap, protConvert, resolution)
+                phenix(project, report, protImportForPhenix, protAtom, resolution)
+                emringer(project, report, protImportForPhenix, protAtom)
+                daq(project, report, protImportMap, protAtom)
 
     return protAtom

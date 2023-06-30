@@ -26,7 +26,6 @@
 
 import glob
 import math
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import scipy
@@ -37,11 +36,19 @@ from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPattern, cleanPath
 from pwem.emlib.image import ImageHandler
-from validationReport import readMap, latexEnumerate, calculateSha256, CDFFromHistogram, CDFpercentile, reportPlot, \
+from validationReport import readMap, calculateSha256, CDFFromHistogram, CDFpercentile, reportPlot, \
     radialPlot, reportMultiplePlots, reportHistogram
 import xmipp3
 
-def importMap(project, label, fnMap, Ts):
+from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFinishes
+
+import configparser
+
+config = configparser.ConfigParser()
+config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+
+def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
     fnDir, fnBase = os.path.split(fnMap)
@@ -51,10 +58,15 @@ def importMap(project, label, fnMap, Ts):
                                filesPattern=fnMap,
                                samplingRate=Ts,
                                setOrigCoord=True,
-                               x=0,
-                               y=0,
-                               z=0)
-    project.launchProtocol(prot, wait=True)
+                               x=mapCoordX,
+                               y=mapCoordY,
+                               z=mapCoordZ)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputVolume')
+    waitUntilFinishes(project, prot)
+
     return prot
 
 def findFirstCross(x,y,y0,mode):
@@ -81,7 +93,11 @@ def globalResolution(project, report, label, protImportMap1, protImportMap2, res
     prot.inputVolume.set(protImportMap1.outputVolume)
     prot.referenceVolume.set(protImportMap2.outputVolume)
 
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputFSC')
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
 """\\bibitem[Sorzano et~al., 2017]{Sorzano2017}
@@ -200,7 +216,7 @@ behavior. If they have, this is typically due to the presence of a mask in real 
                         ['log10(SSNR)','0'], invertXLabels=True)
 
     # Mean and uncertainty
-    resolutionList = [1/fFSC, 1/fDPR, 1/fSSNR]
+    resolutionList = [1/value for value in [fFSC, fDPR, fSSNR] if value is not None]
 
     msg = \
 """Fig. \\ref{fig:FSC} shows the FSC and the 0.143 threshold. %s\\\\
@@ -289,7 +305,12 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
     prot.halfTwo.set(protImportMap2.outputVolume)
     prot.mask.set(protMask.outputMask)
 
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputFSC')
+    waitUntilFinishes(project, prot)
+
     if prot.isFailed():
         report.writeSummary("1.b FSC permutation", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -312,24 +333,29 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
+    fscFile = np.loadtxt(prot._getExtraPath("FSC.txt"))
+    fsc = fscFile[0]
+    frecuency = fscFile[1]
+    reportPlot(fsc, frecuency, "Frecuency (1/A)", "FSC", prot._getExtraPath("FSC.png"))
+
     msg=\
 """The resolution at 1\\%% of FDR was %4.1f. The estimated B-factor was %5.1f. Fig. \\ref{fig:fdrfsc} shows the
 estimated FSC and resolution.
 
 \\begin{figure}[H]
     \centering
-    \includegraphics[width=14cm]{%s}
+    \includegraphics[width=9cm]{%s}
     \\caption{FSC and resolution estimated by a permutation test.}
     \\label{fig:fdrfsc}
 \\end{figure}
 
-"""%(FDRResolution, Bfactor, os.path.join(project.getPath(),prot._getExtraPath("FSC.pdf")))
+"""%(FDRResolution, Bfactor, os.path.join(project.getPath(),prot._getExtraPath("FSC.png")))
     report.write(msg)
 
     warnings=[]
     testWarnings = False
     if resolution<0.8*FDRResolution or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
                         "to the resolution calculated by the FSC permutation, %5.2f \\AA}}"%(resolution,FDRResolution))
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the user provided resolution is larger than 0.8 times the
@@ -374,7 +400,12 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
     prot.inputVolume2.set(protImportMap2.outputVolume)
     prot.mask.set(protMask.outputMask)
 
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'resolution_Volume')
+    waitUntilFinishes(project, prot)
+
     if prot.isFailed():
         report.writeSummary("1.c Blocres", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -437,7 +468,7 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
     warnings = []
     testWarnings = False
     if resolutionP < 0.1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
                         (resolution, resolutionP))
     msg = \
@@ -485,7 +516,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
     if resmap is None:
         report.writeSummary("1.d Resmap", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: Cannot find the binary}}\\\\ \n")
-    return
+        return
 
     fnMask = os.path.join(project.getPath(),protMask.outputMask.getFileName())
     args = "--doBenchMarking --noguiSplit %s %s --vxSize=%f  --maskVol=%s"%(fnVol1, fnVol2, Ts, fnMask)
@@ -559,7 +590,7 @@ Fig. \\ref{fig:resmapColor} shows some representative views of the local resolut
     warnings = []
     testWarnings = False
     if resolutionP < 0.1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
                         (resolution, resolutionP))
     msg = \
@@ -587,7 +618,12 @@ def monores(project, report, label, protImportMap, protCreateMask, resolution):
                                maxRes=max(10,5*resolution))
     prot.associatedHalves.set(protImportMap.outputVolume)
     prot.mask.set(protCreateMask.outputMask)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'resolution_Volume')
+    #waitOutputFile(project, prot, "hist.xmd")
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
 """\\bibitem[Vilas et~al., 2018]{Vilas2018}
@@ -621,7 +657,8 @@ if its energy is signficantly above the level of noise.\\\\
         return prot
 
     md = xmipp3.MetaData()
-    md.read(prot._getExtraPath("hist.xmd"))
+    # md.read(prot._getExtraPath("hist.xmd"))
+    md.read(os.path.join(project.getPath(), prot._getExtraPath("hist.xmd")))
     x_axis = md.getColumnValues(xmipp3.MDL_X)
     y_axis = md.getColumnValues(xmipp3.MDL_COUNT)
 
@@ -679,7 +716,7 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
     warnings=[]
     testWarnings = False
     if resolutionP<0.001 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect "\
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
                         "to the local resolution distribution. It occupies the %5.2f percentile}}"%\
                         (resolution,resolutionP*100))
     msg = \
@@ -701,7 +738,13 @@ def monodir(project, report, label, protImportMap, protCreateMask, resolution):
                                resstep=resolution/3)
     prot.inputVolumes.set(protImportMap.outputVolume)
     prot.Mask.set(protCreateMask.outputMask)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputVolume_doa')
+    #waitOutput(project, prot, 'azimuthalVolume')
+    #waitOutput(project, prot, 'radialVolume')
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
 """\\bibitem[Vilas et~al., 2020]{Vilas2020}
@@ -839,7 +882,10 @@ def fso(project, report, label, protImportMap, protMask, resolution):
     prot.inputHalves.set(protImportMap.outputVolume)
     prot.mask.set(protMask.outputMask)
 
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    waitUntilFinishes(project, prot)
 
     secLabel = "sec:fso"
     msg = \
@@ -887,26 +933,32 @@ respectively. This region is shaded in the plot.
     tilt = md.getColumnValues(xmipp3.MDL_ANGLE_TILT)
     counts = md.getColumnValues(xmipp3.MDL_RESOLUTION_FRC)
     fnContour = os.path.join(report.getReportDir(), "fsoDirectional.png")
-    radialPlot(rot, tilt, counts, fnContour, plotType="contour")
+    try:
+        radialPlot(rot, tilt, counts, fnContour, plotType="contour")
+    except:
+        pass
 
     msg = \
-"""Fig. \\ref{fig:fso} shows the Fourier Shell Occupancy and its anisotropy. The directional resolution is shown in
-Fig. \\ref{fig:fsoContour}. %s
-
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=9cm]{%s}
-    \\caption{FSO and anisotropy.}
-    \\label{fig:fso}
-\\end{figure}
-
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=9cm]{%s}
-    \\caption{Directional resolution in the projection sphere.}
-    \\label{fig:fsoContour}
-\\end{figure}
-""" % (strFSO, fnFSO, fnContour)
+        """Fig. \\ref{fig:fso} shows the Fourier Shell Occupancy and its anisotropy. The directional resolution is shown in
+        Fig. \\ref{fig:fsoContour}. %s
+    
+        \\begin{figure}[H]
+            \centering
+            \includegraphics[width=9cm]{%s}
+            \\caption{FSO and anisotropy.}
+            \\label{fig:fso}
+        \\end{figure}
+        """ % (strFSO, fnFSO)
+    if os.path.exists(fnContour):
+        msg += \
+            """
+            \\begin{figure}[H]
+                \centering
+                \includegraphics[width=9cm]{%s}
+                \\caption{Directional resolution in the projection sphere.}
+                \\label{fig:fsoContour}
+            \\end{figure}
+            """ % (fnContour)
     report.write(msg)
 
     # Warnings
@@ -963,13 +1015,18 @@ def fsc3d(project, report, label, protImportMapResize, protImportMap1, protImpor
                                             'Prot3DFSC', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel=label,
-                               applyMask=True)
+                               applyMask=True,
+                               useGpu=True)
     prot.inputVolume.set(protImportMapResize.outputVol)
     prot.volumeHalf1.set(protResizeHalf1.outputVol)
     prot.volumeHalf2.set(protResizeHalf2.outputVol)
     prot.maskVolume.set(protMaskResize.outputVol)
 
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputVolume')
+    waitUntilFinishes(project, prot)
 
     secLabel = "sec:fsc3d"
     msg = \
@@ -1057,10 +1114,16 @@ smaller than 0.8 the resolution estimated by the first cross of the global direc
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.h FSC3D", secLabel)
-    report.addResolutionEstimate(1/fg)
+    if fg is not None:
+        report.addResolutionEstimate(1/fg)
 
 
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):
+
+    # Get file basenames to write them in the report
+    basenameFnMap1 = os.path.basename(fnMap1)
+    basenameFnMap2 = os.path.basename(fnMap2)
+
     toWrite=\
 """
 \\section{Half maps}
@@ -1074,8 +1137,8 @@ Slices of the first half map can be seen in Fig. \\ref{fig:maxVarHalf1}.\\\\
 Slices of the second half map can be seen in Fig. \\ref{fig:maxVarHalf2}.\\\\
 Slices of the difference between both maps can be seen in Fig. \\ref{fig:maxVarHalfDiff}. There should not be 
 any structure in this difference. Sometimes some patterns are seen if the map is symmetric.\\\\
-"""%(fnMap1.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap1),\
-     fnMap2.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap2))
+"""%(basenameFnMap1.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap1),\
+     basenameFnMap2.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap2))
     report.write(toWrite)
 
     fnMap1 = os.path.join(project.getPath(), protImportMap1.outputVolume.getFileName())
@@ -1092,13 +1155,13 @@ any structure in this difference. Sometimes some patterns are seen if the map is
                             "Slices of maximum variation in the three dimensions of the difference Half1-Half2.", Vdiff,
                             "fig:maxVarHalfDiff", maxVar=True)
 
-def level1(project, report, fnMap1, fnMap2, Ts, resolution, protImportMap, protImportMapResized,
+def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized,
            protCreateMask, protCreateMaskResized, skipAnalysis = False):
     # Import maps
-    protImportMap1 = importMap(project, "import half1", fnMap1, Ts)
+    protImportMap1 = importMap(project, "import half1", fnMap1, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap1.isFailed():
         raise Exception("Import map did not work")
-    protImportMap2 = importMap(project, "import half2", fnMap2, Ts)
+    protImportMap2 = importMap(project, "import half2", fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap2.isFailed():
         raise Exception("Import map did not work")
     reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2)

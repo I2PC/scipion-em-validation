@@ -37,7 +37,16 @@ from validationReport import readMap, readGuinier, latexEnumerate, calculateSha2
 
 import xmipp3
 
-def importMap(project, label, fnMap, fnMap1, fnMap2, Ts):
+from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes
+
+import configparser
+
+config = configparser.ConfigParser()
+config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+gpuIdSkipSlurm = config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
+
+def importMap(project, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
     fnDir, fnBase = os.path.split(fnMap)
@@ -46,14 +55,19 @@ def importMap(project, label, fnMap, fnMap1, fnMap2, Ts):
                                filesPath=os.path.join(fnDir,fnMap),
                                samplingRate=Ts,
                                setOrigCoord=True,
-                               x=0,
-                               y=0,
-                               z=0)
+                               x=mapCoordX,
+                               y=mapCoordY,
+                               z=mapCoordZ)
     if fnMap1 is not None and fnMap2 is not None:
         prot.setHalfMaps.set(True)
         prot.half1map.set(fnMap1)
         prot.half2map.set(fnMap2)
-    project.launchProtocol(prot, wait=True)
+
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputVolume')
+    waitUntilFinishes(project, prot)
     return prot
 
 def createMask(project, label, map, Ts, threshold):
@@ -68,7 +82,11 @@ def createMask(project, label, map, Ts, threshold):
                                doSmooth=True,
                                sigmaConvolution=2.0,
                                elementSize=math.ceil(2/Ts)) # Dilation by 2A
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputMask')
+    waitUntilFinishes(project, prot)
     return prot
 
 def resizeProject(project, protMap, protMask, resolution):
@@ -90,7 +108,14 @@ def resizeProject(project, protMap, protMask, resolution):
                                         windowOperation=1,
                                         windowSize=Xdimp)
     protResizeMap.inputVolumes.set(protMap.outputVolume)
-    project.launchProtocol(protResizeMap, wait=True)
+    if useSlurm:
+        sendToSlurm(protResizeMap)
+    project.launchProtocol(protResizeMap)
+    #waitOutput(project, protResizeMap, 'outputVol')
+    waitUntilFinishes(project, protResizeMap)
+
+    projectPath = os.path.join(project.getPath())
+    subprocess.call(['chmod', '-R', 'o+r', projectPath])
 
     protResizeMask = project.newProtocol(Prot,
                                          objLabel="Resize Mask Ts=%2.1f"%TsTarget,
@@ -100,7 +125,11 @@ def resizeProject(project, protMap, protMask, resolution):
                                          windowOperation=1,
                                          windowSize=Xdimp)
     protResizeMask.inputVolumes.set(protMask.outputMask)
-    project.launchProtocol(protResizeMask, wait=True)
+    if useSlurm:
+        sendToSlurm(protResizeMask)
+    project.launchProtocol(protResizeMask)
+    #waitOutput(project, protResizeMask, 'outputVol')
+    waitUntilFinishes(project, protResizeMask)
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtPreprocessVolumes', doRaise=True)
@@ -111,9 +140,21 @@ def resizeProject(project, protMap, protMask, resolution):
                                              threshold=0.5,
                                              fillType=1)
     protPreprocessMask.inputVolumes.set(protResizeMask.outputVol)
-    project.launchProtocol(protPreprocessMask, wait=True)
+    if useSlurm:
+        sendToSlurm(protPreprocessMask)
+    project.launchProtocol(protPreprocessMask)
+    #waitOutput(project, protPreprocessMask, 'outputVol')
+    waitUntilFinishes(project, protPreprocessMask)
 
     return protResizeMap, protPreprocessMask
+
+def properMask(mask):
+    M = readMap(mask.getFileName()).getData()
+    totalMass = np.sum(M)
+    if totalMass > 0:
+        return True
+    else:
+        return False
 
 def massAnalysis(report, volume, mask, Ts):
     V = readMap(volume.getFileName()).getData()
@@ -146,65 +187,94 @@ The reconstructed map must be relatively well centered in the box, and there sho
 depends on the CTF) on each side to make sure that the CTF can be appropriately corrected.
 \\\\
 \\\\
-\\textbf{Results:}\\\\
-The space from the left and right in X are %6.2f and %6.2f \AA, respectively. 
-There is a decentering ratio (abs(Right-Left)/Size)\\%% of %5.2f\\%%\\\\
-\\\\
-The space from the left and right in Y are %6.2f and %6.2f \AA, respectively.
-There is a decentering ratio (abs(Right-Left)/Size)\\%% of %5.2f\\%%\\\\
-\\\\
-The space from the left and right in Z are %6.2f and %6.2f \AA, respectively.
-There is a decentering ratio (abs(Right-Left)/Size)\\%% of %5.2f\\%%\\\\
-\\\\
-"""%(secLabel, x0, xF, dx, y0, yF, dy, z0, zF, dz)
+"""%(secLabel)
 
-    # Analysis of Center of mass
-    cx, cy, cz = scipy.ndimage.measurements.center_of_mass(V)
-    dcx = abs(cx-X/2)/X*100
-    dcy = abs(cy-Y/2)/Y*100
-    dcz = abs(cz-Z/2)/Z*100
+    #test
+    totalMass = np.sum(M)
 
-    toWrite += \
-"""
-The center of mass is at (x,y,z)=(%6.2f,%6.2f,%6.2f). The decentering of the center of mass (abs(Center)/Size)\\%% is
-%5.2f, %5.2f, and %5.2f, respectively.\\%%\\\\
+    if totalMass > 0:
+        ix = np.where(np.sum(M,axis=(1,2))>0)[0]
+        iy = np.where(np.sum(M,axis=(0,2))>0)[0]
+        iz = np.where(np.sum(M,axis=(0,1))>0)[0]
 
-"""%(cx,cy,cz,dcx,dcy,dcz)
+        x0 = Ts*(ix[0]) # Left space
+        xF = Ts*(X-ix[-1]) # Right space
+        y0 = Ts*(iy[0])
+        yF = Ts*(Y-iy[-1])
+        z0 = Ts*(iz[0])
+        zF = Ts*(Z-iz[-1])
+
+        dx = abs(xF-x0)/(Ts*X)*100
+        dy = abs(yF-y0)/(Ts*Y)*100
+        dz = abs(zF-z0)/(Ts*Z)*100
+
+        toWrite+= \
+    """
+    \\textbf{Results:}\\\\
+    The space from the left and right in X are %6.2f and %6.2f \AA, respectively. 
+    There is a decentering ratio (abs(Right-Left)/Size)\\%% of %5.2f\\%%\\\\
+    \\\\
+    The space from the left and right in Y are %6.2f and %6.2f \AA, respectively.
+    There is a decentering ratio (abs(Right-Left)/Size)\\%% of %5.2f\\%%\\\\
+    \\\\
+    The space from the left and right in Z are %6.2f and %6.2f \AA, respectively.
+    There is a decentering ratio (abs(Right-Left)/Size)\\%% of %5.2f\\%%\\\\
+    \\\\
+    """%(x0, xF, dx, y0, yF, dy, z0, zF, dz)
+
+        # Analysis of Center of mass
+        cx, cy, cz = scipy.ndimage.measurements.center_of_mass(V)
+        dcx = abs(cx-X/2)/X*100
+        dcy = abs(cy-Y/2)/Y*100
+        dcz = abs(cz-Z/2)/Z*100
+
+        toWrite += \
+    """
+    The center of mass is at (x,y,z)=(%6.2f,%6.2f,%6.2f). The decentering of the center of mass (abs(Center)/Size)\\%% is
+    %5.2f, %5.2f, and %5.2f, respectively.\\\\
+    
+    """%(cx,cy,cz,dcx,dcy,dcz)
+
+        warnings=[]
+        testWarnings = False
+        if dx>20 or testWarnings:
+            warnings.append("{\\color{red} \\textbf{The volume might be significantly decentered in X.}}")
+        if dy>20 or testWarnings:
+            warnings.append("{\\color{red} \\textbf{The volume might be significantly decentered in Y.}}")
+        if dz>20 or testWarnings:
+            warnings.append("{\\color{red} \\textbf{The volume might be significantly decentered in Z.}}")
+        if x0<20 or testWarnings:
+            warnings.append("{\\color{red} \\textbf{There could be little space from X left to effectively correct for the CTF.}}")
+        if y0<20 or testWarnings:
+            warnings.append("{\\color{red} \\textbf{There could be little space from Y left to effectively correct for the CTF.}}")
+        if z0<20 or testWarnings:
+            warnings.append("{\\color{red} \\textbf{There could be little space from Z left to effectively correct for the CTF.}}")
+        if xF<20 or testWarnings:
+            warnings.append("{\\color{red} \\textbf{There could be little space from X right to effectively correct for the CTF.}}")
+        if yF<20 or testWarnings:
+            warnings.append("{\\color{red} \\textbf{There could be little space from Y right to effectively correct for the CTF.}}")
+        if zF<20 or testWarnings:
+            warnings.append("{\\color{red} \\textbf{There could be little space from Z right to effectively correct for the CTF.}}")
+        if dcx>20 or testWarnings:
+            warnings.append("{\\color{red} \\textbf{The center of mass in X may be significantly shifted.}}")
+        if dcy>20 or testWarnings:
+            warnings.append("{\\color{red} \\textbf{The center of mass in Y may be significantly shifted.}}")
+        if dcz>20 or testWarnings:
+            warnings.append("{\\color{red} \\textbf{The center of mass in Z may be significantly shifted.}}")
+
+    else:
+        warnings = []
+        warnings.append("{\\color{red} \\textbf{Threshold parameter is too high, try to lower it.}}")
+
     report.write(toWrite)
-
-    warnings=[]
-    testWarnings = False
-    if dx>20 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The volume might be significantly decentered in X.}}")
-    if dy>20 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The volume might be significantly decentered in Y.}}")
-    if dz>20 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The volume might be significantly decentered in Z.}}")
-    if x0<20 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{There could be little space from X left to effectively correct for the CTF.}}")
-    if y0<20 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{There could be little space from Y left to effectively correct for the CTF.}}")
-    if z0<20 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{There could be little space from Z left to effectively correct for the CTF.}}")
-    if xF<20 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{There could be little space from X right to effectively correct for the CTF.}}")
-    if yF<20 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{There could be little space from Y right to effectively correct for the CTF.}}")
-    if zF<20 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{There could be little space from Z right to effectively correct for the CTF.}}")
-    if dcx>20 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The center of mass in X may be significantly shifted.}}")
-    if dcy>20 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The center of mass in Y may be significantly shifted.}}")
-    if dcz>20 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The center of mass in Z may be significantly shifted.}}")
 
     msg=\
 """\\textbf{Automatic criteria}: The validation is OK if 1) the decentering and center of mass less than 20\\% of the map 
-dimensions in all directions, and 2) the extra space on each direction is more than 20\\% of the map dimensions.
+dimensions in all directions, and 2) the extra space on each direction is more than 20\\% of the map dimensions. For local
+and focused refinement, or similar, warnings are expected. 
 \\\\
-
-"""
+    
+    """
     report.write(msg)
 
     report.writeWarningsAndSummary(warnings, "0.a Mass analysis", secLabel)
@@ -257,15 +327,17 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercenta
     idx = np.argsort(-np.asarray(individualMass)) # Minus is for sorting i descending order
     cumulatedMass = 0
     i = 0
+    toWrite2 = ""
     while cumulatedMass/sumRawM<0.95:
         if idx[i]>0:
             massi = individualMass[idx[i]]
             cumulatedMass += massi
             if i<100:
-                if i>0:
-                    toWrite+=", "
+                if len(toWrite2)>0:
+                    toWrite2 += ", "
                 toWrite+="(%d (%5.2f), %5.2f, %5.2f)"%(massi, massi*Ts3, 100.0*massi/sumRawM, 100.0*cumulatedMass/sumRawM)
         i+=1
+    toWrite += toWrite2
     ncomponents95 = i
     toWrite+="\\\\ \\\\Number of components to reach 95\\%% of the mass: %d\\\\ \\\\"%ncomponents95
     ncomponentsRemaining = ncomponents-ncomponents95
@@ -337,7 +409,8 @@ raw and constructed mask is %5.2f.\\\\
     testWarnings = False
     if ncomponents95>5 or testWarnings:
         warnings.append("{\\color{red} \\textbf{There might be a problem of connectivity at this threshold because "\
-                        "more than 5 connected components are needed to reach 95\\% of the total mask.}}")
+                        "more than 5 connected components are needed to reach 95\\% of the total mask. Probably a "\
+                        "smaller threshold will not cause this issue.}}")
     if avgVolumeRemaining>5 or testWarnings:
         warnings.append("{\\color{red} \\textbf{There might be a problem with noise and artifacts, because the "\
                         "average noise blob has a volume of %f \AA$^3$.}}"%avgVolumeRemaining)
@@ -544,17 +617,29 @@ input map to the appearance of the atomic structures a local resolution label ca
         report.write("This method cannot be applied to maps with a resolution better than 2\\AA.\\\\ \n")
         return None
 
+    if resolution>13:
+        report.writeSummary("0.e DeepRes", secLabel, "{\\color{brown} Does not apply}")
+        report.write("This method cannot be applied to maps with a resolution worse than 13\\AA.\\\\ \n")
+        return None
+
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtDeepRes', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel=label,
                                inputVolume=map,
                                Mask=mask)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        skipSlurm(prot, gpuIdSkipSlurm)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'resolution_Volume')
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("0.e DeepRes", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        deepresStderr = open(os.path.join(project.getPath(), prot.getStderrLog()), "r").read()
+        if "ran out of memory trying to allocate" in deepresStderr:
+            report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % "System ran out of memory. Try to launch it again.")
         return prot
 
     fnRes = os.path.join(project.getPath(), prot._getExtraPath("deepRes_resolution.vol"))
@@ -619,7 +704,7 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
     warnings = []
     testWarnings = False
     if resolutionP < 0.1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly with respect " \
+        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
                         (resolution, resolutionP))
     msg = \
@@ -664,7 +749,12 @@ local magnitude and phase term using the spiral transform.\\\\
                                mask_in_molecule=mask,
                                max_res=resolution,
                                numberOfThreads=1)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'bmap')
+    #waitOutputFile(project, prot, "bmap.mrc")
+    waitUntilFinishes(project, prot)
 
     fnBfactor = prot._getExtraPath("bmap.mrc")
     if prot.isFailed() or not os.path.exists(fnBfactor):
@@ -768,7 +858,11 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
                                mask_in_molecule=mask,
                                max_res=resolution,
                                numberOfThreads=1)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'omap')
+    waitUntilFinishes(project, prot)
 
     fnOccupancy = prot._getExtraPath("omap.mrc")
     if prot.isFailed() or not os.path.exists(fnOccupancy):
@@ -869,7 +963,12 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
                                objLabel=label,
                                inputVolume=map,
                                threshold=threshold)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputHand')
+    #waitOutput(project, prot, 'outputVol')
+    waitUntilFinishes(project, prot)
 
     if prot.isFailed():
         report.writeSummary("0.h DeepHand", secLabel, "{\\color{red} Could not be measured}")
@@ -898,6 +997,10 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
         report.writeAbstract("There seems to be a problem with the map hand (see Sec. \\ref{%s}). "%secLabel)
 
 def reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateMask):
+
+    # Get file basename to write it in the report
+    basenameFnMap = os.path.basename(fnMap)
+
     toWrite=\
 """
 \\section{Input data}
@@ -907,7 +1010,7 @@ Voxel size: %f (\AA) \\\\
 Visualization threshold: %f \\\\
 Resolution estimated by user: %f \\\\
 
-"""%(fnMap.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap), Ts, threshold, resolution)
+"""%(basenameFnMap.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap), Ts, threshold, resolution)
     report.write(toWrite)
 
     fnImportMap = os.path.join(project.getPath(),protImportMap.outputVolume.getFileName())
@@ -951,15 +1054,16 @@ Resolution estimated by user: %f \\\\
     report.orthogonalSlices("maxVarMask", msg, "Slices of maximum variation in the three dimensions of the mask",
                             fnMask, "fig:maxVarMask")
 
-def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, skipAnalysis = False):
+def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False):
     # Import map
-    protImportMap = importMap(project, "import map", fnMap, fnMap1, fnMap2, Ts)
+    protImportMap = importMap(project, "import map", fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap.isFailed():
         raise Exception("Import map did not work")
     protCreateMask = createMask(project, "create mask", protImportMap.outputVolume, Ts, threshold)
     if protCreateMask.isFailed():
         raise Exception("Create mask did not work")
     reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateMask)
+    # properMask = properMask(protCreateMask.outputMask)
 
     # Resize to the given resolution
     protResizeMap, protResizeMask = resizeProject(project, protImportMap, protCreateMask, resolution)

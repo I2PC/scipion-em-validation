@@ -36,7 +36,10 @@ def levelW(project, report, WORKFLOW, skipAnalysis=False):
     if WORKFLOW.startswith("http"):
         msgWorkflow = "\\url{%s}" % WORKFLOW
     else:
-        msgWorkflow = WORKFLOW.replace('_', '\_').replace('/', '/\-')
+        # Get file basename to write it in the report
+        basenameWORKFLOW = os.path.basename(WORKFLOW)
+
+        msgWorkflow = basenameWORKFLOW.replace('_', '\_').replace('/', '/\-')
 
     if WORKFLOW.startswith("http://nolan.cnb.csic.es"):
         fnWorkflow = os.path.join(report.getReportDir(),"workflow.json")
