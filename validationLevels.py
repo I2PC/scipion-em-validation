@@ -375,7 +375,7 @@ from validationReport import ValidationReport
 report = ValidationReport(fnProjectDir, levels)
 
 # Validate inputs formats
-wrongInputs = {"errors":[], "warnings":[]}
+wrongInputs = {'errors':[], 'warnings':[]}
 # check 'map' arg
 fnDir, fnBase = os.path.split(FNMAP)
 protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
@@ -660,8 +660,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
         wrongInputs['errors'].append({'param': 'untiltedCoords', 'value': UNTILTEDCOORDS, 'cause': 'There is a problem reading the untilted coords file'})
         wrongInputs['errors'].append({'param': 'tiltedCoords', 'value': TILTEDCOORDS, 'cause': 'There is a problem reading the tilted coords file'})
 
-with open (os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f: #TODO: sacar del if para que se cree el wrongInputs.json siempre
-    f.write(str(wrongInputs))
+with open (os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f:
+        json.dump(wrongInputs, f)
 # if some input data was wrong do whatever we want: inform the user, write error msg in report, etc.
 #if protImportMapChecker.isFailed() or protImportMap1Checker.isFailed() or protImportMap2Checker.isFailed() or \
 if protImportMapChecker.isFailed() or \
