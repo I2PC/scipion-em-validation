@@ -375,7 +375,7 @@ from validationReport import ValidationReport
 report = ValidationReport(fnProjectDir, levels)
 
 # Validate inputs formats
-wrongInputs = {'errors':[], 'warnings':[]}
+wrongInputs = {"errors":[], "warnings":[]}
 # check 'map' arg
 fnDir, fnBase = os.path.split(FNMAP)
 protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
