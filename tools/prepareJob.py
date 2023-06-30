@@ -7,16 +7,6 @@ import logging
 from csv import reader
 from utils import *
 
-LOG_FILENAME = 'prepareJob.log'
-logging.basicConfig(filename=LOG_FILENAME,
-                    filemode='a',
-                    format='%(asctime)s,%(msecs)d %(levelname)s %(name)s %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S',
-                    level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
-
 
 def downloadEmdbFile(url, fileName, localPath, gunzip=False):
     """
@@ -155,17 +145,30 @@ def main(argv):
     parser.add_argument(
         "-f", "--force-download", help="download files without checking if they already exist", required=False, action='store_true')
     parser.add_argument(
+        "-l", "--logFile", help="log file. By default 'prepareJob.log' in a dedicated 'logs' folder.", required=False)
+    parser.add_argument(
         "-t", "--test", help="perform a trial run with no changes made", required=False, action='store_true')
     args = parser.parse_args()
-    emdbId = args.map
-    test_only = args.test
+    if args.logFile:
+        logFile = args.logFile
+        logsDir = os.path.dirname(logFile)
+        logFilename = os.path.basename(logFile)
+    else:
+        logsDir = os.path.join(PATH_TOOLS_DIR, DIR_TOOLS_LOGS)
+        logFilename = os.path.join(
+            logsDir, os.path.splitext(Path(__file__).name)[0] + '.log')
+    logger = logSetup(__name__, logsDir, logFilename)
+
     force_download = args.force_download
     if force_download:
-        logger.info(
+        logger.warning(
             'Files will be downloaded regardless of whether they already exist')
+    test_only = args.test
     if test_only:
-        logger.info('Performing a trial run. No permanent changes will be made')
+        logger.warning(
+            'Performing a trial run. No permanent changes will be made')
 
+    emdbId = args.map
     logger.info('Prepare to run Job %s' % emdbId)
     rgx = re.compile(r'^EMD-\d{4,5}$')
     if not rgx.match(emdbId):
@@ -189,7 +192,7 @@ def main(argv):
         exit(2)
 
     jobUploadsDir = os.path.join(PATH_APP, DIR_PROJ_UPLOADS, emdbId)
-    jobLogsDir = os.path.join(PATH_APP, PROJ_LOGS_DIR)
+    jobLogsDir = os.path.join(PATH_APP, DIR_PROJ_LOGS)
 
     if "map" in jData:
         emdbId = jData["emdb_id"]

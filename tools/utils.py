@@ -4,6 +4,7 @@
 import json
 import os
 import os.path
+import sys
 import requests
 import ftplib
 import shutil
@@ -49,10 +50,11 @@ URL_EMDB_REST_API = 'https://www.ebi.ac.uk/emdb/api/entry/'
 URL_PDB_EBI_REPOSITORY = 'https://www.ebi.ac.uk/pdbe/entry-files/download/'
 URL_PDB_RCSB_REPOSITORY = 'https://files.rcsb.org/download/'
 PATH_HOME = Path.home()
-PATH_TOOLS_DIR = Path.cwd
+PATH_TOOLS_DIR = Path.cwd()
 PATH_APP = os.path.join(PATH_HOME, 'ScipionUserData')
 DIR_PROJ_UPLOADS = 'uploads'
-PROJ_LOGS_DIR = 'logs'
+DIR_PROJ_LOGS = 'logs'
+DIR_TOOLS_LOGS = 'logs'
 PATH_WORK_DIR = os.path.join(PATH_APP, DIR_PROJ_UPLOADS)
 FN_LOCAL_JSON_PARAMS = 'inputParams.json'
 
@@ -65,6 +67,31 @@ CMD_SCRIPT = 'validationLevels.py'
 
 
 logger = logging.getLogger(__name__)
+
+
+def logSetup(name, path, filename):
+    """
+    Configure the logging files
+    """
+    # create the dir and file if not exists
+    save2file("", path, filename)
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    # create file handler which logs even debug messages
+    fileHandler = logging.FileHandler(
+        filename=os.path.join(path, filename), mode='a')
+    fileHandler.setLevel(logging.DEBUG)
+    # create console handler with a higher log level
+    consoleHandler = logging.StreamHandler(sys.stdout)
+    consoleHandler.setLevel(logging.ERROR)
+    formatter = logging.Formatter(
+        fmt='%(asctime)s %(levelname)s %(threadName)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    fileHandler.setFormatter(formatter)
+    consoleHandler.setFormatter(formatter)
+    # add the handlers to the logger
+    logger.addHandler(fileHandler)
+    logger.addHandler(consoleHandler)
+    return logger
 
 
 def save_json(data,  path, filename, createIfNotExist=True):
