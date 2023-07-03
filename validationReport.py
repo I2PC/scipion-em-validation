@@ -333,17 +333,28 @@ class ValidationReport:
 \\usepackage[us,12hr]{datetime}
 \\usepackage{longtable}
 \\usepackage{enumitem}
+\\usepackage{tikz}
+\\usepackage{fancyhdr}
 \\setlist{nosep}
 
-\\title{Validation report of Level(s)\\\\ %s}
-\\author{I$^2$PC Validation server}
-\\date{\\today \\\\ \\currenttime}
+% Define own colors
+\\definecolor{mygreen}{RGB}{116,183,46}
+\\definecolor{myblue}{RGB}{37,150,190} 
+
+% Set hyperlinks configuration
+\\hypersetup{
+    colorlinks=true,
+    linkcolor=red,
+    filecolor=magenta,      
+    urlcolor=blue,
+    pdftitle={Validation Report Service},
+    pdfpagemode=FullScreen,
+    citecolor=mygreen,
+}
 
 \\begin{document}
 
-\\begin{titlepage}
-\\maketitle
-\\end{titlepage}
+\\input{frontpage.tex}
 
 \\input{context.tex}
 \\clearpage
