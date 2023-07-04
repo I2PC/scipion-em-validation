@@ -310,7 +310,7 @@ class ValidationReport:
         self.fhSummaryWarnings = open(self.fnSummaryWarnings,"w")
         self.fhSummaryWarnings.write("\\textbf{\\underline{Summary of the warnings across sections.}}\\\\ \n\n\n")
         self.citations = {}
-        self.writePreamble(levels)
+        self.writePreamble()
         self.resolutionEstimates = []
         self.score = 0
         self.scoreN = 0
