@@ -35,6 +35,7 @@ from pyworkflow.utils.path import makePath, copyFile, cleanPath
 from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes
 from pwem.convert.atom_struct import AtomicStructHandler
 from validationReport import readMap
+import json
 
 import configparser
 
@@ -107,6 +108,8 @@ class UpdatedAtomicStructHandler(AtomicStructHandler): #TODO: remove it when upd
 def usage(message=''):
     print("\nMake a Map Validation Report"
           "\n\n   -> scipion3 python validationLevels.py [opt1=val1 opt2=val2 ...] "
+          "\n         inputParams: [uploads_path]/inputParams.json"
+          "\n         or"
           "\n         project:  myProject"
           "\n         LEVEL 0 ====="
           "\n            map:  mymap.mrc"
@@ -169,6 +172,23 @@ if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
 manager = Manager()
 
 # Fixing some parameters depending on the arguments or taking the default ones
+PROJECT_NAME = None
+PATH_UPLOADS = None
+PATH_LOGS = None
+FNMAP = None
+FN_METADATA = None
+TS = None
+MAPTHRESHOLD = None
+MAPRESOLUTION = None
+HASANGLES = False
+doMultimodel = False
+FNMODEL = None
+JOB_NAME = None
+JOB_DESCRIPTION= None
+EMDB_ID = None
+PDB_ID = None
+IS_EMDB_ENTRY = False
+
 MAPCOORDX = 0
 MAPCOORDY = 0
 MAPCOORDZ = 0
@@ -187,7 +207,45 @@ TILTANGLE = None
 UNTILTEDCOORDS = None
 TILTEDCOORDS = None
 
+def readParamsFromFile(filename):
+    try:
+        with open(filename,mode="r") as f:
+            jdata = json.load(f)
+
+        global PROJECT_NAME, PATH_UPLOADS, PATH_LOGS, FNMAP, FN_METADATA, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, FNMAP1, FNMAP2, HASANGLES, doMultimodel, FNMODEL
+
+        PROJECT_NAME = jdata["emdbId"]
+        PATH_UPLOADS = jdata["jobUploadsDir"]
+        PATH_LOGS = jdata["jobLogsDir"]
+        FNMAP = os.path.join(jdata["jobUploadsDir"], jdata["mapFileName"]) 
+        FN_METADATA = os.path.join(jdata["jobUploadsDir"], jdata["metaFileName"])
+        TS =  jdata["sampling"]
+        MAPTHRESHOLD =  jdata["threshold"]
+        MAPRESOLUTION =  jdata["resolution"]
+        MAPCOORDX =  jdata["mapCoordX"]
+        MAPCOORDY =  jdata["mapCoordY"]
+        MAPCOORDZ =  jdata["mapCoordZ"]
+        FNMAP1 =  os.path.join(jdata["jobUploadsDir"], jdata["map1"])
+        FNMAP2 =  os.path.join(jdata["jobUploadsDir"], jdata["map2"])
+        HASANGLES =  jdata["hasAngles"]
+        doMultimodel =  jdata["doMultimodel"]        
+        FNMODEL =  os.path.join(jdata["jobUploadsDir"], jdata["modelFileName"])
+    except Exception as ex:
+        print("ERROR:", ex)
+
+levels = []
+
 for arg in sys.argv:
+    # if this param is present, the rest of params will be readed from the metadata file
+    # there should not be more params in the command line
+    if arg.startswith('inputParams'):
+        FN_PARAMS = arg.split('inputParams=')[1]
+        readParamsFromFile(FN_PARAMS)
+        if FNMAP:
+            levels.append("0")
+        if FNMAP and FNMODEL:
+            levels.append("A")
+
     if arg.startswith('project='):
         PROJECT_NAME = arg.split('project=')[1]
     if arg.startswith('map='):
@@ -281,7 +339,6 @@ def detectLevel(labels, args):
             retval = False
             break
     return retval
-levels = []
 if detectLevel(LEVEL0, argsPresent):
     levels.append("0")
 if detectLevel(LEVEL1, argsPresent) and detectLevel(LEVEL0, argsPresent):

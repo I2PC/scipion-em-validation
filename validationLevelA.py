@@ -259,7 +259,11 @@ def convertPDB(project, report, protImportMap, protAtom):
         report.write(msg)
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return None
-
+    # Check if volume is not empty
+    volumeData = xmipp3.Image(protConvert.outputVolume.getFileName()).getData()
+    if not np.sum(volumeData) > 0:
+        report.write("{\\color{red} \\textbf{ERROR: The volume is empty.}}\\\\ \n")
+        return None
     return protConvert
 
 def fscq(project, report, protImportMap, protAtom, protConvert):
