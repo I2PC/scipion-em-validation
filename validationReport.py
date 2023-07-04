@@ -310,7 +310,7 @@ class ValidationReport:
         self.fhSummaryWarnings = open(self.fnSummaryWarnings,"w")
         self.fhSummaryWarnings.write("\\textbf{\\underline{Summary of the warnings across sections.}}\\\\ \n\n\n")
         self.citations = {}
-        self.writePreamble(levels)
+        self.writePreamble()
         self.resolutionEstimates = []
         self.score = 0
         self.scoreN = 0
@@ -320,7 +320,7 @@ class ValidationReport:
     def getReportDir(self):
         return self.fnReportDir
 
-    def writePreamble(self, levels):
+    def writePreamble(self):
         toWrite = \
 """
 \\documentclass[12pt, letterpaper]{article}
@@ -333,17 +333,28 @@ class ValidationReport:
 \\usepackage[us,12hr]{datetime}
 \\usepackage{longtable}
 \\usepackage{enumitem}
+\\usepackage{tikz}
+\\usepackage{fancyhdr}
 \\setlist{nosep}
 
-\\title{Validation report of Level(s)\\\\ %s}
-\\author{I$^2$PC Validation server}
-\\date{\\today \\\\ \\currenttime}
+% Define own colors
+\\definecolor{mygreen}{RGB}{116,183,46}
+\\definecolor{myblue}{RGB}{37,150,190} 
+
+% Set hyperlinks configuration
+\\hypersetup{
+    colorlinks=true,
+    linkcolor=red,
+    filecolor=magenta,      
+    urlcolor=blue,
+    pdftitle={Validation Report Service},
+    pdfpagemode=FullScreen,
+    citecolor=mygreen,
+}
 
 \\begin{document}
 
-\\begin{titlepage}
-\\maketitle
-\\end{titlepage}
+\\input{frontpage.tex}
 
 \\input{context.tex}
 \\clearpage
@@ -363,7 +374,7 @@ class ValidationReport:
 
 \\clearpage
 
-"""%", ".join(levels)
+"""
         self.fh.write(toWrite)
 
         toWrite = \

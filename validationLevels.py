@@ -183,6 +183,11 @@ MAPRESOLUTION = None
 HASANGLES = False
 doMultimodel = False
 FNMODEL = None
+JOB_NAME = None
+JOB_DESCRIPTION= None
+EMDB_ID = None
+PDB_ID = None
+IS_EMDB_ENTRY = False
 
 MAPCOORDX = 0
 MAPCOORDY = 0
