@@ -214,6 +214,11 @@ def readParamsFromFile(filename):
 
         global PROJECT_NAME, PATH_UPLOADS, PATH_LOGS, FNMAP, FN_METADATA, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, FNMAP1, FNMAP2, HASANGLES, doMultimodel, FNMODEL
 
+        IS_EMDB_ENTRY = jdata["isEMDBentry"]
+        EMDB_ID = jdata["emdbId"]
+        PDB_ID = jdata["pdbId"]
+        JOB_NAME = jdata["jobName"]
+        JOB_DESCRIPTION = jdata["jobDescription"]
         PROJECT_NAME = jdata["emdbId"]
         PATH_UPLOADS = jdata["jobUploadsDir"]
         PATH_LOGS = jdata["jobLogsDir"]
