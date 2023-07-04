@@ -222,9 +222,14 @@ behavior. If they have, this is typically due to the presence of a mask in real 
 """Fig. \\ref{fig:FSC} shows the FSC and the 0.143 threshold. %s\\\\
 Fig. \\ref{fig:DPR} shows the DPR and the 103.9$^\circ$ threshold. %s\\\\
 Fig. \\ref{fig:SSNR} shows the SSNR and the SSNR=1 threshold. %s\\\\
-The mean resolution between the three methods is %5.2f\AA~and its range is within the interval [%5.2f,%5.2f]\\AA.
-
-\\begin{figure}[H]
+""" % (strFSC, strDPR, strSSNR)
+    report.write(msg)
+    if len(resolutionList)>0:
+        msg = \
+"""The mean resolution between the three methods is %5.2f\AA~and its range is within the interval [%5.2f,%5.2f]\\AA."""  % (np.mean(resolutionList), np.min(resolutionList), np.min(resolutionList))
+        report.write(msg)
+    msg = \
+"""\\begin{figure}[H]
     \centering
     \includegraphics[width=9cm]{%s}
     \\caption{Fourier Shell correlation between the two halves.}
@@ -244,8 +249,7 @@ The mean resolution between the three methods is %5.2f\AA~and its range is withi
     \\caption{Spectral Signal-to-Noise Ratio estimated from the two halves.}
     \\label{fig:SSNR}
 \\end{figure}
-        """ % (strFSC, strDPR, strSSNR, np.mean(resolutionList), np.min(resolutionList), np.max(resolutionList),
-               fnFSC, fnDPR, fnSSNR)
+        """ % (fnFSC, fnDPR, fnSSNR)
     report.write(msg)
 
     # Warnings
