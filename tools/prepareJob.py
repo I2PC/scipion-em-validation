@@ -292,6 +292,8 @@ def main(argv):
     # Save job params to a json file
     inputParams = {
         "isEMDBentry": True,
+        "jobName": "",
+        "jobDescription": "",
         "emdbId": emdbId,
         "jobUploadsDir": jobUploadsDir,
         "jobLogsDir": jobLogsDir,
