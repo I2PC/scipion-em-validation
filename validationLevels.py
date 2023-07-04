@@ -186,6 +186,7 @@ FNMODEL = None
 JOB_NAME = None
 JOB_DESCRIPTION= None
 EMDB_ID = None
+EMDB_ID_NUM = None
 PDB_ID = None
 IS_EMDB_ENTRY = False
 
@@ -212,10 +213,11 @@ def readParamsFromFile(filename):
         with open(filename,mode="r") as f:
             jdata = json.load(f)
 
-        global PROJECT_NAME, PATH_UPLOADS, PATH_LOGS, FNMAP, FN_METADATA, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, FNMAP1, FNMAP2, HASANGLES, doMultimodel, FNMODEL
+        global IS_EMDB_ENTRY, EMDB_ID, EMDB_ID_NUM, PDB_ID, JOB_NAME, JOB_DESCRIPTION, PROJECT_NAME, PATH_UPLOADS, PATH_LOGS, FNMAP, FN_METADATA, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, FNMAP1, FNMAP2, HASANGLES, doMultimodel, FNMODEL
 
         IS_EMDB_ENTRY = jdata["isEMDBentry"]
         EMDB_ID = jdata["emdbId"]
+        EMDB_ID_NUM = EMDB_ID.replace("EMD-", "")
         PDB_ID = jdata["pdbId"]
         JOB_NAME = jdata["jobName"]
         JOB_DESCRIPTION = jdata["jobDescription"]
