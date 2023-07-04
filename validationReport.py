@@ -320,7 +320,7 @@ class ValidationReport:
     def getReportDir(self):
         return self.fnReportDir
 
-    def writePreamble(self, levels):
+    def writePreamble(self):
         toWrite = \
 """
 \\documentclass[12pt, letterpaper]{article}
@@ -374,7 +374,7 @@ class ValidationReport:
 
 \\clearpage
 
-"""%", ".join(levels)
+"""
         self.fh.write(toWrite)
 
         toWrite = \
