@@ -7,6 +7,7 @@ import os
 import scipy
 import subprocess
 import PIL
+import json
 
 from pyworkflow.protocol import StringParam
 from pyworkflow.utils.path import makePath, cleanPath
@@ -286,12 +287,16 @@ def plotMicrograph(fnMic, fnOut, coords=None, boxSize=0, Ts=0):
 
 class ValidationReport:
 
-    def __init__(self, fnDir, levels):
+    def __init__(self, fnDir, levels,  IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION):
         self.fnProjectDir = fnDir
         self.fnReportDir = os.path.join(fnDir,"validationReport")
         makePath(self.fnReportDir)
         self.fnReport = os.path.join(self.fnReportDir,"report.tex")
         self.fh = open(self.fnReport,"w")
+        self.fnFrontpage = os.path.join(self.fnReportDir,"frontpage.tex")
+        self.fnFrontpage = open(self.fnFrontpage,"w") 
+        self.writeFrontpage(levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION)
+        self.fnFrontpage.close()
         self.fnContext = os.path.join(self.fnReportDir, "context.tex")
         self.fnContext = open(self.fnContext, "w")
         self.fnContext.write("\\begin{center}\\textbf{Context}\\end{center}  \n"\
@@ -414,6 +419,146 @@ class ValidationReport:
 
     def writeAbstract(self, msg):
         self.fhAbstract.write(msg)
+
+    def writeFrontpage(self,  levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION):
+        
+        ScipionEmValDir = os.path.dirname(__file__)
+        logo = os.path.join(ScipionEmValDir, 'resources', 'figures', 'logo.png') 
+
+        if IS_EMDB_ENTRY:
+            # Set parameters for public data-based repots
+            icon = os.path.join(ScipionEmValDir, 'resources', 'figures', 'webicon.png')
+            color = 'mygreen'
+            icon_msg = 'Public Data-based Report'
+            msg = 'data publicly available at \\href{https://www.ebi.ac.uk/emdb/}{EMDB}.'
+            resolution_str = str(MAPRESOLUTION) + ' \AA'
+
+            title = None
+            authors = None
+            deposited = None
+
+            # Read metadata file from EMDB to fix some parameters
+            if FN_METADATA:
+
+                # Read metadata.json file
+                with open(FN_METADATA,mode="r") as f:
+                    jdata = json.load(f)
+                
+                title = jdata["admin"]["title"]
+                deposited = jdata["admin"]["key_dates"]["deposition"]
+
+                # Set authors depending on if it is a list of dicts or a list of strs
+                if type(jdata["admin"]["authors_list"]["author"][0]) == dict:
+                    authors_list = [d["valueOf_"] for d in jdata["admin"]["authors_list"]["author"] if "valueOf_" in d]
+                    authors = ", ".join(authors_list)
+                else:
+                    authors = ", ".join(jdata["admin"]["authors_list"]["author"])
+
+            entryInfoList = [EMDB_ID, PDB_ID, title, authors, deposited, resolution_str]
+            
+        else:
+            icon = os.path.join(ScipionEmValDir, 'resources', 'figures', 'usericon.png')
+            color = 'myblue'
+            icon_msg = 'User Data-based Report'
+            msg = 'user data provided through the \\href{https://biocomp.cnb.csic.es/EMValidationService/}{VRS website}.'
+            resolution_str = str(MAPRESOLUTION) + ' \AA'
+
+            MAP_NAME = os.path.basename(FNMAP).replace('_','\_') if FNMAP else None
+            MODEL_NAME = os.path.basename(FNMODEL).replace('_','\_') if FNMODEL else None
+            JOB_NAME = JOB_NAME.replace('_','\_') if JOB_NAME else None
+            TRIMMED_JOB_DESCRIPTION = JOB_DESCRIPTION[:420].replace('_','\_') if JOB_DESCRIPTION else None
+
+            entryInfoList = [MAP_NAME, MODEL_NAME, JOB_NAME, TRIMMED_JOB_DESCRIPTION, resolution_str]
+
+        # Add first part of the frontpage.tex file 
+        toWrite=\
+"""
+\\pagestyle{empty}
+\\begin{center}
+    \\parbox[c][\\textheight][t]{\\textwidth}{
+        \\vspace{-1cm}
+        \\begin{tikzpicture}[overlay, remember picture]
+            \\node[anchor=north east, 
+                  inner sep=2cm] 
+                 at ([xshift=-2cm, yshift=0.5cm]current page.north east)
+                 {\\includegraphics[width=1cm]{%s}};
+            \\node[anchor=north east, 
+                  inner sep=1cm, 
+                  text=%s] 
+                 at ([yshift=-2cm, xshift=-1cm]current page.north east)
+                 {%s}; 
+        \\end{tikzpicture}
+        \\begin{center}
+            \\vspace{-1cm}
+            \\includegraphics[width=5cm]{%s}\\\\
+            \\vspace{0.5cm}
+            {\\Huge \\bf Validation Report Service}\\\\  
+            \\vspace{0.5cm}
+            {\\Large Cryo-EM Map Validation Report}\\\\
+            \\vspace{0.5cm}
+            {Report to assess Cryo-EM Volume Map at Level(s) %s}\\\\ 
+            \\vspace{0.5cm}
+            {\\color{%s}\\rule{\\linewidth}{0.5mm}}\\\\[0.5cm] 
+            {This report has been generated based on %s}\\\\[0.5cm]
+            \\begin{flushleft}
+                {\\bf {Basic Entry Information:}}\\\\[0.2cm]
+"""%(icon, color, icon_msg, logo, ", ".join(levels), color, msg)
+
+        # Add Info entry lines depending on if is a Public Data-based or User Data-based Report and if each value has been specified
+        entryLine=\
+"""
+                {\\bf {%s: }}{%s}\\\\
+"""
+        if IS_EMDB_ENTRY:
+            for item in entryInfoList:
+                if item is EMDB_ID and EMDB_ID is not None:
+                    toWrite+=entryLine % ('EMDB ID', EMDB_ID)
+                if item is PDB_ID and PDB_ID is not None:
+                    toWrite+=entryLine % ('PDB ID', PDB_ID)
+                if item is title and title is not None:
+                    toWrite+=entryLine % ('Title', title)
+                if item is authors and authors is not None:
+                    toWrite+=entryLine % ('Authors', authors)
+                if item is deposited and deposited is not None:
+                    toWrite+=entryLine % ('Deposited on', deposited)
+                if item is resolution_str and resolution_str is not None:
+                    toWrite+=entryLine % ('Reported Resolution', resolution_str)
+        else:
+            for item in entryInfoList:
+                if item is MAP_NAME and MAP_NAME is not None:
+                    toWrite+=entryLine % ('Volumen Map', MAP_NAME)
+                if item is MODEL_NAME and MODEL_NAME is not None:
+                    toWrite+=entryLine % ('Atomic Model', MODEL_NAME)
+                if item is JOB_NAME and JOB_NAME is not None:
+                    toWrite+=entryLine % ('Job Name', JOB_NAME)
+                if item is TRIMMED_JOB_DESCRIPTION and TRIMMED_JOB_DESCRIPTION is not None:
+                    toWrite+=entryLine % ('Job Description', TRIMMED_JOB_DESCRIPTION)
+                if item is resolution_str and resolution_str is not None:
+                    toWrite+=entryLine % ('Reported Resolution', resolution_str)
+
+        # Add final part of the frontpage.tex file
+        toWrite+=\
+"""
+            \\end{flushleft}
+            {\\color{%s}\\rule{\\linewidth}{0.5mm}}\\\\[0.8cm] 
+            \\begin{flushright}
+                {\\bf \\large {Contact Us:}}\\\\[0.2cm]
+                {Instruct Image Processing Center }\\href{http://i2pc.es/}{(I$^2$PC)}\\\\
+                {Biocomputing Unit }\\href{http://biocomputingunit.es/}{(BCU)}\\\\
+                {i2pc@cnb.csic.es}\\\\
+                \\href{https://biocomp.cnb.csic.es/EMValidationService/}{VRS Website}\\\\[1cm]
+            \\end{flushright}
+            {National Center for Biotechnology (CNB)}\\\\
+            {St/ Darwin, 3 (Autonomous University of Madrid)}\\\\
+            {28049 Cantoblanco, Madrid (Spain)}\\\\[0.5cm]
+            \\vfill  
+            {Last update:} \\bf \\today, \\currenttime
+        \\end{center}
+    }
+\\end{center}
+
+"""%(color)
+        self.fnFrontpage.write(toWrite)
 
     def addResolutionEstimate(self, R):
         self.resolutionEstimates.append(R)
