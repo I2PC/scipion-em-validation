@@ -377,7 +377,7 @@ os.chdir(fnProjectDir)
 
 # Create report
 from validationReport import ValidationReport
-report = ValidationReport(fnProjectDir, levels)
+report = ValidationReport(fnProjectDir, levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION)
 
 # Validate inputs formats
 wrongInputs = {'errors':[], 'warnings':[]}
