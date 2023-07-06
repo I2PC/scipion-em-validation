@@ -125,6 +125,7 @@ def generateChimeraColorView(fnWorkingDir, project, fnRoot, fnMap, Ts, fnColor, 
     fhCmd = open(cmdFile, "a")
     toWrite = \
 """
+run(session, 'windowsize 700 700')
 run(session, 'save %s')
 run(session, 'turn x 90')
 run(session, 'save %s')
