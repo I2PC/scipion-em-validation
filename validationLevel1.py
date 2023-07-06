@@ -1006,6 +1006,10 @@ def resizeMapToTargetResolution(project, map, TsTarget):
                                         windowSize=Xdimp)
     protResizeMap.inputVolumes.set(map)
     project.launchProtocol(protResizeMap, wait=True)
+
+    if protResizeMap.isFailed():
+        return None
+
     return protResizeMap
 
 
@@ -1014,24 +1018,6 @@ def fsc3d(project, report, label, protImportMapResize, protImportMap1, protImpor
 
     protResizeHalf1 = resizeMapToTargetResolution(project, protImportMap1.outputVolume, resolution/2)
     protResizeHalf2 = resizeMapToTargetResolution(project, protImportMap2.outputVolume, resolution/2)
-
-
-    Prot = pwplugin.Domain.importFromPlugin('fsc3d.protocols',
-                                            'Prot3DFSC', doRaise=True)
-    prot = project.newProtocol(Prot,
-                               objLabel=label,
-                               applyMask=True,
-                               useGpu=True)
-    prot.inputVolume.set(protImportMapResize.outputVol)
-    prot.volumeHalf1.set(protResizeHalf1.outputVol)
-    prot.volumeHalf2.set(protResizeHalf2.outputVol)
-    prot.maskVolume.set(protMaskResize.outputVol)
-
-    if useSlurm:
-        sendToSlurm(prot)
-    project.launchProtocol(prot)
-    #waitOutput(project, prot, 'outputVolume')
-    waitUntilFinishes(project, prot)
 
     secLabel = "sec:fsc3d"
     msg = \
@@ -1045,82 +1031,107 @@ This method analyzes the FSC in different directions and evaluates its homogenei
 \\\\
 """ % secLabel
     report.write(msg)
-    if prot.isFailed():
-        report.writeSummary("1.h FSC3D", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
-        return prot
 
-    Ts = protImportMapResize.outputVol.getSamplingRate()
-    md=np.genfromtxt(prot._getExtraPath(os.path.join('Results_vol','Plotsvol.csv')), delimiter=' ')
-    N=md.shape[0]
-    f = np.arange(0,N)*2*Ts/Xdim
-    fscx = md[:,0].tolist()
-    fscy = md[:,1].tolist()
-    fscz = md[:,2].tolist()
-    fscg = md[:,4].tolist()
+    if protResizeHalf1 and protResizeHalf2:
+        Prot = pwplugin.Domain.importFromPlugin('fsc3d.protocols',
+                                                'Prot3DFSC', doRaise=True)
+        prot = project.newProtocol(Prot,
+                                   objLabel=label,
+                                   applyMask=True,
+                                   useGpu=True)
+        prot.inputVolume.set(protImportMapResize.outputVol)
+        prot.volumeHalf1.set(protResizeHalf1.outputVol)
+        prot.volumeHalf2.set(protResizeHalf2.outputVol)
+        prot.maskVolume.set(protMaskResize.outputVol)
 
-    fx = findFirstCross(f,fscx,0.143,'lesser')
-    fy = findFirstCross(f,fscy,0.143,'lesser')
-    fz = findFirstCross(f,fscz,0.143,'lesser')
-    fg = findFirstCross(f,fscg,0.143,'lesser')
-    if fx is None or fy is None or fz is None or fg is None:
-        strFSC3D = "The FSC 3D did not cross the 0.143 threshold in at least one direction."
+        if useSlurm:
+            sendToSlurm(prot)
+        project.launchProtocol(prot)
+        #waitOutput(project, prot, 'outputVolume')
+        waitUntilFinishes(project, prot)
+
+        if prot.isFailed():
+            report.writeSummary("1.h FSC3D", secLabel, "{\\color{red} Could not be measured}")
+            report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+            return prot
+
+        Ts = protImportMapResize.outputVol.getSamplingRate()
+        md=np.genfromtxt(prot._getExtraPath(os.path.join('Results_vol','Plotsvol.csv')), delimiter=' ')
+        N=md.shape[0]
+        f = np.arange(0,N)*2*Ts/Xdim
+        fscx = md[:,0].tolist()
+        fscy = md[:,1].tolist()
+        fscz = md[:,2].tolist()
+        fscg = md[:,4].tolist()
+
+        fx = findFirstCross(f,fscx,0.143,'lesser')
+        fy = findFirstCross(f,fscy,0.143,'lesser')
+        fz = findFirstCross(f,fscz,0.143,'lesser')
+        fg = findFirstCross(f,fscg,0.143,'lesser')
+        if fx is None or fy is None or fz is None or fg is None:
+            strFSC3D = "The FSC 3D did not cross the 0.143 threshold in at least one direction."
+        else:
+            fList = [1/fx, 1/fy, 1/fz, 1/fg]
+            strFSC3D = "The FSC 3D resolutions at a 0.143 threshold in X, Y, and Z are %5.2f, %5.2f, and %5.2f \AA, "\
+                       "respectively. The global resolution at the same threshold is %5.2f \AA. The resolution range is "\
+                       "[%5.2f,%5.2f]\AA."%(1/fx, 1/fy, 1/fz, 1/fg, np.min(fList), np.max(fList))
+
+        fnDir = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','Plotsvol.jpg'))
+        fnHist = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','histogram.png'))
+        fnPower = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','FTPlotvol.jpg'))
+        msg = \
+    """Fig. \\ref{fig:fsc3DDir} shows the FSCs in X, Y, Z, and the global FSC. Fig. \\ref{fig:fsc3DHist} shows the global
+    FSC and the histogram of the directional FSC. Finally, Fig. \\ref{fig:FSC3DFTPower} shows the rotational average of
+    the map power in Fourier space. %s
+    
+    \\begin{figure}[H]
+        \centering
+        \includegraphics[width=9cm]{%s}
+        \\caption{FSC in  X, Y, Z, the global FSC, and the Average Cosine Phase.}
+        \\label{fig:fsc3DDir}
+    \\end{figure}
+    
+    \\begin{figure}[H]
+        \centering
+        \includegraphics[width=9cm]{%s}
+        \\caption{Global FSC and histogram of the directional FSC.}
+        \\label{fig:fsc3DHist}
+    \\end{figure}
+    
+    \\begin{figure}[H]
+        \centering
+        \includegraphics[width=9cm]{%s}
+        \\caption{Logarithm of the radial average of the input map power in Fourier space.}
+        \\label{fig:FSC3DFTPower}
+    \\end{figure}
+    
+    """ % (strFSC3D, fnDir, fnHist, fnPower)
+        report.write(msg)
+
+        # Warnings
+        warnings=[]
+        testWarnings = False
+        if (fg is not None and resolution<0.8/fg) or testWarnings:
+            warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
+                            "smaller than the resolution estimated by FSC3D, %5.2f \\AA.}}" % (resolution, 1/fg))
+        if fg is not None or testWarnings:
+            warnings.append("{\\color{red} \\textbf{We could not estimate the global FSC3D}}")
+        msg = \
+    """\\textbf{Automatic criteria}: The validation is OK if the resolution provided by the user is not 
+    smaller than 0.8 the resolution estimated by the first cross of the global directional FSC below 0.143.
+    \\\\
+    
+    """
+        report.write(msg)
+        report.writeWarningsAndSummary(warnings, "1.h FSC3D", secLabel)
+        if fg is not None:
+            report.addResolutionEstimate(1/fg)
     else:
-        fList = [1/fx, 1/fy, 1/fz, 1/fg]
-        strFSC3D = "The FSC 3D resolutions at a 0.143 threshold in X, Y, and Z are %5.2f, %5.2f, and %5.2f \AA, "\
-                   "respectively. The global resolution at the same threshold is %5.2f \AA. The resolution range is "\
-                   "[%5.2f,%5.2f]\AA."%(1/fx, 1/fy, 1/fz, 1/fg, np.min(fList), np.max(fList))
-
-    fnDir = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','Plotsvol.jpg'))
-    fnHist = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','histogram.png'))
-    fnPower = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','FTPlotvol.jpg'))
-    msg = \
-"""Fig. \\ref{fig:fsc3DDir} shows the FSCs in X, Y, Z, and the global FSC. Fig. \\ref{fig:fsc3DHist} shows the global
-FSC and the histogram of the directional FSC. Finally, Fig. \\ref{fig:FSC3DFTPower} shows the rotational average of
-the map power in Fourier space. %s
-
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=9cm]{%s}
-    \\caption{FSC in  X, Y, Z, the global FSC, and the Average Cosine Phase.}
-    \\label{fig:fsc3DDir}
-\\end{figure}
-
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=9cm]{%s}
-    \\caption{Global FSC and histogram of the directional FSC.}
-    \\label{fig:fsc3DHist}
-\\end{figure}
-
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=9cm]{%s}
-    \\caption{Logarithm of the radial average of the input map power in Fourier space.}
-    \\label{fig:FSC3DFTPower}
-\\end{figure}
-
-""" % (strFSC3D, fnDir, fnHist, fnPower)
-    report.write(msg)
-
-    # Warnings
-    warnings=[]
-    testWarnings = False
-    if (fg is not None and resolution<0.8/fg) or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
-                        "smaller than the resolution estimated by FSC3D, %5.2f \\AA.}}" % (resolution, 1/fg))
-    if fg is not None or testWarnings:
-        warnings.append("{\\color{red} \\textbf{We could not estimate the global FSC3D}}")
-    msg = \
-"""\\textbf{Automatic criteria}: The validation is OK if the resolution provided by the user is not 
-smaller than 0.8 the resolution estimated by the first cross of the global directional FSC below 0.143.
-\\\\
-
-"""
-    report.write(msg)
-    report.writeWarningsAndSummary(warnings, "1.h FSC3D", secLabel)
-    if fg is not None:
-        report.addResolutionEstimate(1/fg)
+        report.writeSummary("1.h FSC3D", secLabel, "{\\color{red} Could not be measured}")
+        if not protResizeHalf1:
+            report.write("{\\color{red} \\textbf{ERROR: Half map 1 couldn't be resized}}\\\\ \n")
+        if not protResizeHalf2:
+            report.write("{\\color{red} \\textbf{ERROR: Half map 2 couldn't be resized}}\\\\ \n")
 
 
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):
