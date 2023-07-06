@@ -163,7 +163,8 @@ behavior. If they have, this is typically due to the presence of a mask in real 
         opt, pcov = scipy.optimize.curve_fit(logistic, f, FSC, p0=[1, 1, f05, 0])
         yFitted = logistic(f, *opt)
         fsc90 = findFirstCross(f, yFitted, 0.9, 'lesser')
-        strFSC+=" The map information is well preserved (FSC$>$0.9) up to %5.2f\\AA."%(1/fsc90)
+        if fsc90:
+            strFSC+=" The map information is well preserved (FSC$>$0.9) up to %5.2f\\AA."%(1/fsc90)
 
     fnFSC = os.path.join(report.getReportDir(), "fsc.png")
     toPlot = [FSC, [0.143]*len(FSC)]

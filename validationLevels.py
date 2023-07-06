@@ -188,6 +188,7 @@ FNMODEL = None
 JOB_NAME = None
 JOB_DESCRIPTION= None
 EMDB_ID = None
+EMDB_ID_NUM = None
 PDB_ID = None
 IS_EMDB_ENTRY = False
 
@@ -214,8 +215,14 @@ def readParamsFromFile(filename):
         with open(filename,mode="r") as f:
             jdata = json.load(f)
 
-        global PROJECT_NAME, PATH_UPLOADS, PATH_LOGS, FNMAP, FN_METADATA, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, FNMAP1, FNMAP2, HASANGLES, doMultimodel, FNMODEL
+        global IS_EMDB_ENTRY, EMDB_ID, EMDB_ID_NUM, PDB_ID, JOB_NAME, JOB_DESCRIPTION, PROJECT_NAME, PATH_UPLOADS, PATH_LOGS, FNMAP, FN_METADATA, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, FNMAP1, FNMAP2, HASANGLES, doMultimodel, FNMODEL
 
+        IS_EMDB_ENTRY = jdata["isEMDBentry"]
+        EMDB_ID = jdata["emdbId"]
+        EMDB_ID_NUM = EMDB_ID.replace("EMD-", "")
+        PDB_ID = jdata["pdbId"]
+        JOB_NAME = jdata["jobName"]
+        JOB_DESCRIPTION = jdata["jobDescription"]
         PROJECT_NAME = jdata["emdbId"]
         PATH_UPLOADS = jdata["jobUploadsDir"]
         PATH_LOGS = jdata["jobLogsDir"]
@@ -667,8 +674,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
         wrongInputs['errors'].append({'param': 'untiltedCoords', 'value': UNTILTEDCOORDS, 'cause': 'There is a problem reading the untilted coords file'})
         wrongInputs['errors'].append({'param': 'tiltedCoords', 'value': TILTEDCOORDS, 'cause': 'There is a problem reading the tilted coords file'})
 
-with open (os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f: #TODO: sacar del if para que se cree el wrongInputs.json siempre
-    f.write(str(wrongInputs))
+with open (os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f:
+        json.dump(wrongInputs, f)
 # if some input data was wrong do whatever we want: inform the user, write error msg in report, etc.
 #if protImportMapChecker.isFailed() or protImportMap1Checker.isFailed() or protImportMap2Checker.isFailed() or \
 if protImportMapChecker.isFailed() or \
