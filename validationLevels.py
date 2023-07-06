@@ -28,10 +28,12 @@ import os
 import sys
 import math
 import numpy as np
+import re
 
 import pyworkflow.plugin as pwplugin
 from pyworkflow.project import Manager
 from pyworkflow.utils.path import makePath, copyFile, cleanPath
+import pyworkflow.utils as pwutils
 from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes
 from pwem.convert.atom_struct import AtomicStructHandler
 from validationReport import readMap
@@ -384,7 +386,7 @@ os.chdir(fnProjectDir)
 
 # Create report
 from validationReport import ValidationReport
-report = ValidationReport(fnProjectDir, levels)
+report = ValidationReport(fnProjectDir, levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION)
 
 # Validate inputs formats
 wrongInputs = {'errors':[], 'warnings':[]}
@@ -756,3 +758,19 @@ else: # go ahead
         if "STATUS" not in content and "WARNINGS" not in content:
             report.fhSummaryWarnings.write("No warnings.")
     report.closeReport()
+
+    # Save workflow json with protocols versions
+    workflowProts = [p for p in project.getRuns()]
+    protDicts = project.getProtocolsDict(workflowProts)
+    for prot in workflowProts:
+        # Get plugin and binary version
+        protDicts[prot.getObjId()]['plugin'] = prot.getClassPackageName()
+        logs = prot.getLogPaths()
+        if pwutils.exists(logs[0]):
+            with open(logs[0]) as log:
+                for line in log:
+                    if re.search(r'plugin v', line):
+                        version = line.split(':')[1].replace(' ', '').replace('\n', '')
+                        protDicts[prot.getObjId()]['pluginVersion'] = version
+        with open(os.path.join(fnProjectDir, 'validationReport', 'workflow.json'), 'w') as f:
+            f.write(json.dumps(list(protDicts.values()), indent=4, separators=(',', ': ')))
