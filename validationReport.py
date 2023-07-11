@@ -352,7 +352,7 @@ class ValidationReport:
 % Set hyperlinks configuration
 \\hypersetup{
     colorlinks=true,
-    linkcolor=red,
+    linkcolor=blue,
     filecolor=magenta,      
     urlcolor=blue,
     pdftitle={Validation Report Service},
