@@ -75,6 +75,8 @@ def generateChimeraView(fnWorkingDir, fnMap, fnView, isMap=True, threshold=0, an
     chimeraScript=\
 """
 set bgColor white
+volume voxelLimitForOpen 1000
+volume showPlane false
 open %s
 """%fnMap
     if isMap:
