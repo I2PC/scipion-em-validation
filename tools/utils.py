@@ -293,3 +293,37 @@ def downloadEMDB_halfMaps(emdb_id, path):
     else:
         logger.warning('File already exists %s' % outName)
     return outName
+
+
+def saveIntermediateData(fnProjectDir, protocol, isFile, fileOrParamKey, value, details=None):
+    """
+    Save intermediate interesting data (files and params) from each method to be stored when the validation finishes
+    'fnProjectDir': report path
+    'protocol': protocol name
+    'isFile': True if is a file, False if is a param
+    'fileOrParamKey': measure name
+    'value': measure value (a number, a string, a list, etc.)
+    'details': extra info
+    """
+    file = os.path.join(fnProjectDir, 'intermediateData.json')
+    if os.path.exists(file):
+        with open(file, 'r') as json_file:
+            intermediateData = json.load(json_file)
+            if protocol in intermediateData:
+                if 'files' in intermediateData[protocol] if isFile else 'params' in intermediateData[protocol]:
+                    intermediateData[protocol]['files' if isFile else 'params'].append({'name': fileOrParamKey, 'value': value, 'details': details})
+                else:
+                    intermediateData[protocol]['files' if isFile else 'params'] = [{'name': fileOrParamKey, 'value': value, 'details': details}]
+            else:
+                intermediateData[protocol] = {'files' if isFile else 'params': [{'name': fileOrParamKey, 'value': value, 'details': details}]}
+
+        with open(file, 'w') as json_file:
+            json.dump(intermediateData, json_file)
+            json_file.close()
+    else:
+        with open(file, 'w') as json_file:
+            intermediateData = {protocol: {'files' if isFile else 'params': [{'name': fileOrParamKey, 'value': value, 'details': details}]}}
+            json.dump(intermediateData, json_file)
+            json_file.close()
+
+    return intermediateData
