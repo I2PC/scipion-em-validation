@@ -173,6 +173,8 @@ if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
 # Manager will help as to find paths, create project...
 manager = Manager()
 
+# used by the ProtImportVolumes protocol, volumes will be downloaded from EMDB
+IMPORT_FROM_EMDB = 1
 # Fixing some parameters depending on the arguments or taking the default ones
 PROJECT_NAME = None
 PATH_UPLOADS = None
@@ -392,21 +394,30 @@ report = ValidationReport(fnProjectDir, levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, P
 wrongInputs = {'errors':[], 'warnings':[]}
 # check 'map' arg
 fnDir, fnBase = os.path.split(FNMAP)
-protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-                                           objLabel='check format - import map',
-                                           filesPath=os.path.join(fnDir,FNMAP),
-                                           samplingRate=TS,
-                                           setOrigCoord=True,
-                                           x=MAPCOORDX,
-                                           y=MAPCOORDY,
-                                           z=MAPCOORDZ)
+if IS_EMDB_ENTRY:
+    protImportMapChecker = project.newProtocol(
+        pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
+        objLabel='check format - import map from EMDB',
+        importFrom=IMPORT_FROM_EMDB,
+        emdbId=EMDB_ID_NUM,)
+else:
+    protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
+                                            objLabel='check format - import map',
+                                            filesPath=os.path.join(fnDir,FNMAP),
+                                            samplingRate=TS,
+                                            setOrigCoord=True,
+                                            x=MAPCOORDX,
+                                            y=MAPCOORDY,
+                                            z=MAPCOORDZ)
+    
 if useSlurm:
     sendToSlurm(protImportMapChecker)
 project.launchProtocol(protImportMapChecker)
 #waitOutput(project, protImportMapChecker, 'outputVolume')
 waitUntilFinishes(project, protImportMapChecker)
 if protImportMapChecker.isFailed():
-    wrongInputs['errors'].append({'param': 'map', 'value': FNMAP, 'cause': 'There is a problem reading the volume map file'})
+    error_value = EMDB_ID if IS_EMDB_ENTRY else os.path.basename(FNMAP)
+    wrongInputs['errors'].append({'param': 'map', 'value': error_value, 'cause': 'There is a problem reading the volume map file'})
 
 else:
     # check if we can have a proper mask with the thresold specified
@@ -431,6 +442,14 @@ if "1" in levels:
     # check 'map1' and 'map2' arg
     # 'map1'
     fnDir, fnBase = os.path.split(FNMAP1)
+    # TODO: use auto-download from EMDB. But still not supported by the original protocol
+    # if IS_EMDB_ENTRY:
+    #     protImportMapChecker = project.newProtocol(
+    #         pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
+    #         objLabel='check format - import half1 from EMDB',
+    #         importFrom=IMPORT_FROM_EMDB,
+    #         emdbId=EMDB_ID_NUM,)
+    # else:
     protImportMap1Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
                                                 objLabel='check format - import half1',
                                                 filesPath=fnDir,
@@ -451,6 +470,14 @@ if "1" in levels:
 
     # 'map2'
     fnDir, fnBase = os.path.split(FNMAP2)
+    # TODO: use auto-download from EMDB. But still not supported by the original protocol
+    # if IS_EMDB_ENTRY:
+    #     protImportMapChecker = project.newProtocol(
+    #         pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
+    #         objLabel='check format - import half1 from EMDB',
+    #         importFrom=IMPORT_FROM_EMDB,
+    #         emdbId=EMDB_ID_NUM,)
+    # else:
     protImportMap2Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
                                                 objLabel='check format - import half2',
                                                 filesPath=fnDir,
@@ -696,8 +723,9 @@ else: # go ahead
     print("All inputs were correct, let's process them!")
     # Level 0
     from validationLevel0 import level0
-    protImportMap, protCreateMask, bfactor, protResizeMap, protResizeMask = level0(
-        project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False)
+    protImportMap, protCreateMask, bfactor, protResizeMap, protResizeMask = level0(project, report, 
+        IS_EMDB_ENTRY, EMDB_ID, EMDB_ID_NUM,
+        FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False)
 
     # Level 1
     if "1" in levels:

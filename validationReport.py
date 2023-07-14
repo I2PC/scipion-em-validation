@@ -75,6 +75,8 @@ def generateChimeraView(fnWorkingDir, fnMap, fnView, isMap=True, threshold=0, an
     chimeraScript=\
 """
 set bgColor white
+volume voxelLimitForOpen 1000
+volume showPlane false
 open %s
 """%fnMap
     if isMap:
@@ -125,6 +127,7 @@ def generateChimeraColorView(fnWorkingDir, project, fnRoot, fnMap, Ts, fnColor, 
     fhCmd = open(cmdFile, "a")
     toWrite = \
 """
+run(session, 'windowsize 700 700')
 run(session, 'save %s')
 run(session, 'turn x 90')
 run(session, 'save %s')
@@ -349,7 +352,7 @@ class ValidationReport:
 % Set hyperlinks configuration
 \\hypersetup{
     colorlinks=true,
-    linkcolor=red,
+    linkcolor=blue,
     filecolor=magenta,      
     urlcolor=blue,
     pdftitle={Validation Report Service},

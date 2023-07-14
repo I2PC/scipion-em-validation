@@ -41,23 +41,36 @@ from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, 
 
 import configparser
 
+# used by the ProtImportVolumes protocol, volumes will be downloaded from EMDB
+IMPORT_FROM_EMDB = 1
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 gpuIdSkipSlurm = config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
 
-def importMap(project, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ):
+def importMap(project, label,
+              is_emdb_entry, emdb_ID_num,
+              fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
-    fnDir, fnBase = os.path.split(fnMap)
-    prot = project.newProtocol(Prot,
+    if is_emdb_entry:
+        label = "import map from EMDB"
+        prot = project.newProtocol(Prot,
                                objLabel=label,
-                               filesPath=os.path.join(fnDir,fnMap),
-                               samplingRate=Ts,
-                               setOrigCoord=True,
-                               x=mapCoordX,
-                               y=mapCoordY,
-                               z=mapCoordZ)
+                               importFrom=IMPORT_FROM_EMDB,
+                               emdbId=emdb_ID_num,
+                               )
+    else:
+        fnDir, fnBase = os.path.split(fnMap)
+        prot = project.newProtocol(Prot,
+                                objLabel=label,
+                                filesPath=os.path.join(fnDir,fnMap),
+                                samplingRate=Ts,
+                                setOrigCoord=True,
+                                x=mapCoordX,
+                                y=mapCoordY,
+                                z=mapCoordZ)
     if fnMap1 is not None and fnMap2 is not None:
         prot.setHalfMaps.set(True)
         prot.half1map.set(fnMap1)
@@ -1054,9 +1067,13 @@ Resolution estimated by user: %f \\\\
     report.orthogonalSlices("maxVarMask", msg, "Slices of maximum variation in the three dimensions of the mask",
                             fnMask, "fig:maxVarMask")
 
-def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False):
+def level0(project, report,
+           is_emdb_entry, emdb_ID, emdb_ID_num,
+           fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False):
     # Import map
-    protImportMap = importMap(project, "import map", fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ)
+    protImportMap = importMap(project, "import map",
+                              is_emdb_entry, emdb_ID_num,
+                              fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap.isFailed():
         raise Exception("Import map did not work")
     protCreateMask = createMask(project, "create mask", protImportMap.outputVolume, Ts, threshold)

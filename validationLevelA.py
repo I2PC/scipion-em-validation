@@ -242,11 +242,8 @@ def convertPDB(project, report, protImportMap, protAtom):
     project.launchProtocol(protConvert)
     #waitOutput(project, protConvert, 'outputVolume')
     waitUntilFinishes(project, protConvert)
-    if protConvert.isFailed():     #TODO: check texts for ConverToPdb when fails
-        secLabel = "sec:convertPdb2Map"
-        report.writeSummary("A. Conversion PDB to map", secLabel, "{\\color{red} Could not be converted}")
-
-        msg = \
+    secLabel = "sec:convertPdb2Map"
+    msg = \
     """
     \\subsection{Level A.a Conversion PDB to map}
     \\label{%s}
@@ -256,12 +253,15 @@ def convertPDB(project, report, protImportMap, protAtom):
     \\textbf{Results:}\\\\
     \\\\
     """ % secLabel
+    if protConvert.isFailed():     #TODO: check texts for ConverToPdb when fails
+        report.writeSummary("A. Conversion PDB to map", secLabel, "{\\color{red} Could not be converted}")
         report.write(msg)
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return None
     # Check if volume is not empty
     volumeData = xmipp3.Image(protConvert.outputVolume.getFileName()).getData()
     if not np.sum(volumeData) > 0:
+        report.write(msg)
         report.write("{\\color{red} \\textbf{ERROR: The volume is empty.}}\\\\ \n")
         return None
     return protConvert
