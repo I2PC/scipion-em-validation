@@ -3,3 +3,6 @@
 USE_SLURM = False
 # GPU ID to be used when Slurm is set up and you do want to skip it
 GPU_ID_SKIP_SLURM = 7
+
+[CHIMERA]
+MAX_MEM_TO_USE = 60000

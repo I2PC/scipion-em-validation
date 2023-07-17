@@ -16,6 +16,11 @@ from pwem.emlib.metadata import iterRows
 
 import xmipp3
 
+import configparser
+config = configparser.ConfigParser()
+config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+maxMemToUse = config['CHIMERA'].getint('MAX_MEM_TO_USE')
+
 def readMap(fnMap):
     return xmipp3.Image(fnMap)
 
@@ -75,8 +80,18 @@ def generateChimeraView(fnWorkingDir, fnMap, fnView, isMap=True, threshold=0, an
     chimeraScript=\
 """
 set bgColor white
+"""
+    if isMap:
+        chimeraScript+=\
+"""
+volume dataCacheSize %d
+volume voxelLimitForOpen 1200
+volume showPlane false
+""" % maxMemToUse
+    chimeraScript+=\
+"""
 open %s
-"""%fnMap
+""" % fnMap
     if isMap:
         chimeraScript+=\
 """volume #1 level %f
@@ -125,6 +140,7 @@ def generateChimeraColorView(fnWorkingDir, project, fnRoot, fnMap, Ts, fnColor, 
     fhCmd = open(cmdFile, "a")
     toWrite = \
 """
+run(session, 'windowsize 700 700')
 run(session, 'save %s')
 run(session, 'turn x 90')
 run(session, 'save %s')
@@ -349,7 +365,7 @@ class ValidationReport:
 % Set hyperlinks configuration
 \\hypersetup{
     colorlinks=true,
-    linkcolor=red,
+    linkcolor=blue,
     filecolor=magenta,      
     urlcolor=blue,
     pdftitle={Validation Report Service},
