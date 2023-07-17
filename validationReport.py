@@ -80,11 +80,18 @@ def generateChimeraView(fnWorkingDir, fnMap, fnView, isMap=True, threshold=0, an
     chimeraScript=\
 """
 set bgColor white
+"""
+    if isMap:
+        chimeraScript+=\
+"""
 volume dataCacheSize %d
-volume voxelLimitForOpen 1000
+volume voxelLimitForOpen 1200
 volume showPlane false
+""" % maxMemToUse
+    chimeraScript+=\
+"""
 open %s
-"""% (maxMemToUse, fnMap)
+""" % fnMap
     if isMap:
         chimeraScript+=\
 """volume #1 level %f
