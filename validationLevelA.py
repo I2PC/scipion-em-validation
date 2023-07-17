@@ -44,6 +44,8 @@ from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
 import configparser
 
+from tools.utils import saveIntermediateData
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
@@ -124,6 +126,9 @@ have a Gaussian shape.\\\\
         report.writeSummary("A.a MapQ", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return
+
+    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(prot._getPath('*.cif'))[0], 'cif file')
+    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All', glob.glob(prot._getPath('*Q__map_All.txt'))[0], 'Q__map_All txt file')
 
     ASH = AtomicStructHandler()
 
@@ -322,6 +327,8 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
 
     fnHist = os.path.join(report.getReportDir(),"fscqrHist.png")
     reportHistogram(np.clip(fscqr, -1.5, 1.5), "FSC-Qr", fnHist)
+
+    saveIntermediateData(report.getReportDir(), 'FSCQ', True, 'fscq_struct', prot._getPath('fscq_struct.cif'), 'fscq_struct cif file')
 
     msg =\
 """Fig. \\ref{fig:fscqHist} shows the histogram of FSC-Qr and Fig. 
@@ -537,6 +544,9 @@ than 0.5.
         report.writeAbstract("It seems that the Guinier plot of the map and its model do not match "\
                              "(see Sec. \\ref{%s}). "%secLabel)
 
+    saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'sharpenedMap.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedMap.mrc.guinier', 'sharpenedMap.mrc.guinier file'))
+    saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'sharpenedMap.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedMap.mrc.guinier', 'sharpenedMap.mrc.guinier file'))
+
 def phenix(project, report, protImportMap, protAtom, resolution):
     bblCitation = \
 """\\bibitem[Afonine et~al., 2018]{Afonine2018}
@@ -691,6 +701,8 @@ fh.close()
     fhPhenixScript = open(fnPhenixScript,"w")
     fhPhenixScript.write(phenixScript)
     fhPhenixScript.close()
+
+    saveIntermediateData(report.getReportDir(), 'phenix', True, 'validation_cryoem.pkl', fnPkl, 'validation_cryoem.pkl file')
 
     from phenix import Plugin
     Plugin.runPhenixProgram('',fnPhenixScript)
@@ -991,6 +1003,12 @@ sequence of the protein chains.
         report.writeAbstract("The EMRinger score is negative, it seems that the model side chains do not match the "\
                             "map (see Sec. \\ref{%s}). "%secLabel)
 
+    saveIntermediateData(report.getReportDir(), 'EMRinger', True, 'emringer_csv', glob.glob(prot._getExtraPath('*_emringer.csv'))[0], 'emringer_csv file')
+    _emringer_plots = []
+    for file in os.listdir(glob.glob(prot._getExtraPath('*_emringer_plots'))[0]):
+        _emringer_plots.append(os.path.join(prot._getExtraPath(), file))
+    saveIntermediateData(report.getReportDir(), 'EMRinger', True, '_emringer_plots', _emringer_plots, '_emringer_plots files')
+
 def daq(project, report, protImportMap, protAtom):
     bblCitation = \
 """\\bibitem[Terashi et~al., 2022]{Terashi2022}
@@ -1044,6 +1062,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
                 daqValues.append(float(value))
         fnDAQHist = os.path.join(report.getReportDir(),"daqHist.png")
         reportHistogram(daqValues,"DAQ", fnDAQHist)
+        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'deepResHist', fnDAQHist, 'DAQ histogram')
         avgDaq = np.mean(daqValues)
         stdDaq = np.std(daqValues)
 
@@ -1063,6 +1082,10 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         msg="The atomic model colored by DAQ can be seen in Fig. \\ref{fig:daq}.\n\n"
         report.atomicModel("daqView", msg, "Atomic model colored by DAQ",
                            os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "fig:daq", True)
+        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQView',
+                             [os.path.join(report.getReportDir(), 'DAQView1.jpg'),
+                              os.path.join(report.getReportDir(), 'DAQView2.jpg'),
+                              os.path.join(report.getReportDir(), 'DAQView3.jpg')], 'DAQ views')
     except:
         report.writeSummary("A.f DAQ", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")

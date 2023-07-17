@@ -44,6 +44,8 @@ from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFi
 
 import configparser
 
+from tools.utils import saveIntermediateData
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
@@ -133,6 +135,9 @@ behavior. If they have, this is typically due to the presence of a mask in real 
         report.writeSummary("1.a Global resolution", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
+
+    saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'fsc', prot._getPath('fsc.xmd'), 'fsc xmd file')
+    saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'structureFactor', prot._getPath('structureFactor.xmd'), 'structureFactor xmd file')
 
     md = xmipp3.MetaData()
     md.read(prot._getPath("fsc.xmd"))
@@ -342,6 +347,7 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
     fsc = fscFile[0]
     frecuency = fscFile[1]
     reportPlot(fsc, frecuency, "Frecuency (1/A)", "FSC", prot._getExtraPath("FSC.png"))
+    saveIntermediateData(report.getReportDir(), 'FSCPermutation', True, 'FSC', fscFile, 'fsc file')
 
     msg=\
 """The resolution at 1\\%% of FDR was %4.1f. The estimated B-factor was %5.1f. Fig. \\ref{fig:fdrfsc} shows the
@@ -419,6 +425,7 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
     VblocRes = xmipp3.Image(prot._getExtraPath("resolutionMap.map:mrc")).getData()
     R = VblocRes[VblocRes>0]
     fnHist = os.path.join(report.getReportDir(),"blocRes.png")
+    saveIntermediateData(report.getReportDir(), 'blocRes', True, 'blocResHist', fnHist, 'blocRes histogram')
 
     reportHistogram(R, "Local resolution (A)", fnHist)
     Rpercentiles = np.percentile(R, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
@@ -468,6 +475,10 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
                             os.path.join(project.getPath(), protImportMap.outputVolume.getFileName()), Ts,
                             os.path.join(project.getPath(), prot._getExtraPath("resolutionMap.map")),
                             Rpercentiles[0], Rpercentiles[-1])
+    saveIntermediateData(report.getReportDir(), 'deepRes', True, 'blocResViewer',
+                         [os.path.join(report.getReportDir(), 'blocresViewer1.jpg'),
+                          os.path.join(report.getReportDir(), 'blocresViewer2.jpg'),
+                          os.path.join(report.getReportDir(), 'blocresViewer3.jpg')], 'blocRes views')
 
     # Warnings
     warnings = []
@@ -542,6 +553,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
     Vres = gaussian_filter(Vres,sigma=1.5)
     R = Vres[idx]
     fnHist = os.path.join(report.getReportDir(),"resmapHist.png")
+    saveIntermediateData(report.getReportDir(), 'resMap', True, 'resMapHist', fnHist, 'resMap histogram')
 
     reportHistogram(R, "Local resolution (A)", fnHist)
     Rpercentiles = np.percentile(R, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
@@ -590,6 +602,10 @@ Fig. \\ref{fig:resmapColor} shows some representative views of the local resolut
                             project, "resmapViewer",
                             os.path.join(project.getPath(), protImportMap.outputVolume.getFileName()), Ts,
                             fnResMap, Rpercentiles[0], Rpercentiles[-1])
+    saveIntermediateData(report.getReportDir(), 'resMap', True, 'resMapViewer',
+                         [os.path.join(report.getReportDir(), 'resmapViewer1.jpg'),
+                          os.path.join(report.getReportDir(), 'resmapViewer2.jpg'),
+                          os.path.join(report.getReportDir(), 'resmapViewer3.jpg')], 'resMap views')
 
     # Warnings
     warnings = []
@@ -670,6 +686,7 @@ if its energy is signficantly above the level of noise.\\\\
     fnHistMonoRes = os.path.join(report.getReportDir(), "histMonoRes.png")
     reportPlot(x_axis[:-2], y_axis[:-2], 'Resolution (A)', '# of voxels', fnHistMonoRes, plotType="bar",
                barWidth=(x_axis[-1] - x_axis[0]) / len(x_axis))
+    saveIntermediateData(report.getReportDir(), 'monoRes', True, 'monoResHist', fnHistMonoRes, 'monoRes histogram')
 
     R, RCDF=CDFFromHistogram(x_axis[:-2], y_axis[:-2])
     Rpercentiles = CDFpercentile(R, RCDF, Fp=[0.025, 0.25, 0.5, 0.75, 0.975])
@@ -716,7 +733,10 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
     report.colorIsoSurfaces("", "Local resolution according to Monores.", "fig:monoresColor",
                             project, "monoresViewer", protImportMap.outputVolume.getFileName(),
                             Ts, prot._getExtraPath("monoresResolutionChimera.mrc"), Rpercentiles[0], Rpercentiles[-1])
-
+    saveIntermediateData(report.getReportDir(), 'monoRes', True, 'monoResViewer',
+                         [os.path.join(report.getReportDir(), 'monoresViewer1.jpg'),
+                          os.path.join(report.getReportDir(), 'monoresViewer2.jpg'),
+                          os.path.join(report.getReportDir(), 'monoresViewer3.jpg')], 'monoRes views')
     # Warnings
     warnings=[]
     testWarnings = False
@@ -821,6 +841,14 @@ protein. As the shells approach the outside of the protein, these radial average
     reportMultiplePlots(x, [minResolution, maxResolution, avgResolution], "Radius (voxels)", "Resolution (A)",
                         fnMonodirRadial, ['Min. Resolution', 'Max. Resolution', 'Average Resolution'])
     avgDirResolution = np.mean(avgResolution)
+
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_prefdir', prot._getExtraPath("hist_prefdir.xmd"), 'hist_prefdir xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'thresholds', prot._getExtraPath("thresholds.xmd"), 'thresholds xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'Radial_averages', prot._getExtraPath("Radial_averages.xmd"), 'Radial_averages xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_DoA', prot._getExtraPath("hist_DoA.xmd"), 'hist_DoA xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_DoA2', prot._getExtraPath("hist_DoA2.xmd"), 'hist_DoA2 xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_radial', prot._getExtraPath("hist_radial.xmd"), 'hist_radial xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_azimuthal', prot._getExtraPath("hist_azimuthal.xmd"), 'hist_azimuthal xmd file')
 
     msg=\
 """Fig. \\ref{fig:histDirMonoDir1} shows the 1D directional histogram and Fig. \\ref{fig:histDirMonoDir2} the 2D
@@ -942,6 +970,10 @@ respectively. This region is shaded in the plot.
         radialPlot(rot, tilt, counts, fnContour, plotType="contour")
     except:
         pass
+
+    saveIntermediateData(report.getReportDir(), 'FSO', True, 'fso', prot._getExtraPath("fso.xmd"), 'fso xmd file')
+    saveIntermediateData(report.getReportDir(), 'FSO', True, 'GlobalFSC', prot._getExtraPath("GlobalFSC.xmd"), 'GlobalFSC xmd file')
+    saveIntermediateData(report.getReportDir(), 'FSO', True, 'Resolution_Distribution', prot._getExtraPath("Resolution_Distribution.xmd"), 'Resolution_Distribution xmd file')
 
     msg = \
         """Fig. \\ref{fig:fso} shows the Fourier Shell Occupancy and its anisotropy. The directional resolution is shown in
@@ -1079,6 +1111,20 @@ This method analyzes the FSC in different directions and evaluates its homogenei
         fnDir = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','Plotsvol.jpg'))
         fnHist = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','histogram.png'))
         fnPower = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','FTPlotvol.jpg'))
+
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'Plotsvol', fnDir, 'Plotsvol image file')
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram', fnHist, 'FSC3D histogram')
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'FTPlotvol', fnPower, 'FTPlotvol image file')
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram_raw',
+                             prot._getExtraPath('Results_vol', 'histogram_raw.csv'), 'histogram_raw csv file')
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'Plotsvol',
+                             prot._getExtraPath('Results_vol', 'Plotsvol.csv'), 'Plotsvol csv file')
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'ResEMvolOutglobalFSC',
+                             prot._getExtraPath('Results_vol', 'ResEMvolOutglobalFSC.csv'),
+                             'ResEMvolOutglobalFSC csv file')
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram_values',
+                             prot._getExtraPath('Results_vol', 'histogram_values.lst'), 'histogram_values lst file')
+
         msg = \
     """Fig. \\ref{fig:fsc3DDir} shows the FSCs in X, Y, Z, and the global FSC. Fig. \\ref{fig:fsc3DHist} shows the global
     FSC and the histogram of the directional FSC. Finally, Fig. \\ref{fig:FSC3DFTPower} shows the rotational average of

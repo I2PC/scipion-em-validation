@@ -41,6 +41,8 @@ from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, 
 
 import configparser
 
+from tools.utils import saveIntermediateData
+
 # used by the ProtImportVolumes protocol, volumes will be downloaded from EMDB
 IMPORT_FROM_EMDB = 1
 
@@ -664,6 +666,7 @@ input map to the appearance of the atomic structures a local resolution label ca
     Vres = xmipp3.Image(fnRes).getData()
     R = Vres[Vres >0]
     fnHist = os.path.join(report.getReportDir(), "deepresHist.png")
+    saveIntermediateData(report.getReportDir(), 'deepRes', True, 'deepResHist', fnHist, 'deepRes histogram')
 
     reportHistogram(R, "Local resolution (A)", fnHist)
     Rpercentiles = np.percentile(R, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
@@ -712,6 +715,10 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
                             project, "deepresViewer",
                             os.path.join(project.getPath(), prot._getExtraPath("originalVolume.vol")), Ts,
                             fnRes, Rpercentiles[0], Rpercentiles[-1])
+    saveIntermediateData(report.getReportDir(), 'deepRes', True, 'deepResViewer',
+                         [os.path.join(report.getReportDir(), 'deepresViewer1.jpg'),
+                          os.path.join(report.getReportDir(), 'deepresViewer2.jpg'),
+                          os.path.join(report.getReportDir(), 'deepresViewer3.jpg')], 'deepRes views')
 
     # Warnings
     warnings = []
@@ -779,6 +786,7 @@ local magnitude and phase term using the spiral transform.\\\\
     M = xmipp3.Image(mask.getFileName()).getData()
     B = V[M>0.5]
     fnHist = os.path.join(report.getReportDir(),"locBfactorHist.png")
+    saveIntermediateData(report.getReportDir(), 'locBfactor', True, 'locBfactorHist', fnHist, 'locBfactor histogram')
 
     reportHistogram(B, "Local B-factor (A^-2)", fnHist)
     Bpercentiles = np.percentile(B, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
@@ -823,6 +831,10 @@ Fig. \\ref{fig:locBfactorColor} shows some representative views of the local B-f
                             project, "locBfactorViewer",
                             os.path.join(project.getPath(), map.getFileName()), Ts,
                             fnBfactor, Bpercentiles[0], Bpercentiles[-1])
+    saveIntermediateData(report.getReportDir(), 'locBfactor', True, 'locBfactorViewer',
+                         [os.path.join(report.getReportDir(), 'locBfactorViewer1.jpg'),
+                          os.path.join(report.getReportDir(), 'locBfactorViewer2.jpg'),
+                          os.path.join(report.getReportDir(), 'locBfactorViewer3.jpg')], 'locBfactor views')
 
     # Warnings
     warnings=[]
@@ -887,6 +899,7 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
     M = xmipp3.Image(mask.getFileName()).getData()
     B = V[M>0.5]
     fnHist = os.path.join(report.getReportDir(),"locOccupancyHist.png")
+    saveIntermediateData(report.getReportDir(), 'locOccupancy', True, 'locOccupancyHist', fnHist, 'locOccupancy histogram')
 
     reportHistogram(B, "Local occupancy", fnHist)
     Bpercentiles = np.percentile(B, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
@@ -931,6 +944,10 @@ Fig. \\ref{fig:locOccupancyColor} shows some representative views of the local o
                             project, "locOccupancyViewer",
                             os.path.join(project.getPath(), map.getFileName()), Ts,
                             fnOccupancy, Bpercentiles[0], Bpercentiles[-1])
+    saveIntermediateData(report.getReportDir(), 'locOccupancy', True, 'locOccupancyViewer',
+                         [os.path.join(report.getReportDir(), 'locOccupancyViewer1.jpg'),
+                          os.path.join(report.getReportDir(), 'locOccupancyViewer2.jpg'),
+                          os.path.join(report.getReportDir(), 'locOccupancyViewer3.jpg')], 'locOccupancy views')
 
     # Warnings
     warnings=[]
