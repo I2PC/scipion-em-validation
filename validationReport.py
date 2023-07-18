@@ -74,6 +74,7 @@ def generateChimeraView(fnWorkingDir, fnMap, fnView, isMap=True, threshold=0, an
                         occupancy=False):
     chimeraScript=\
 """
+windowsize 1300 700
 set bgColor white
 volume voxelLimitForOpen 1000
 volume showPlane false
@@ -98,6 +99,7 @@ show cartoons
 """turn x %f
 turn y %f
 turn z %f
+view all
 save %s
 exit
 """%(angX, angY, angZ, fnView)
@@ -127,12 +129,15 @@ def generateChimeraColorView(fnWorkingDir, project, fnRoot, fnMap, Ts, fnColor, 
     fhCmd = open(cmdFile, "a")
     toWrite = \
 """
-run(session, 'windowsize 700 700')
+run(session, 'volume voxelLimitForOpen 1000')
+run(session, 'volume showPlane false')
+run(session, 'windowsize 1300 700')
 run(session, 'save %s')
 run(session, 'turn x 90')
 run(session, 'save %s')
 run(session, 'turn x -90')
 run(session, 'turn y 90')
+run(session, 'view all')
 run(session, 'save %s')
 run(session, 'exit')
 """ % (fn1, fn2, fn3)
@@ -625,11 +630,14 @@ class ValidationReport:
 
 \\begin{figure}[H]
   \\centering
-  \\subfloat[X Projection]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[Y Projection]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[Z Projection]{\includegraphics[width=4cm]{%s}}
+  \\subfloat[X Projection]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+  \\subfloat[Y Projection]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+\\end{figure}
+\\begin{figure}[H]
+  \\centering
+  \\subfloat[Z Projection]{\includegraphics[width=6.5cm]{%s}}
   \\caption{%s}
   \\label{%s}
 \\end{figure}
@@ -654,11 +662,14 @@ class ValidationReport:
 
 \\begin{figure}[H]
   \\centering
-  \\subfloat[View 1]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[View 2]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[View 3]{\includegraphics[width=4cm]{%s}}
+  \\subfloat[View 1]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+  \\subfloat[View 2]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+\\end{figure}
+\\begin{figure}[H]
+  \\centering
+  \\subfloat[View 3]{\includegraphics[width=6.5cm]{%s}}
   \\caption{%s}
   \\label{%s}
 \\end{figure}
@@ -681,11 +692,14 @@ class ValidationReport:
 
 \\begin{figure}[H]
   \\centering
-  \\subfloat[View 1]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[View 2]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[View 3]{\includegraphics[width=4cm]{%s}}
+  \\subfloat[View 1]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+  \\subfloat[View 2]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+\\end{figure}
+\\begin{figure}[H]
+  \\centering
+  \\subfloat[View 3]{\includegraphics[width=6.5cm]{%s}}
   \\caption{%s}
   \\label{%s}
 \\end{figure}
@@ -713,11 +727,14 @@ class ValidationReport:
         
             \\begin{figure}[H]
               \\centering
-              \\subfloat[View 1]{\includegraphics[width=4cm]{%s}}
-              \\hspace{0.2cm}
-              \\subfloat[View 2]{\includegraphics[width=4cm]{%s}}
-              \\hspace{0.2cm}
-              \\subfloat[View 3]{\includegraphics[width=4cm]{%s}}
+              \\subfloat[View 1]{\includegraphics[width=6.5cm]{%s}}
+              \\hspace{0.1cm}
+              \\subfloat[View 2]{\includegraphics[width=6.5cm]{%s}}
+              \\hspace{0.1cm}
+            \\end{figure}
+            \\begin{figure}[H]
+                \\centering
+              \\subfloat[View 3]{\includegraphics[width=6.5cm]{%s}}
               \\caption{%s}
               \\label{%s}
             \\end{figure}
@@ -755,11 +772,14 @@ class ValidationReport:
         toWrite+=\
 """\\begin{figure}[H]
   \\centering
-  \\subfloat[X Slice %d]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[Y Slice %d]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[Z Slice %d]{\includegraphics[width=4cm]{%s}}
+  \\subfloat[X Slice %d]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+  \\subfloat[Y Slice %d]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+\\end{figure}
+\\begin{figure}[H]
+  \\centering
+  \\subfloat[Z Slice %d]{\includegraphics[width=6.5cm]{%s}}
   \\caption{%s}
   \\label{%s}
 \\end{figure}
