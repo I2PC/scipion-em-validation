@@ -842,13 +842,13 @@ protein. As the shells approach the outside of the protein, these radial average
                         fnMonodirRadial, ['Min. Resolution', 'Max. Resolution', 'Average Resolution'])
     avgDirResolution = np.mean(avgResolution)
 
-    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_prefdir', prot._getExtraPath("hist_prefdir.xmd"), 'hist_prefdir xmd file')
-    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'thresholds', prot._getExtraPath("thresholds.xmd"), 'thresholds xmd file')
-    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'Radial_averages', prot._getExtraPath("Radial_averages.xmd"), 'Radial_averages xmd file')
-    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_DoA', prot._getExtraPath("hist_DoA.xmd"), 'hist_DoA xmd file')
-    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_DoA2', prot._getExtraPath("hist_DoA2.xmd"), 'hist_DoA2 xmd file')
-    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_radial', prot._getExtraPath("hist_radial.xmd"), 'hist_radial xmd file')
-    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_azimuthal', prot._getExtraPath("hist_azimuthal.xmd"), 'hist_azimuthal xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_prefdir', os.path.join(project.getPath(), prot._getExtraPath("hist_prefdir.xmd")), 'hist_prefdir xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'thresholds', os.path.join(project.getPath(), prot._getExtraPath("thresholds.xmd")), 'thresholds xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'Radial_averages', os.path.join(project.getPath(), prot._getExtraPath("Radial_averages.xmd")), 'Radial_averages xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_DoA', os.path.join(project.getPath(), prot._getExtraPath("hist_DoA.xmd")), 'hist_DoA xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_DoA2', os.path.join(project.getPath(), prot._getExtraPath("hist_DoA2.xmd")), 'hist_DoA2 xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_radial', os.path.join(project.getPath(), prot._getExtraPath("hist_radial.xmd")), 'hist_radial xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_azimuthal', os.path.join(project.getPath(), prot._getExtraPath("hist_azimuthal.xmd")), 'hist_azimuthal xmd file')
 
     msg=\
 """Fig. \\ref{fig:histDirMonoDir1} shows the 1D directional histogram and Fig. \\ref{fig:histDirMonoDir2} the 2D
@@ -1116,14 +1116,14 @@ This method analyzes the FSC in different directions and evaluates its homogenei
         saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram', fnHist, 'FSC3D histogram')
         saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'FTPlotvol', fnPower, 'FTPlotvol image file')
         saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram_raw',
-                             prot._getExtraPath('Results_vol', 'histogram_raw.csv'), 'histogram_raw csv file')
+                             os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'histogram_raw.csv')), 'histogram_raw csv file')
         saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'Plotsvol',
-                             prot._getExtraPath('Results_vol', 'Plotsvol.csv'), 'Plotsvol csv file')
+                             os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'Plotsvol.csv')), 'Plotsvol csv file')
         saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'ResEMvolOutglobalFSC',
-                             prot._getExtraPath('Results_vol', 'ResEMvolOutglobalFSC.csv'),
+                             os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'ResEMvolOutglobalFSC.csv')),
                              'ResEMvolOutglobalFSC csv file')
         saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram_values',
-                             prot._getExtraPath('Results_vol', 'histogram_values.lst'), 'histogram_values lst file')
+                             os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'histogram_values.lst')), 'histogram_values lst file')
 
         msg = \
     """Fig. \\ref{fig:fsc3DDir} shows the FSCs in X, Y, Z, and the global FSC. Fig. \\ref{fig:fsc3DHist} shows the global
