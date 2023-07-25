@@ -127,8 +127,8 @@ have a Gaussian shape.\\\\
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return
 
-    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(prot._getPath('*.cif'))[0], 'cif file')
-    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All', glob.glob(prot._getPath('*Q__map_All.txt'))[0], 'Q__map_All txt file')
+    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*.cif')))[0], 'cif file')
+    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map_All.txt')))[0], 'Q__map_All txt file')
 
     ASH = AtomicStructHandler()
 
@@ -544,8 +544,8 @@ than 0.5.
         report.writeAbstract("It seems that the Guinier plot of the map and its model do not match "\
                              "(see Sec. \\ref{%s}). "%secLabel)
 
-    saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'sharpenedMap.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedMap.mrc.guinier', 'sharpenedMap.mrc.guinier file'))
-    saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'sharpenedMap.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedMap.mrc.guinier', 'sharpenedMap.mrc.guinier file'))
+    saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'sharpenedMap.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedMap.mrc.guinier'), 'sharpenedMap.mrc.guinier file')
+    saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'sharpenedMap.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedMap.mrc.guinier'), 'sharpenedMap.mrc.guinier file')
 
 def phenix(project, report, protImportMap, protAtom, resolution):
     bblCitation = \
@@ -1003,10 +1003,10 @@ sequence of the protein chains.
         report.writeAbstract("The EMRinger score is negative, it seems that the model side chains do not match the "\
                             "map (see Sec. \\ref{%s}). "%secLabel)
 
-    saveIntermediateData(report.getReportDir(), 'EMRinger', True, 'emringer_csv', glob.glob(prot._getExtraPath('*_emringer.csv'))[0], 'emringer_csv file')
+    saveIntermediateData(report.getReportDir(), 'EMRinger', True, 'emringer_csv', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*_emringer.csv')))[0], 'emringer_csv file')
     _emringer_plots = []
     for file in os.listdir(glob.glob(prot._getExtraPath('*_emringer_plots'))[0]):
-        _emringer_plots.append(os.path.join(prot._getExtraPath(), file))
+        _emringer_plots.append(os.path.join(project.getPath(), prot._getExtraPath(), file))
     saveIntermediateData(report.getReportDir(), 'EMRinger', True, '_emringer_plots', _emringer_plots, '_emringer_plots files')
 
 def daq(project, report, protImportMap, protAtom):
@@ -1083,9 +1083,9 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         report.atomicModel("daqView", msg, "Atomic model colored by DAQ",
                            os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "fig:daq", True)
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQView',
-                             [os.path.join(report.getReportDir(), 'DAQView1.jpg'),
-                              os.path.join(report.getReportDir(), 'DAQView2.jpg'),
-                              os.path.join(report.getReportDir(), 'DAQView3.jpg')], 'DAQ views')
+                             [os.path.join(report.getReportDir(), 'daqView1.jpg'),
+                              os.path.join(report.getReportDir(), 'daqView2.jpg'),
+                              os.path.join(report.getReportDir(), 'daqView3.jpg')], 'DAQ views')
     except:
         report.writeSummary("A.f DAQ", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
