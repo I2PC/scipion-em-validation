@@ -52,15 +52,23 @@ def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
     fnDir, fnBase = os.path.split(fnMap)
-    prot = project.newProtocol(Prot,
-                               objLabel=label,
-                               filesPath=fnDir,
-                               filesPattern=fnMap,
-                               samplingRate=Ts,
-                               setOrigCoord=True,
-                               x=mapCoordX,
-                               y=mapCoordY,
-                               z=mapCoordZ)
+    if mapCoordX is not None and mapCoordY is not None and mapCoordZ is not None:
+        prot = project.newProtocol(Prot,
+                                   objLabel=label,
+                                   filesPath=fnDir,
+                                   filesPattern=fnMap,
+                                   samplingRate=Ts,
+                                   setOrigCoord=True,
+                                   x=mapCoordX,
+                                   y=mapCoordY,
+                                   z=mapCoordZ)
+    else:
+        prot = project.newProtocol(Prot,
+                                   objLabel=label,
+                                   filesPath=fnDir,
+                                   filesPattern=fnMap,
+                                   samplingRate=Ts,
+                                   setOrigCoord=False)
     if useSlurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
@@ -1171,8 +1179,7 @@ any structure in this difference. Sometimes some patterns are seen if the map is
                             "Slices of maximum variation in the three dimensions of the difference Half1-Half2.", Vdiff,
                             "fig:maxVarHalfDiff", maxVar=True)
 
-def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized,
-           protCreateMask, protCreateMaskResized, skipAnalysis = False):
+def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized, protCreateMask, protCreateMaskResized, skipAnalysis = False):
     # Import maps
     protImportMap1 = importMap(project, "import half1", fnMap1, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap1.isFailed():

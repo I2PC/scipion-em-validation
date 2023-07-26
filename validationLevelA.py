@@ -52,14 +52,22 @@ useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
-    prot = project.newProtocol(Prot,
-                               objLabel=label,
-                               filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
-                               samplingRate=protImportMap.outputVolume.getSamplingRate(),
-                               setOrigCoord=True,
-                               x=mapCoordX,
-                               y=mapCoordY,
-                               z=mapCoordZ)
+
+    if mapCoordX is not None and mapCoordY is not None and mapCoordZ is not None:
+        prot = project.newProtocol(Prot,
+                                   objLabel=label,
+                                   filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
+                                   samplingRate=protImportMap.outputVolume.getSamplingRate(),
+                                   setOrigCoord=True,
+                                   x=mapCoordX,
+                                   y=mapCoordY,
+                                   z=mapCoordZ)
+    else:
+        prot = project.newProtocol(Prot,
+                                   objLabel=label,
+                                   filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
+                                   samplingRate=protImportMap.outputVolume.getSamplingRate(),
+                                   setOrigCoord=False)
     if useSlurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
