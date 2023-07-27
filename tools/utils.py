@@ -13,6 +13,7 @@ import re
 import logging
 from io import BytesIO
 from pathlib import Path
+import subprocess
 
 PARAM_FIELDS = ['map', 'sampling', 'threshold', 'resolution', 'mapCoordX', 'mapCoordY', 'mapCoordZ',
                 'map1', 'map2',
@@ -295,17 +296,17 @@ def downloadEMDB_halfMaps(emdb_id, path):
     return outName
 
 
-def saveIntermediateData(fnProjectDir, protocol, isFile, fileOrParamKey, value, details=None):
+def saveIntermediateData(fnReportDir, protocol, isFile, fileOrParamKey, value, details=None):
     """
     Save intermediate interesting data (files and params) from each method to be stored when the validation finishes
-    'fnProjectDir': report path
+    'fnReportDir': report path
     'protocol': protocol name
     'isFile': True if is a file, False if is a param
     'fileOrParamKey': measure name
     'value': measure value (a number, a string, a list, etc.)
     'details': extra info
     """
-    file = os.path.join(fnProjectDir, 'intermediateData.json')
+    file = os.path.join(fnReportDir, 'intermediateData.json')
     if os.path.exists(file):
         with open(file, 'r') as json_file:
             intermediateData = json.load(json_file)
@@ -327,3 +328,38 @@ def saveIntermediateData(fnProjectDir, protocol, isFile, fileOrParamKey, value, 
             json_file.close()
 
     return intermediateData
+
+def storeIntermediateData(fnReportDir, destPath):
+    """
+    Copy files described in intermediateData.json to the destination path
+    @param fnReportDir: report path
+    @param destPath: final path where data should be copied
+    """
+    intermediateDataFile = os.path.join(fnReportDir, 'intermediateData.json')
+    if os.path.exists(intermediateDataFile):
+        with open(intermediateDataFile, 'r') as json_file:
+            intermediateData = json.load(json_file)
+            for protocol in intermediateData:
+                if 'files' in intermediateData[protocol]:
+                    for intermediateProtocolInfo in intermediateData[protocol]['files']:
+                        if type(intermediateProtocolInfo['value']) == list:
+                            for intermediateProtocolPath in intermediateProtocolInfo['value']:
+                                parentFolder = intermediateProtocolPath.split('projects/')[1].rsplit('/', 1)[0]
+                                os.makedirs(os.path.join(destPath, parentFolder), exist_ok=True)
+                                cmd = 'rsync -rltv --progress %s %s' % (intermediateProtocolPath, os.path.join(destPath, parentFolder))
+                                subprocess.run(cmd, shell=True)
+                        else:
+                            parentFolder = intermediateProtocolInfo['value'].split('projects/')[1].rsplit('/', 1)[0]
+                            os.makedirs(os.path.join(destPath, parentFolder), exist_ok=True)
+                            cmd = 'rsync -rltv --progress %s %s' % (
+                            intermediateProtocolInfo['value'], os.path.join(destPath, parentFolder))
+                            subprocess.run(cmd, shell=True)
+        # copy the file itself
+        cmd = 'rsync %s %s' % (intermediateDataFile, os.path.join(destPath, fnReportDir.split('/')[-2]))
+        subprocess.run(cmd, shell=True)
+        # project and settings sqlite
+        cmd = 'rsync %s %s %s' % (os.path.join(fnReportDir.rsplit('/',1)[0], 'project.sqlite'), os.path.join(fnReportDir.rsplit('/',1)[0], 'settings.sqlite'), os.path.join(destPath, fnReportDir.split('/')[-2]))
+        subprocess.run(cmd, shell=True)
+        # full validationReport folder
+        cmd = 'rsync -rltv --progress %s %s' % (fnReportDir, os.path.join(destPath, fnReportDir.split('/')[-2]))
+        subprocess.run(cmd, shell=True)
