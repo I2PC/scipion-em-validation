@@ -111,6 +111,27 @@ def download_atomicmodel(pdbid, path):
     else:
         return None
 
+def proper_map_axis_order(emdbid):
+    """
+    Check if axis volume are ordered as x, y and z
+    """
+    url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/%s' % emdbid
+    print("Checking if EMD-%s axis map is ordered as x, y and z ..." % emdbid)
+    try:
+        json_results = requests.get(url_rest_api).json()
+        fast = json_results['map']['axis_order']['fast'].lower()
+        medium = json_results['map']['axis_order']['medium'].lower()
+        slow = json_results['map']['axis_order']['slow'].lower()
+        if fast == 'x' and medium == 'y' and slow == 'z':
+            print("... yes it is.")
+            return True
+        else:
+            print("... no it's not.")
+            return False
+    except:
+        return False
+    return True
+
 def gunzip(gzpath, path):
     gzf = gzip.open(gzpath)
     f = open(path, 'wb')
