@@ -110,6 +110,8 @@ have a Gaussian shape.\\\\
 """ % secLabel
     report.write(msg)
 
+    #TODO: API calls
+
     Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
                                             'ProtMapQ', doRaise=True)
     prot = project.newProtocol(Prot,
@@ -129,6 +131,7 @@ have a Gaussian shape.\\\\
 
     saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*.cif')))[0], 'cif file')
     saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map_All.txt')))[0], 'Q__map_All txt file')
+    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map.pdb', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.pdb')))[0], 'Q__map pdb file')
 
     ASH = AtomicStructHandler()
 
@@ -328,7 +331,6 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
     fnHist = os.path.join(report.getReportDir(),"fscqrHist.png")
     reportHistogram(np.clip(fscqr, -1.5, 1.5), "FSC-Qr", fnHist)
 
-    saveIntermediateData(report.getReportDir(), 'FSCQ', True, 'fscq_struct', prot._getPath('fscq_struct.cif'), 'fscq_struct cif file')
 
     msg =\
 """Fig. \\ref{fig:fscqHist} shows the histogram of FSC-Qr and Fig. 
@@ -348,6 +350,20 @@ whose FSC-Qr absolute value is beyond 1.5 is %5.1f \\%%.
                             "fig:fscq", project, "fscq", prot._getExtraPath("pdb_volume.map"),
                             protImportMap.outputVolume.getSamplingRate(),
                             prot._getExtraPath("diferencia_norm.map"), -3.0, 3.0)
+
+    saveIntermediateData(report.getReportDir(), 'FSCQ', False, 'averageFSQr', avgFSCQr, ['?', 'average FSC-Qr'])
+    saveIntermediateData(report.getReportDir(), 'FSCQ', False, 'llcinterval', ci[0], ['?', 'Lower limit 95% confidence interval'])
+    saveIntermediateData(report.getReportDir(), 'FSCQ', False, 'ulcinterval', ci[1], ['?', 'Upper limit 95% confidence interval'])
+    saveIntermediateData(report.getReportDir(), 'FSCQ', False, 'percentage15', f15, ['%', 'The percentage of values whose FSC-Qr absolute value is beyond 1.5'])
+    saveIntermediateData(report.getReportDir(), 'FSCQ', False, 'fscqrList', np.clip(fscqr, -1.5, 1.5).tolist(), ['?', 'List of FSCalues to create the histogram'])
+
+    saveIntermediateData(report.getReportDir(), 'FSCQ', True, 'fscq_struct', prot._getPath('fscq_struct.cif'), 'fscq_struct cif file')
+    saveIntermediateData(report.getReportDir(), 'FSCQ', True, 'fscqHist', fnHist, 'FSCQ Histogram')
+    saveIntermediateData(report.getReportDir(), 'FSCQ', True, 'fscqViewer',
+                         [os.path.join(report.getReportDir(), 'fscq1.jpg'),
+                          os.path.join(report.getReportDir(), 'fscq2.jpg'),
+                          os.path.join(report.getReportDir(), 'fscq3.jpg')], 'FSCQ views')
+
     warnings = []
     testWarnings = False
     if f15>10 or testWarnings:
@@ -544,8 +560,10 @@ than 0.5.
         report.writeAbstract("It seems that the Guinier plot of the map and its model do not match "\
                              "(see Sec. \\ref{%s}). "%secLabel)
 
-    saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'sharpenedMap.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedMap.mrc.guinier'), 'sharpenedMap.mrc.guinier file')
-    saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'sharpenedMap.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedMap.mrc.guinier'), 'sharpenedMap.mrc.guinier file')
+    saveIntermediateData(report.getReportDir(), 'guinierModel', False, 'correlation', R, ['', 'The correlation between the structure factor of the atom model and the experimental map'])
+
+    saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'sharpenedModel.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedModel.mrc.guinier'), 'sharpenedModel.mrc.guinier file which contain the data to create the guinier plot')
+    saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'guinierPlot', fnPlot, 'guinier plot for Map-Model Guinier Analysis')
 
 def phenix(project, report, protImportMap, protAtom, resolution):
     bblCitation = \
@@ -703,11 +721,14 @@ fh.close()
     fhPhenixScript.close()
 
     saveIntermediateData(report.getReportDir(), 'phenix', True, 'validation_cryoem.pkl', fnPkl, 'validation_cryoem.pkl file')
+    saveIntermediateData(report.getReportDir(), 'phenix', True, 'validation_cryoem.py', fnPhenixScript, 'validation_cryoem.py file to get all phenix data from pickle')
 
     from phenix import Plugin
     Plugin.runPhenixProgram('',fnPhenixScript)
 
     data = pickle.load(open(fnPklOut, "rb"))
+    saveIntermediateData(report.getReportDir(), 'phenix', False, 'dataDict', data, ['', 'phenix data dictionary containing all key params'])
+
 
     # CC
     msg =\
@@ -754,6 +775,7 @@ CC (main chain) = & %5.3f\\\\
     msg+="""We now show the correlation profiles of the different chain per residue.\n"""
     for chain_id in sorted(data['resseq_list']):
         fnPlot = plotCCResidue(chain_id, report.getReportDir(), allCCs)
+        saveIntermediateData(report.fnReportDir, "phenix", True, "ccresidue_%s.png"%chain_id, fnPlot, 'Plot including the correlation profiles of the chain %s'%chain_id)
         msg+="""\\includegraphics[width=7cm]{%s}\n"""%fnPlot
 
     fnCCHist = os.path.join(report.getReportDir(),"ccModelHist.png")
@@ -774,6 +796,9 @@ of residues whose correlation is below 0.5 is %4.1f \\%%.
 \\end{figure}
 
 """%(badResidues, fnCCHist)
+
+    saveIntermediateData(report.fnReportDir, "phenix", True, "ccModelHist.png", fnCCHist, 'Histogram of the cross-correlation between the map and model evaluated for all residues')
+    saveIntermediateData(report.fnReportDir, "phenix", False, "percentageResidues05", badResidues, ['%', 'The percentage of residues whose correlation is below 0.5'])
 
     # Resolutions
     msg+=\
@@ -830,6 +855,8 @@ of residues whose correlation is below 0.5 is %4.1f \\%%.
 
 """%fnFSCModel
     report.write(msg)
+
+    saveIntermediateData(report.fnReportDir, "phenix", True, "fscModel.png", fnFSCModel, 'Plot that shows FSC between the input map and model with and without a mask constructed from the model')
 
     warnings = []
     testWarnings = False
@@ -968,6 +995,11 @@ optimal threshold.
 
 """%(dataDict["Optimal Threshold"], dataDict["Rotamer-Ratio"], dataDict["Max Zscore"], dataDict["Model Length"],
      dataDict["EMRinger Score"], fnScore, fnResidueHist)
+    
+    saveIntermediateData(report.getReportDir(), 'EMRinger', False, 'dataDict', dataDict, ['', 'emringer data dictionary containing all key params'])
+
+    saveIntermediateData(report.getReportDir(), 'EMRinger', True, 'emringerThreshold_scan.png', fnScore, 'emringer threshold scan plot showing the EMRinger score and fraction of rotameric residues as a function of the map threshold')
+    saveIntermediateData(report.getReportDir(), 'EMRinger', True, 'residueHist.pngv', fnResidueHist, 'emringer histogram for rotameric (blue) and non-rotameric (red) residues at the optimal threshold')
 
     msg+=\
 """The following plots show the rolling window EMRinger analysis of the different chains to distinguish regions 
@@ -1003,10 +1035,14 @@ sequence of the protein chains.
         report.writeAbstract("The EMRinger score is negative, it seems that the model side chains do not match the "\
                             "map (see Sec. \\ref{%s}). "%secLabel)
 
-    saveIntermediateData(report.getReportDir(), 'EMRinger', True, 'emringer_csv', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*_emringer.csv')))[0], 'emringer_csv file')
     _emringer_plots = []
     for file in os.listdir(glob.glob(prot._getExtraPath('*_emringer_plots'))[0]):
         _emringer_plots.append(os.path.join(project.getPath(), prot._getExtraPath(), file))
+
+    saveIntermediateData(report.getReportDir(), 'EMRinger', True, 'emringer_csv', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*_emringer.csv')))[0], 'emringer_csv file')
+    saveIntermediateData(report.getReportDir(), 'EMRinger', True, '7tmw_emringer.pkl', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*_emringer.pkl')))[0], 'emringer pickle file')
+    saveIntermediateData(report.getReportDir(), 'EMRinger', True, 'emringer.map', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('emringer.map')))[0], 'emringer.map file')
+
     saveIntermediateData(report.getReportDir(), 'EMRinger', True, '_emringer_plots', _emringer_plots, '_emringer_plots files')
 
 def daq(project, report, protImportMap, protAtom):
@@ -1032,6 +1068,8 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
 \\textbf{Results:}\\\\
 """ % secLabel
     report.write(msg)
+
+    #TODO: API call
 
     Prot = pwplugin.Domain.importFromPlugin('kiharalab.protocols',
                                             'ProtDAQValidation', doRaise=True)
@@ -1062,7 +1100,10 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
                 daqValues.append(float(value))
         fnDAQHist = os.path.join(report.getReportDir(),"daqHist.png")
         reportHistogram(daqValues,"DAQ", fnDAQHist)
-        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'deepResHist', fnDAQHist, 'DAQ histogram')
+        saveIntermediateData(report.getReportDir(), 'DAQ', False, 'DAQHistData', daqValues, ['', 'DAQ values to create histogram'])
+        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQHist', fnDAQHist, 'DAQ histogram')
+        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQcif', prot._getPath('outputStructure.cif'), 'cif file containing DAQ scores')
+
         avgDaq = np.mean(daqValues)
         stdDaq = np.std(daqValues)
 
@@ -1078,6 +1119,9 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     \\end{figure}
     """%(avgDaq, stdDaq, fnDAQHist)
         report.write(msg)
+
+        saveIntermediateData(report.getReportDir(), 'DAQ', False, 'averageDAQ', avgDaq, ['', 'The mean of the DAQ values'])
+        saveIntermediateData(report.getReportDir(), 'DAQ', False, 'stdDAQ', stdDaq, ['', 'The standard deviation'])
 
         msg="The atomic model colored by DAQ can be seen in Fig. \\ref{fig:daq}.\n\n"
         report.atomicModel("daqView", msg, "Atomic model colored by DAQ",
