@@ -13,6 +13,7 @@ from pyworkflow.protocol import StringParam
 from pyworkflow.utils.path import makePath, cleanPath
 from pwem.viewers import LocalResolutionViewer
 from pwem.emlib.metadata import iterRows
+from tools.utils import storeIntermediateData
 
 import xmipp3
 
@@ -20,6 +21,9 @@ import configparser
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 maxMemToUse = config['CHIMERA'].getint('MAX_MEM_TO_USE')
+doStoreIntermediateData = config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
+intermediateDataFinalPath = config['INTERMEDIATE_DATA'].get('DEST_PATH')
+cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 
 def readMap(fnMap):
     return xmipp3.Image(fnMap)
@@ -880,3 +884,8 @@ class ValidationReport:
                        stdout=subprocess.DEVNULL,
                        stderr=subprocess.STDOUT)
         os.chdir(self.fnProjectDir)
+        if doStoreIntermediateData:
+            storeIntermediateData(self.fnReportDir, intermediateDataFinalPath)
+        if cleanOriginalData:
+            cmd = 'rm -rf %s' % self.fnProjectDir
+            subprocess.run(cmd, shell=True)

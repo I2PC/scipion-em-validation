@@ -785,7 +785,6 @@ else: # go ahead
         content = summaryWarnings.read()
         if "STATUS" not in content and "WARNINGS" not in content:
             report.fhSummaryWarnings.write("No warnings.")
-    report.closeReport()
 
     # Save workflow json with protocols versions
     workflowProts = [p for p in project.getRuns()]
@@ -802,3 +801,5 @@ else: # go ahead
                         protDicts[prot.getObjId()]['pluginVersion'] = version
         with open(os.path.join(fnProjectDir, 'validationReport', 'workflow.json'), 'w') as f:
             f.write(json.dumps(list(protDicts.values()), indent=4, separators=(',', ': ')))
+
+    report.closeReport()
