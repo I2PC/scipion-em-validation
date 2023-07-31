@@ -51,7 +51,7 @@ config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 gpuIdSkipSlurm = config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
 
-def importMap(project, label,
+def importMap(project, report, label,
               is_emdb_entry, emdb_ID_num,
               fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -83,6 +83,10 @@ def importMap(project, label,
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
     waitUntilFinishes(project, prot)
+    saveIntermediateData(report.fnReportDir, 'inputData', True, 'map', os.path.join(project.getPath(), prot.filesPath), 'map from EMDB')
+    if fnMap1 is not None and fnMap2 is not None:
+        saveIntermediateData(report.fnReportDir, 'inputData', True, 'map', os.path.join(project.getPath(), prot.half1map), 'halfmap1 from EMDB')
+        saveIntermediateData(report.fnReportDir, "inputData", True, "map", os.path.join(project.getPath(), prot.half2map), 'halfmap2 from EMDB')
     return prot
 
 def createMask(project, label, map, Ts, threshold):
@@ -1190,11 +1194,15 @@ def level0(project, report,
            is_emdb_entry, emdb_ID, emdb_ID_num,
            fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False):
     # Import map
-    protImportMap = importMap(project, "import map",
+    protImportMap = importMap(project, report, "import map",
                               is_emdb_entry, emdb_ID_num,
                               fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap.isFailed():
         raise Exception("Import map did not work")
+    saveIntermediateData(report.fnReportDir, 'inputData', False, 'sampling rate', Ts, ['\u212B', 'Sampling rate from EMDB map in Angstroms'])
+    saveIntermediateData(report.fnReportDir, 'inputData', False, 'threshold', threshold, ['', 'Threshold from EMDB map'])
+    saveIntermediateData(report.fnReportDir, 'inputData', False, 'resolution', resolution, ['\u212B', 'Resolution from EMDB map'])
+
     protCreateMask = createMask(project, "create mask", protImportMap.outputVolume, Ts, threshold)
     if protCreateMask.isFailed():
         raise Exception("Create mask did not work")
