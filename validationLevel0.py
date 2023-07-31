@@ -793,6 +793,8 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
     saveIntermediateData(report.getReportDir(), 'deepRes', False, 'resolutionPercentiles', Rpercentiles.tolist(), ['\u212B', 'List of local resolution in Angstroms at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
     saveIntermediateData(report.getReportDir(), 'deepRes', False, 'resolutionPercentile', resolutionP, ['%', 'The percentile at which the reported resolution is'])
     saveIntermediateData(report.getReportDir(), 'deepRes', False, 'resolutionList', R.tolist(), ['\u212B', 'List of local resolution in Angstroms obtained from DeepRes to create the histogram'])
+    saveIntermediateData(report.getReportDir(), 'deepRes', False, 'estimatedResolution', Rpercentiles[2], ['\u212B', 'The estimated resolution (median) in Angstroms obtained from DeepRes'])
+
 
     saveIntermediateData(report.getReportDir(), 'deepRes', True, 'deepResHist', fnHist, 'deepRes histogram')
 

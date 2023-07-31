@@ -217,6 +217,9 @@ percentiles are:
 
     report.addResolutionEstimate(np.mean(resolutions))
 
+    saveIntermediateData(report.getReportDir(), 'MapQ', False, 'estimatedResolution', np.mean(resolutions), ['\u212B', 'The estimated resolution (mean) in Angstroms obtained from MapQ'])
+
+
     # Warnings
     warnings=[]
     testWarnings = False
