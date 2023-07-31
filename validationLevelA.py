@@ -69,7 +69,7 @@ def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
     waitUntilFinishes(project, prot)
     return prot
 
-def importModel(project, label, protImportMap, fnPdb):
+def importModel(project, report, label, protImportMap, fnPdb):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportPdb', doRaise=True)
     protImport = project.newProtocol(Prot,
@@ -84,6 +84,7 @@ def importModel(project, label, protImportMap, fnPdb):
     waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import atomic model did not work")
+    saveIntermediateData(report.fnReportDir, 'inputData', True, 'atomic model', os.path.join(project.getPath(), fnPdb.split('/')[-1].replace('.pdb', '.cif')), 'atomic model')
 
     return protImport
 
@@ -1210,7 +1211,7 @@ def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFaile
         else:
             protImportForPhenix = protImportMap
 
-        protAtom = importModel(project, "Import atomic", protImportMap, fnPdb)
+        protAtom = importModel(project, report, "Import atomic", protImportMap, fnPdb)
 
         skipAnalysis = skipAnalysis or reportInput(project, report, FNMODEL)
 
