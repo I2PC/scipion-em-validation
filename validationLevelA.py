@@ -1040,7 +1040,7 @@ sequence of the protein chains.
 
     _emringer_plots = []
     for file in os.listdir(glob.glob(prot._getExtraPath('*_emringer_plots'))[0]):
-        _emringer_plots.append(os.path.join(project.getPath(), prot._getExtraPath(), file))
+        _emringer_plots.append(os.path.join(project.getPath(), prot._getExtraPath('*_emringer_plots'), file))
 
     saveIntermediateData(report.getReportDir(), 'EMRinger', True, 'emringer_csv', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*_emringer.csv')))[0], 'emringer_csv file')
     saveIntermediateData(report.getReportDir(), 'EMRinger', True, '7tmw_emringer.pkl', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*_emringer.pkl')))[0], 'emringer pickle file')
@@ -1105,7 +1105,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         reportHistogram(daqValues,"DAQ", fnDAQHist)
         saveIntermediateData(report.getReportDir(), 'DAQ', False, 'DAQHistData', daqValues, ['', 'DAQ values to create histogram'])
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQHist', fnDAQHist, 'DAQ histogram')
-        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQcif', prot._getPath('outputStructure.cif'), 'cif file containing DAQ scores')
+        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQcif', os.path.join(project.getPath(), prot._getPath('outputStructure.cif')), 'cif file containing DAQ scores')
 
         avgDaq = np.mean(daqValues)
         stdDaq = np.std(daqValues)
