@@ -246,7 +246,7 @@ Fig. \\ref{fig:SSNR} shows the SSNR and the SSNR=1 threshold. %s\\\\
     report.write(msg)
     if len(resolutionList)>0:
         msg = \
-"""The mean resolution between the three methods is %5.2f\AA~and its range is within the interval [%5.2f,%5.2f]\\AA."""  % (np.mean(resolutionList), np.min(resolutionList), np.min(resolutionList))
+"""The mean resolution between the three methods is %5.2f\AA~and its range is within the interval [%5.2f,%5.2f]\\AA."""  % (np.mean(resolutionList), np.min(resolutionList), np.max(resolutionList))
         report.write(msg)
 
     saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'meanResolution3', np.mean(resolutionList), ['\u212B', 'The mean resolution between the three methods, FSC, DPR, SSNR'])
