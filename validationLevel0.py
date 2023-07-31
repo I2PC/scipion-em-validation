@@ -655,10 +655,11 @@ Fourier transform) of the experimental map, its fitted line, and the corrected m
     saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "a", a, ['?', '?'])
     saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "b", b, ['?', '?'])
 
-    saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "guinierPlot_experimental", lnF.tolist(), ['?', '?'])
-    saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "guinierPlot_fitted", fitted.tolist(), ['?', '?'])
-    saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "guinierPlot_corrected", lnFc.tolist(), ['?', '?'])
+    # saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "guinierPlot_experimental", lnF.tolist(), ['?', '?'])
+    # saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "guinierPlot_fitted", fitted.tolist(), ['?', '?'])
+    # saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "guinierPlot_corrected", lnFc.tolist(), ['?', '?'])
 
+    saveIntermediateData(report.getReportDir(), 'bFactorAnalysis', True, 'sharpenedMap.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedMap.mrc.guinier'), 'sharpenedMap.mrc.guinier file which contain the data to create the guinier plot')
     saveIntermediateData(report.getReportDir(), 'bFactorAnalysis', True, 'guinierPlot', fnPlot, 'guinier plot for B-Factor Analysis')
 
     msg = "\\underline{\\textbf{Orthogonal slices of maximum variance of the B-factor corrected map}}\\\\"\
