@@ -219,7 +219,7 @@ behavior. If they have, this is typically due to the presence of a mask in real 
     logRadialSSNR = np.log10(radialSSNR[0:N]-1)
 
     fSSNR=findFirstCross(f,logRadialSSNR,0,'lesser')
-    if fDPR is None:
+    if fSSNR is None:
         strSSNR= "The SSNR does not cross the 1 threshold."
     else:
         strSSNR = "The resolution according to the SSNR is %5.2f\\AA."%(1/fSSNR)
