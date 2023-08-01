@@ -8,11 +8,13 @@ import scipy
 import subprocess
 import PIL
 import json
+import requests
 
 from pyworkflow.protocol import StringParam
 from pyworkflow.utils.path import makePath, cleanPath
 from pwem.viewers import LocalResolutionViewer
 from pwem.emlib.metadata import iterRows
+from tools.utils import storeIntermediateData
 
 import xmipp3
 
@@ -20,6 +22,9 @@ import configparser
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 maxMemToUse = config['CHIMERA'].getint('MAX_MEM_TO_USE')
+doStoreIntermediateData = config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
+intermediateDataFinalPath = config['INTERMEDIATE_DATA'].get('DEST_PATH')
+cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 
 def readMap(fnMap):
     return xmipp3.Image(fnMap)
@@ -308,7 +313,7 @@ def plotMicrograph(fnMic, fnOut, coords=None, boxSize=0, Ts=0):
 
 class ValidationReport:
 
-    def __init__(self, fnDir, levels,  IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION):
+    def __init__(self, fnDir, levels,  IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION):
         self.fnProjectDir = fnDir
         self.fnReportDir = os.path.join(fnDir,"validationReport")
         makePath(self.fnReportDir)
@@ -316,7 +321,7 @@ class ValidationReport:
         self.fh = open(self.fnReport,"w")
         self.fnFrontpage = os.path.join(self.fnReportDir,"frontpage.tex")
         self.fnFrontpage = open(self.fnFrontpage,"w") 
-        self.writeFrontpage(levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION)
+        self.writeFrontpage(levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION)
         self.fnFrontpage.close()
         self.fnContext = os.path.join(self.fnReportDir, "context.tex")
         self.fnContext = open(self.fnContext, "w")
@@ -441,7 +446,7 @@ class ValidationReport:
     def writeAbstract(self, msg):
         self.fhAbstract.write(msg)
 
-    def writeFrontpage(self,  levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION):
+    def writeFrontpage(self,  levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION):
         
         ScipionEmValDir = os.path.dirname(__file__)
         logo = os.path.join(ScipionEmValDir, 'resources', 'figures', 'logo.png') 
@@ -458,22 +463,19 @@ class ValidationReport:
             authors = None
             deposited = None
 
-            # Read metadata file from EMDB to fix some parameters
-            if FN_METADATA:
-
-                # Read metadata.json file
-                with open(FN_METADATA,mode="r") as f:
-                    jdata = json.load(f)
-                
+            try:
+                url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/%s' % EMDB_ID
+                jdata = requests.get(url_rest_api).json()
                 title = jdata["admin"]["title"]
                 deposited = jdata["admin"]["key_dates"]["deposition"]
-
                 # Set authors depending on if it is a list of dicts or a list of strs
                 if type(jdata["admin"]["authors_list"]["author"][0]) == dict:
                     authors_list = [d["valueOf_"] for d in jdata["admin"]["authors_list"]["author"] if "valueOf_" in d]
                     authors = ", ".join(authors_list)
                 else:
                     authors = ", ".join(jdata["admin"]["authors_list"]["author"])
+            except:
+                pass
 
             entryInfoList = [EMDB_ID, PDB_ID, title, authors, deposited, resolution_str]
             
@@ -900,3 +902,8 @@ class ValidationReport:
                        stdout=subprocess.DEVNULL,
                        stderr=subprocess.STDOUT)
         os.chdir(self.fnProjectDir)
+        if doStoreIntermediateData:
+            storeIntermediateData(self.fnReportDir, intermediateDataFinalPath)
+        if cleanOriginalData:
+            cmd = 'rm -rf %s' % self.fnProjectDir
+            subprocess.run(cmd, shell=True)

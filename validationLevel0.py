@@ -41,6 +41,8 @@ from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, 
 
 import configparser
 
+from tools.utils import saveIntermediateData
+
 # used by the ProtImportVolumes protocol, volumes will be downloaded from EMDB
 IMPORT_FROM_EMDB = 1
 
@@ -49,20 +51,12 @@ config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 gpuIdSkipSlurm = config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
 
-def importMap(project, label,
-              is_emdb_entry, emdb_ID_num,
-              fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ):
+def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
-    if is_emdb_entry:
-        label = "import map from EMDB"
-        prot = project.newProtocol(Prot,
-                               objLabel=label,
-                               importFrom=IMPORT_FROM_EMDB,
-                               emdbId=emdb_ID_num,
-                               )
-    else:
-        fnDir, fnBase = os.path.split(fnMap)
+
+    fnDir, fnBase = os.path.split(fnMap)
+    if mapCoordX is not None and mapCoordY is not None and mapCoordZ is not None:
         prot = project.newProtocol(Prot,
                                 objLabel=label,
                                 filesPath=os.path.join(fnDir,fnMap),
@@ -71,6 +65,12 @@ def importMap(project, label,
                                 x=mapCoordX,
                                 y=mapCoordY,
                                 z=mapCoordZ)
+    else:
+        prot = project.newProtocol(Prot,
+                                objLabel=label,
+                                filesPath=os.path.join(fnDir,fnMap),
+                                samplingRate=Ts,
+                                setOrigCoord=False)
     if fnMap1 is not None and fnMap2 is not None:
         prot.setHalfMaps.set(True)
         prot.half1map.set(fnMap1)
@@ -81,6 +81,10 @@ def importMap(project, label,
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
     waitUntilFinishes(project, prot)
+    saveIntermediateData(report.fnReportDir, 'inputData', True, 'map', str(prot.filesPath), 'map from EMDB')
+    if fnMap1 is not None and fnMap2 is not None:
+        saveIntermediateData(report.fnReportDir, 'inputData', True, 'map', str(prot.half1map), 'halfmap1 from EMDB')
+        saveIntermediateData(report.fnReportDir, "inputData", True, "map", str(prot.half2map), 'halfmap2 from EMDB')
     return prot
 
 def createMask(project, label, map, Ts, threshold):
@@ -234,6 +238,19 @@ depends on the CTF) on each side to make sure that the CTF can be appropriately 
     There is a decentering ratio (abs(Right-Left)/Size)\\%% of %5.2f\\%%\\\\
     \\\\
     """%(x0, xF, dx, y0, yF, dy, z0, zF, dz)
+        
+
+        saveIntermediateData(report.fnReportDir, "massAnalysis", False, "leftSpaceX", x0, ['\u212B', 'Space to the left of the reconstructed map in the box on the x-axis in Angstroms'])
+        saveIntermediateData(report.fnReportDir, "massAnalysis", False, "rightSpaceX", xF, ['\u212B', 'Space to the right of the reconstructed map in the box on the x-axis in Angstroms'])
+        saveIntermediateData(report.fnReportDir, "massAnalysis", False, "decenteringRatioX", dx, ['%', '(abs(Right-Left)/Size) %']) # 'details': [units, description]
+
+        saveIntermediateData(report.fnReportDir, "massAnalysis", False, "leftSpaceY", y0, ['\u212B', 'Space to the left of the reconstructed map in the box on the y-axis in Angstroms'])
+        saveIntermediateData(report.fnReportDir, "massAnalysis", False, "rightSpaceY", yF, ['\u212B', 'Space to the right of the reconstructed map in the box on the y-axis in Angstroms'])
+        saveIntermediateData(report.fnReportDir, "massAnalysis", False, "decenteringRatioY", dy, ['%', '(abs(Right-Left)/Size) %'])
+
+        saveIntermediateData(report.fnReportDir, "massAnalysis", False, "leftSpaceZ", z0, ['\u212B', 'Space to the left of the reconstructed map in the box on the z-axis in Angstroms'])
+        saveIntermediateData(report.fnReportDir, "massAnalysis", False, "rightSpaceZ", zF, ['\u212B', 'Space to the right of the reconstructed map in the box on the z-axis in Angstroms'])
+        saveIntermediateData(report.fnReportDir, "massAnalysis", False, "decenteringRatioZ", dz, ['%', '(abs(Right-Left)/Size) %'])
 
         # Analysis of Center of mass
         cx, cy, cz = scipy.ndimage.measurements.center_of_mass(V)
@@ -247,6 +264,9 @@ depends on the CTF) on each side to make sure that the CTF can be appropriately 
     %5.2f, %5.2f, and %5.2f, respectively.\\\\
     
     """%(cx,cy,cz,dcx,dcy,dcz)
+                
+        saveIntermediateData(report.fnReportDir, "massAnalysis", False, "centerOfMass", [cx,cy,cz], ['?', '(x,y,z)'])
+        saveIntermediateData(report.fnReportDir, "massAnalysis", False, "decenteringCenterOfMass", [dcx,dcy,dcz], ['%', '(abs(Right-Left)/Size) %'])
 
         warnings=[]
         testWarnings = False
@@ -329,9 +349,13 @@ agree.
 a volume of %5.2f \\AA$^3$ (see Fig. \\ref{fig:rawMask}). 
 The size and percentage of the total number of voxels for the raw mask are listed below (up to 95\\%% of the mass or
 the first 100 clusters, whatever happens first),
-the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercentage):\\\\
+the list contains (No. voxels (volume in \AA$^3$), percentage, cumulated percentage):\\\\
 \\\\
 """%(secLabel,threshold, ncomponents, sumRawM, sumRawM*Ts3)
+    
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "connectedComponents", ncomponents, ['', ''])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "sizeCC", int(sumRawM), ['voxels', 'Size in terms of number of voxels of connected components']) # convert to int() since int64 is not json serializable
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "volumeCC", sumRawM*Ts3, ['\u212B\u00B3', 'Connected components volume in cubic Angstroms'])
 
     # individualMass = [np.sum(labeled==i) for i in range(1,ncomponents+1)]
     individualMass = np.zeros(ncomponents+1)
@@ -341,6 +365,10 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercenta
     cumulatedMass = 0
     i = 0
     toWrite2 = ""
+    nvoxels95 = []
+    volume95 = []
+    percentage95 = []
+    cumulatedPercentage = []
     while cumulatedMass/sumRawM<0.95:
         if idx[i]>0:
             massi = individualMass[idx[i]]
@@ -349,6 +377,10 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercenta
                 if len(toWrite2)>0:
                     toWrite2 += ", "
                 toWrite+="(%d (%5.2f), %5.2f, %5.2f)"%(massi, massi*Ts3, 100.0*massi/sumRawM, 100.0*cumulatedMass/sumRawM)
+                nvoxels95.append(massi)
+                volume95.append(massi*Ts3)
+                percentage95.append(100.0*massi/sumRawM)
+                cumulatedPercentage.append(100.0*cumulatedMass/sumRawM)
         i+=1
     toWrite += toWrite2
     ncomponents95 = i
@@ -365,6 +397,20 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercenta
               int(individualMass[idx[-1]]), minVolumeRemaining)
     report.write(toWrite)
 
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "size95", nvoxels95, ['voxels', 'Sizes in terms of number of voxels for the list components to reach the 95% of the mass or the first 100 clusters (whatever happens first)'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "volume95", volume95, ['\u212B\u00B3', 'Volumes in cubic Angstroms for the list components to reach the 95% of the mass or the first 100 clusters (whatever happens first)'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "percentage95", percentage95, ['%', 'Percentages for the list components to reach the 95% of the mass or the first 100 clusters (whatever happens first)'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "cumulatedPercentage", cumulatedPercentage, ['%', 'Cumulated percentages for the list components to reach the 95% of the mass or the first 100 clusters (whatever happens first)'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "connectedComponents95", ncomponents95, ['', 'Number of components to reach 95% of the mass'])
+
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "ncomponentsRemaining", ncomponentsRemaining, ['', 'Number of remaining components to reach 100% of the mass'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "averageSizeComponentsRemaining", voxelsRemaining/ncomponentsRemaining, ['voxels', 'Average size in terms of number of voxels for the remaining components'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "volumeComponentsRemaining", avgVolumeRemaining, ['\u212B\u00B3', 'Average volume in cubic Angstroms of the remaining components'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "maxSizeComponentsRemaining", int(individualMass[idx[ncomponents95]]), ['voxels', 'Max size in terms of number of voxels of the remaining components'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "maxVolumeComponentsRemaining", maxVolumeRemaining, ['\u212B\u00B3', 'Max volume in cubic Angstroms of the remaining components'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "minSizeComponentsRemaining", int(individualMass[idx[-1]]), ['voxels', 'Min size in terms of number of voxels of the remaining components'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "minVolumeComponentsRemaining", minVolumeRemaining, ['\u212B\u00B3', 'Min volume in cubic Angstroms of the remaining components'])
+   
     msg = "The slices of the raw mask can be seen in Fig. \\ref{fig:rawMask}.\\\\"
     report.orthogonalSlices("rawMask", msg, "Maximum variance slices in the three dimensions of the raw mask", rawM,
                             "fig:rawMask", maxVar=True)
@@ -382,9 +428,15 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercenta
     toWrite+="\\hline\n"
     toWrite+="\\textbf{Threshold} & \\textbf{Voxel mass} & \\textbf{Molecular mass(kDa)} & \\textbf{\\# Aminoacids}\\\\ \n"
     toWrite+="\\hline\n"
+
+    mm = []
+    aa = []
     for i in range(g.size):
         w[i] = np.sum(V>g[i])
         toWrite+="%5.4f & %5.2f & %5.2f & %5.2f \\\\ \n"%(g[i], w[i], (w[i]*Ts3/(1.207*1000)), w[i]*Ts3/(110*1.207))
+        mm.append(w[i]*Ts3/(1.207*1000))
+        aa.append(w[i]*Ts3/(110*1.207))
+
     toWrite+="\\hline\n"
     toWrite += "\\end{tabular}\n"
     toWrite += "\\end{center}\n\n"
@@ -404,6 +456,13 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulatedPercenta
 
     reportPlot(g,w, 'Gray level', 'Voxel mass', fnFigMass, yscale="log")
 
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "Gray level", g.tolist(), ['?', ''])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "Voxel mass", w.tolist(), ['?', ''])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "Molecular mass", mm, ['kDa', ''])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "Aminoacids", aa, ['', ''])
+
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", True, "massPlot", fnFigMass, 'Voxel mass as a function of the gray level')
+    
     # Constructed mask
     M = readMap(mask.getFileName()).getData()
     sumM = np.sum(M)
@@ -416,6 +475,10 @@ raw and constructed mask is %5.2f.\\\\
 
 """%(sumM, sumM*Ts3, overlap)
     report.write(toWrite)
+
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "sizeConstructedMask", float(sumM), ['voxels', 'Size in terms of number of voxels of constructued mask'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "volumeConstructedMask", sumM*Ts3, ['\u212B\u00B3', 'Volume in cubic Angstroms of the constructed mask'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "overlap", overlap, ['', 'Overlap between raw and constructed mask'])
 
     # Warnings
     warnings=[]
@@ -486,6 +549,15 @@ the symmetry of the structure.
              "deviation is %5.2f \\%% (see Fig. \\ref{fig:sigma5}). The same percentage from a Gaussian would be "\
              "%f\\%% (ratio between the two percentages: %f).\\\\ \n\\\\ \n"%\
              (t,p,meanBg, stdBg,fractionLarge*100,cdf5*100,cdf5Ratio)
+    
+    saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "t-statistic", t, ['', "t-statistics after testing with a a one-sample Student's t-test the null hypothesis that the background mean is 0"])
+    saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "p-value", p, ['', "p-value after testing with a a one-sample Student's t-test the null hypothesis that the background mean is 0"])
+    saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "mean", float(meanBg), ['?', 'The mean of the background'])
+    saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "standardDeviation", float(stdBg), ['?', 'The standard deviation (sigma) of the background'])
+    saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "percentageVoxelsLarger5", fractionLarge*100, ['%', 'The percentage of background voxels whose absolute value is larger than 5 times the standard deviation'])
+    saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "percentageGaussian", cdf5*100, ['%', 'The same percentage from a Gaussian'])
+    saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "percentageRatio", cdf5Ratio, ['', 'Ration between the two percentages'])
+
     report.write(toWrite)
 
     Vshooting = np.where(np.logical_and(M, np.abs(V)>5*stdBg),V,0)
@@ -577,6 +649,17 @@ Fourier transform) of the experimental map, its fitted line, and the corrected m
 """%(secLabel, bfactor, a, b, fnPlot)
     report.write(msg)
 
+    saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "bfactor", bfactor, ['?', 'The estimated B-factor'])
+    saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "a", a, ['?', '?'])
+    saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "b", b, ['?', '?'])
+
+    # saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "guinierPlot_experimental", lnF.tolist(), ['?', '?'])
+    # saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "guinierPlot_fitted", fitted.tolist(), ['?', '?'])
+    # saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "guinierPlot_corrected", lnFc.tolist(), ['?', '?'])
+
+    saveIntermediateData(report.getReportDir(), 'bFactorAnalysis', True, 'sharpenedMap.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedMap.mrc.guinier'), 'sharpenedMap.mrc.guinier file which contain the data to create the guinier plot')
+    saveIntermediateData(report.getReportDir(), 'bFactorAnalysis', True, 'guinierPlot', fnPlot, 'guinier plot for B-Factor Analysis')
+
     msg = "\\underline{\\textbf{Orthogonal slices of maximum variance of the B-factor corrected map}}\\\\"\
           "\\textbf{Results}:\\\\"\
           "See Fig. \\ref{fig:maxVarBfactor}.\\\\"
@@ -660,6 +743,8 @@ input map to the appearance of the atomic structures a local resolution label ca
         report.writeSummary("0.e DeepRes", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return
+    
+    #TODO: launch convertion from deepres_resolution_origainlSize.vol to .pdb using EMV scripts and save it using saveIntermediateData
 
     Vres = xmipp3.Image(fnRes).getData()
     R = Vres[Vres >0]
@@ -707,11 +792,23 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
        resolutionP, fnHist)
     report.write(toWrite)
 
+    saveIntermediateData(report.getReportDir(), 'deepRes', False, 'resolutionPercentiles', Rpercentiles.tolist(), ['\u212B', 'List of local resolution in Angstroms at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
+    saveIntermediateData(report.getReportDir(), 'deepRes', False, 'resolutionPercentile', resolutionP, ['%', 'The percentile at which the reported resolution is'])
+    saveIntermediateData(report.getReportDir(), 'deepRes', False, 'resolutionList', R.tolist(), ['\u212B', 'List of local resolution in Angstroms obtained from DeepRes to create the histogram'])
+    saveIntermediateData(report.getReportDir(), 'deepRes', False, 'estimatedResolution', Rpercentiles[2], ['\u212B', 'The estimated resolution (median) in Angstroms obtained from DeepRes'])
+
+
+    saveIntermediateData(report.getReportDir(), 'deepRes', True, 'deepResHist', fnHist, 'deepRes histogram')
+
     Ts = map.getSamplingRate()
     report.colorIsoSurfaces("", "Local resolution according to DeepRes.", "fig:deepresColor",
                             project, "deepresViewer",
                             os.path.join(project.getPath(), prot._getExtraPath("originalVolume.vol")), Ts,
                             fnRes, Rpercentiles[0], Rpercentiles[-1])
+    saveIntermediateData(report.getReportDir(), 'deepRes', True, 'deepResViewer',
+                         [os.path.join(report.getReportDir(), 'deepresViewer1.jpg'),
+                          os.path.join(report.getReportDir(), 'deepresViewer2.jpg'),
+                          os.path.join(report.getReportDir(), 'deepresViewer3.jpg')], 'deepRes views')
 
     # Warnings
     warnings = []
@@ -774,6 +871,9 @@ local magnitude and phase term using the spiral transform.\\\\
         report.writeSummary("0.f LocBfactor", secLabel, "{\\color{brown} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
+    
+    #TODO: launch convertion from bmap.mrc to .pdb using EMV scripts and save it using saveIntermediateData
+
 
     V = xmipp3.Image(fnBfactor+":mrc").getData()
     M = xmipp3.Image(mask.getFileName()).getData()
@@ -818,11 +918,21 @@ Fig. \\ref{fig:locBfactorColor} shows some representative views of the local B-f
 """ % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist)
     report.write(toWrite)
 
+
+    saveIntermediateData(report.getReportDir(), 'locBfactor', False, 'bfactorPercentiles', Bpercentiles.tolist(), ['\u212B\u207B\u00B2', 'List of local resolution B-factor in Angstroms^-2 at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
+    saveIntermediateData(report.getReportDir(), 'locBfactor', False, 'bfactorList', B.tolist(), ['\u212B\u207B\u00B2', 'List of local resolution B-factor in Angstroms^-2 to create the histogram'])
+
+    saveIntermediateData(report.getReportDir(), 'locBfactor', True, 'locBfactorHist', fnHist, 'locBfactor histogram')
+
     Ts = map.getSamplingRate()
     report.colorIsoSurfaces("", "Local B-factor according to LocBfactor.", "fig:locBfactorColor",
                             project, "locBfactorViewer",
                             os.path.join(project.getPath(), map.getFileName()), Ts,
                             fnBfactor, Bpercentiles[0], Bpercentiles[-1])
+    saveIntermediateData(report.getReportDir(), 'locBfactor', True, 'locBfactorViewer',
+                         [os.path.join(report.getReportDir(), 'locBfactorViewer1.jpg'),
+                          os.path.join(report.getReportDir(), 'locBfactorViewer2.jpg'),
+                          os.path.join(report.getReportDir(), 'locBfactorViewer3.jpg')], 'locBfactor views')
 
     # Warnings
     warnings=[]
@@ -882,6 +992,8 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
         report.writeSummary("0.g LocOccupancy", secLabel, "{\\color{brown} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
+    
+    #TODO: launch convertion from bmap.mrc to .pdb using EMV scripts and save it using saveIntermediateData
 
     V = xmipp3.Image(fnOccupancy+":mrc").getData()
     M = xmipp3.Image(mask.getFileName()).getData()
@@ -926,11 +1038,20 @@ Fig. \\ref{fig:locOccupancyColor} shows some representative views of the local o
 """ % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist)
     report.write(toWrite)
 
+    saveIntermediateData(report.getReportDir(), 'locOccupancy', False, 'bfactorPercentiles', Bpercentiles.tolist(), ['?', 'List of local occupancy at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
+    saveIntermediateData(report.getReportDir(), 'locOccupancy', False, 'bfactorList', B.tolist(), ['?', 'List of local occupancy to create the histogram'])
+
+    saveIntermediateData(report.getReportDir(), 'locOccupancy', True, 'locOccupancyHist', fnHist, 'locOccupancy histogram')
+
     Ts = map.getSamplingRate()
     report.colorIsoSurfaces("", "Local occupancy according to LocOccupancy.", "fig:locOccupancyColor",
                             project, "locOccupancyViewer",
                             os.path.join(project.getPath(), map.getFileName()), Ts,
                             fnOccupancy, Bpercentiles[0], Bpercentiles[-1])
+    saveIntermediateData(report.getReportDir(), 'locOccupancy', True, 'locOccupancyViewer',
+                         [os.path.join(report.getReportDir(), 'locOccupancyViewer1.jpg'),
+                          os.path.join(report.getReportDir(), 'locOccupancyViewer2.jpg'),
+                          os.path.join(report.getReportDir(), 'locOccupancyViewer3.jpg')], 'locOccupancy views')
 
     # Warnings
     warnings=[]
@@ -991,6 +1112,9 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
     hand = prot.outputHand.get()
     msg="Deep hand assigns a score of %4.3f to the input volume.\\\\ \n"%hand
     report.write(msg)
+
+    saveIntermediateData(report.getReportDir(), 'deepHand', False, 'score', hand, ['', 'Value between 0 and 1 that determines the correction of the hand (0 correct hand, 1 incorrect hand)'])
+
 
     # Warnings
     warnings=[]
@@ -1067,15 +1191,15 @@ Resolution estimated by user: %f \\\\
     report.orthogonalSlices("maxVarMask", msg, "Slices of maximum variation in the three dimensions of the mask",
                             fnMask, "fig:maxVarMask")
 
-def level0(project, report,
-           is_emdb_entry, emdb_ID, emdb_ID_num,
-           fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False):
+def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False):
     # Import map
-    protImportMap = importMap(project, "import map",
-                              is_emdb_entry, emdb_ID_num,
-                              fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ)
+    protImportMap = importMap(project, report, "import map", fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap.isFailed():
         raise Exception("Import map did not work")
+    saveIntermediateData(report.fnReportDir, 'inputData', False, 'sampling rate', Ts, ['\u212B', 'Sampling rate from EMDB map in Angstroms'])
+    saveIntermediateData(report.fnReportDir, 'inputData', False, 'threshold', threshold, ['', 'Threshold from EMDB map'])
+    saveIntermediateData(report.fnReportDir, 'inputData', False, 'resolution', resolution, ['\u212B', 'Resolution from EMDB map'])
+
     protCreateMask = createMask(project, "create mask", protImportMap.outputVolume, Ts, threshold)
     if protCreateMask.isFailed():
         raise Exception("Create mask did not work")
