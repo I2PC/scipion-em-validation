@@ -54,15 +54,23 @@ def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
     fnDir, fnBase = os.path.split(fnMap)
-    prot = project.newProtocol(Prot,
-                               objLabel=label,
-                               filesPath=fnDir,
-                               filesPattern=fnMap,
-                               samplingRate=Ts,
-                               setOrigCoord=True,
-                               x=mapCoordX,
-                               y=mapCoordY,
-                               z=mapCoordZ)
+    if mapCoordX is not None and mapCoordY is not None and mapCoordZ is not None:
+        prot = project.newProtocol(Prot,
+                                   objLabel=label,
+                                   filesPath=fnDir,
+                                   filesPattern=fnMap,
+                                   samplingRate=Ts,
+                                   setOrigCoord=True,
+                                   x=mapCoordX,
+                                   y=mapCoordY,
+                                   z=mapCoordZ)
+    else:
+        prot = project.newProtocol(Prot,
+                                   objLabel=label,
+                                   filesPath=fnDir,
+                                   filesPattern=fnMap,
+                                   samplingRate=Ts,
+                                   setOrigCoord=False)
     if useSlurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
@@ -136,8 +144,8 @@ behavior. If they have, this is typically due to the presence of a mask in real 
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
-    saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'fsc', prot._getPath('fsc.xmd'), 'fsc xmd file containing data to create plots')
-    saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'structureFactor', prot._getPath('structureFactor.xmd'), 'structureFactor xmd file containing data to create plots')
+    saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'fsc', os.path.join(project.getPath(), prot._getPath('fsc.xmd')), 'fsc xmd file containing data to create plots')
+    saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'structureFactor', os.path.join(project.getPath(), prot._getPath('structureFactor.xmd')), 'structureFactor xmd file containing data to create plots')
 
     md = xmipp3.MetaData()
     md.read(prot._getPath("fsc.xmd"))
@@ -230,9 +238,8 @@ behavior. If they have, this is typically due to the presence of a mask in real 
                         ['log10(SSNR)','0'], invertXLabels=True)
     
     saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'SSNRresolution', 1/fSSNR if fSSNR else fSSNR, ['\u212B', 'The resolution according to the SSNR. SSNRresolution = None means that SSNR does not cross the 1 threshold'])
-
-    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'f', f, ['?', 'f data in SSNR plot'])
-    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'logRadialSSNR', logRadialSSNR, ['?', 'logRadialSSNR data in SSNR plot'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'f', f.tolist(), ['?', 'f data in SSNR plot'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'logRadialSSNR', logRadialSSNR.tolist(), ['?', 'logRadialSSNR data in SSNR plot'])
     saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'SSNRPlot', fnSSNR, 'Plot that shows the SSNR and the 1 threshold')
 
     # Mean and uncertainty
@@ -366,8 +373,8 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
     fsc = fscFile[0]
     frecuency = fscFile[1]
     reportPlot(fsc, frecuency, "Frecuency (1/A)", "FSC", prot._getExtraPath("FSC.png"))
-    saveIntermediateData(report.getReportDir(), 'FSCPermutation', True, 'FSC.txt', fscFile, 'fsc file')
-    saveIntermediateData(report.getReportDir(), 'FSCPermutation', True, 'FSC.png', prot._getExtraPath("FSC.png"), 'fsc plot file')
+    saveIntermediateData(report.getReportDir(), 'FSCPermutation', True, 'FSC.txt', os.path.join(project.getPath(), prot._getExtraPath("FSC.txt")), 'fsc file')
+    saveIntermediateData(report.getReportDir(), 'FSCPermutation', True, 'FSC.png', os.path.join(project.getPath(), prot._getExtraPath("FSC.png")), 'fsc plot file')
 
     msg=\
 """The resolution at 1\\%% of FDR was %4.1f. The estimated B-factor was %5.1f. Fig. \\ref{fig:fdrfsc} shows the
@@ -772,9 +779,9 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
      fnHistMonoRes)
     report.write(toWrite)
 
-    saveIntermediateData(report.getReportDir(), 'monoRes', False, 'resolutionPercentiles', Rpercentiles.tolist(), ['\u212B', 'List of local resolution in Angstroms at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
+    saveIntermediateData(report.getReportDir(), 'monoRes', False, 'resolutionPercentiles', [float(Rpercentil) for Rpercentil in Rpercentiles], ['\u212B', 'List of local resolution in Angstroms at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
     saveIntermediateData(report.getReportDir(), 'monoRes', False, 'resolutionPercentile', resolutionP*100, ['%', 'The percentile at which the reported resolution is'])
-    saveIntermediateData(report.getReportDir(), 'monoRes', False, 'estimatedResolution', Rpercentiles[2], ['\u212B', 'The estimated resolution (median) in Angstroms obtained from MonoRes'])
+    saveIntermediateData(report.getReportDir(), 'monoRes', False, 'estimatedResolution', [float(Rpercentil) for Rpercentil in Rpercentiles][2], ['\u212B', 'The estimated resolution (median) in Angstroms obtained from MonoRes'])
 
 
     saveIntermediateData(report.getReportDir(), 'monoRes', True, 'hist.xmd', os.path.join(project.getPath(), prot._getExtraPath("hist.xmd")), 'hist.xmd file containing data to create histogram')
@@ -1057,9 +1064,9 @@ respectively. This region is shaded in the plot.
     saveIntermediateData(report.getReportDir(), 'FSO', False, 'llFSO', 1/f09 if f01 else f01, ['\u212B', 'Lower limit of the range at which the fourier shells are occupied between 90 and than 10%'])
     saveIntermediateData(report.getReportDir(), 'FSO', False, 'ulFSO', 1/f01 if f01 else f01, ['\u212B', 'Upper limit of the range at which the fourier shells are occupied between 90 and than 10%'])
 
-    saveIntermediateData(report.getReportDir(), 'FSO', True, 'fso', prot._getExtraPath("fso.xmd"), 'fso xmd file')
-    saveIntermediateData(report.getReportDir(), 'FSO', True, 'GlobalFSC', prot._getExtraPath("GlobalFSC.xmd"), 'GlobalFSC xmd file')
-    saveIntermediateData(report.getReportDir(), 'FSO', True, 'Resolution_Distribution', prot._getExtraPath("Resolution_Distribution.xmd"), 'Resolution_Distribution xmd file')
+    saveIntermediateData(report.getReportDir(), 'FSO', True, 'fso', os.path.join(project.getPath(), prot._getExtraPath("fso.xmd")), 'fso xmd file')
+    saveIntermediateData(report.getReportDir(), 'FSO', True, 'GlobalFSC', os.path.join(project.getPath(), prot._getExtraPath("GlobalFSC.xmd")), 'GlobalFSC xmd file')
+    saveIntermediateData(report.getReportDir(), 'FSO', True, 'Resolution_Distribution', os.path.join(project.getPath(), prot._getExtraPath("Resolution_Distribution.xmd")), 'Resolution_Distribution xmd file')
 
     saveIntermediateData(report.getReportDir(), 'FSO', True, 'fso.png', fnFSO, 'FSO and anisotropy plot')
     saveIntermediateData(report.getReportDir(), 'FSO', True, 'fsoDirectional.png', fnContour, 'Directional resolution in the projection sphere.')
@@ -1293,8 +1300,7 @@ any structure in this difference. Sometimes some patterns are seen if the map is
                             "Slices of maximum variation in the three dimensions of the difference Half1-Half2.", Vdiff,
                             "fig:maxVarHalfDiff", maxVar=True)
 
-def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized,
-           protCreateMask, protCreateMaskResized, skipAnalysis = False):
+def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized, protCreateMask, protCreateMaskResized, skipAnalysis = False):
     # Import maps
     protImportMap1 = importMap(project, "import half1", fnMap1, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap1.isFailed():

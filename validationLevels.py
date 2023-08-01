@@ -38,8 +38,11 @@ from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes
 from pwem.convert.atom_struct import AtomicStructHandler
 from validationReport import readMap
 import json
+from tools import EMDButils
 
 import configparser
+
+from tools.utils import saveIntermediateData
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -110,7 +113,7 @@ class UpdatedAtomicStructHandler(AtomicStructHandler): #TODO: remove it when upd
 def usage(message=''):
     print("\nMake a Map Validation Report"
           "\n\n   -> scipion3 python validationLevels.py [opt1=val1 opt2=val2 ...] "
-          "\n         inputParams: [uploads_path]/inputParams.json"
+          "\n         EMDBid: EMD-28533"
           "\n         or"
           "\n         project:  myProject"
           "\n         LEVEL 0 ====="
@@ -194,9 +197,9 @@ EMDB_ID_NUM = None
 PDB_ID = None
 IS_EMDB_ENTRY = False
 
-MAPCOORDX = 0
-MAPCOORDY = 0
-MAPCOORDZ = 0
+MAPCOORDX = None
+MAPCOORDY = None
+MAPCOORDZ = None
 FNMAP1 = None
 FNMAP2 = None
 XLM = None
@@ -212,168 +215,146 @@ TILTANGLE = None
 UNTILTEDCOORDS = None
 TILTEDCOORDS = None
 
-def readParamsFromFile(filename):
-    try:
-        with open(filename,mode="r") as f:
-            jdata = json.load(f)
-
-        global IS_EMDB_ENTRY, EMDB_ID, EMDB_ID_NUM, PDB_ID, JOB_NAME, JOB_DESCRIPTION, PROJECT_NAME, PATH_UPLOADS, PATH_LOGS, FNMAP, FN_METADATA, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, FNMAP1, FNMAP2, HASANGLES, doMultimodel, FNMODEL
-
-        IS_EMDB_ENTRY = jdata["isEMDBentry"]
-        EMDB_ID = jdata["emdbId"]
-        EMDB_ID_NUM = EMDB_ID.replace("EMD-", "")
-        PDB_ID = jdata["pdbId"]
-        JOB_NAME = jdata["jobName"]
-        JOB_DESCRIPTION = jdata["jobDescription"]
-        PROJECT_NAME = jdata["emdbId"]
-        PATH_UPLOADS = jdata["jobUploadsDir"]
-        PATH_LOGS = jdata["jobLogsDir"]
-        FNMAP = os.path.join(jdata["jobUploadsDir"], jdata["mapFileName"]) 
-        FN_METADATA = os.path.join(jdata["jobUploadsDir"], jdata["metaFileName"])
-        TS =  jdata["sampling"]
-        MAPTHRESHOLD =  jdata["threshold"]
-        MAPRESOLUTION =  jdata["resolution"]
-        MAPCOORDX =  jdata["mapCoordX"]
-        MAPCOORDY =  jdata["mapCoordY"]
-        MAPCOORDZ =  jdata["mapCoordZ"]
-        FNMAP1 =  os.path.join(jdata["jobUploadsDir"], jdata["map1"])
-        FNMAP2 =  os.path.join(jdata["jobUploadsDir"], jdata["map2"])
-        HASANGLES =  jdata["hasAngles"]
-        doMultimodel =  jdata["doMultimodel"]        
-        FNMODEL =  os.path.join(jdata["jobUploadsDir"], jdata["modelFileName"])
-    except Exception as ex:
-        print("ERROR:", ex)
-
 levels = []
 
 for arg in sys.argv:
-    # if this param is present, the rest of params will be readed from the metadata file
-    # there should not be more params in the command line
-    if arg.startswith('inputParams'):
-        FN_PARAMS = arg.split('inputParams=')[1]
-        readParamsFromFile(FN_PARAMS)
-        if FNMAP:
+    if arg.startswith('EMDBid='):
+        IS_EMDB_ENTRY = True
+
+if IS_EMDB_ENTRY:
+    EMDB_ID = arg.split("EMDBid=")[1]
+    EMDB_ID_NUM = EMDB_ID.replace("EMD-", "")
+    PROJECT_NAME = EMDB_ID
+    if EMDButils.does_map_exits(EMDB_ID_NUM):
+        if EMDButils.proper_map_axis_order(EMDB_ID_NUM):
+            TS, MAPTHRESHOLD, MAPRESOLUTION = EMDButils.get_map_metadata(EMDB_ID_NUM)
+            levels.append('0')
+            if EMDButils.has_halfmaps(EMDB_ID_NUM):
+                levels.append('1')
+            PDB_ID = EMDButils.get_atomicmodel(EMDB_ID_NUM)
+            if PDB_ID:
+                levels.append('A')
+        else:
+            print("The axis order of the EMDB %s map is not the proper one (x, y, z). Not able yet to run the validation" % EMDB_ID_NUM)
+    else:
+        print("There is no EMDB map with code %s" % EMDB_ID_NUM)
+else:
+    for arg in sys.argv:
+        if arg.startswith('project='):
+            PROJECT_NAME = arg.split('project=')[1]
+        if arg.startswith('map='):
+            FNMAP = arg.split("map=")[1]
+        if arg.startswith('sampling='):
+            TS = float(arg.split("sampling=")[1])
+        if arg.startswith('threshold='):
+            MAPTHRESHOLD = float(arg.split("threshold=")[1])
+        if arg.startswith('resolution='):
+            MAPRESOLUTION = float(arg.split("resolution=")[1])
+        if arg.startswith('mapCoordX='):
+            MAPCOORDX = float(arg.split("mapCoordX=")[1])
+        if arg.startswith('mapCoordY='):
+            MAPCOORDY = float(arg.split("mapCoordY=")[1])
+        if arg.startswith('mapCoordZ='):
+            MAPCOORDZ = float(arg.split("mapCoordZ=")[1])
+        if arg.startswith('map1='):
+            FNMAP1 = arg.split("map1=")[1]
+        if arg.startswith('map2='):
+            FNMAP2 = arg.split("map2=")[1]
+        if arg.startswith('avgs='):
+            FNAVGS = arg.split("avgs=")[1]
+        if arg.startswith('avgSampling='):
+            TSAVG = float(arg.split("avgSampling=")[1])
+        if arg.startswith('symmetry='):
+            SYM = arg.split("symmetry=")[1]
+        if arg.startswith('particles='):
+            FNPARTICLES = arg.split("particles=")[1]
+        if arg.startswith('ptclSampling='):
+            TSPARTICLES = float(arg.split("ptclSampling=")[1])
+        if arg.startswith('kV='):
+            KV = float(arg.split("kV=")[1])
+        if arg.startswith('Cs='):
+            CS = float(arg.split("Cs=")[1])
+        if arg.startswith('Q0='):
+            Q0 = float(arg.split("Q0=")[1])
+        if arg.startswith('hasAngles='):
+            HASANGLES = arg.split("hasAngles=")[1]
+        if arg.startswith('micrographs='):
+            MICPATTERN = arg.split("micrographs=")[1]
+        if arg.startswith('micSampling='):
+            TSMIC = float(arg.split("micSampling=")[1])
+        if arg.startswith('atomicModel='):
+            FNMODEL = arg.split("atomicModel=")[1]
+        if arg.startswith('workflow='):
+            WORKFLOW = arg.split("workflow=")[1]
+        if arg.startswith('xlm='):
+            XLM = arg.split("xlm=")[1]
+        if arg.startswith('saxs='):
+            SAXS = arg.split("saxs=")[1]
+        if arg.startswith('untiltedMic='):
+            UNTILTEDMIC = arg.split("untiltedMic=")[1]
+        if arg.startswith('tiltedMic='):
+            TILTEDMIC = arg.split("tiltedMic=")[1]
+        if arg.startswith('tiltkV='):
+            TILTKV = float(arg.split("tiltkV=")[1])
+        if arg.startswith('tiltCs='):
+            TILTCS = float(arg.split("tiltCs=")[1])
+        if arg.startswith('tiltQ0='):
+            TILTQ0 = float(arg.split("tiltQ0=")[1])
+        if arg.startswith('tiltSampling='):
+            TILTTS = float(arg.split("tiltSampling=")[1])
+        if arg.startswith('tiltAngle='):
+            TILTANGLE = float(arg.split("tiltAngle=")[1])
+        if arg.startswith('untiltedCoords='):
+            UNTILTEDCOORDS = arg.split("untiltedCoords=")[1]
+        if arg.startswith('tiltedCoords='):
+            TILTEDCOORDS = arg.split("tiltedCoords=")[1]
+
+        # Detect level
+        argsPresent = [x.split('=')[0] for x in sys.argv]
+        LEVEL0 = ["map", "sampling", "threshold", "resolution"]
+        LEVEL1 = ["map1", "map2"]
+        LEVEL2 = ["avgs", "avgSampling", "symmetry"]
+        LEVEL3 = ["particles", "ptclSampling", "kV", "Cs", "Q0"]
+        LEVEL4 = ["hasAngles"]
+        LEVEL5 = ["micrographs", "micSampling"]
+        LEVELA = ["atomicModel", "doMultimodel"]
+        LEVELW = ["workflow"]
+        LEVELOa = ["xlm"]
+        LEVELOb = ["saxs"]
+        LEVELOc = ["untiltedMic","tiltedMic","tiltkV","tiltCs","tiltQ0","tiltSampling","tiltAngle","untiltedCoords",
+                   "tiltedCoords"]
+
+        def detectLevel(labels, args):
+            retval = True
+            for label in labels:
+                if not label in args:
+                    retval = False
+                    break
+            return retval
+        if detectLevel(LEVEL0, argsPresent):
             levels.append("0")
-        if FNMAP and FNMODEL:
+        if detectLevel(LEVEL1, argsPresent) and detectLevel(LEVEL0, argsPresent):
+            levels.append("1")
+        if detectLevel(LEVEL2, argsPresent) and detectLevel(LEVEL0, argsPresent):
+            levels.append("2")
+        if detectLevel(LEVEL3, argsPresent) and detectLevel(LEVEL2, argsPresent):
+            levels.append("3")
+        if detectLevel(LEVEL4, argsPresent) and detectLevel(LEVEL3, argsPresent):
+            levels.append("4")
+        if detectLevel(LEVEL5, argsPresent) and detectLevel(LEVEL3, argsPresent):
+            levels.append("5")
+        if detectLevel(LEVELA, argsPresent) and detectLevel(LEVEL0, argsPresent):
             levels.append("A")
-
-    if arg.startswith('project='):
-        PROJECT_NAME = arg.split('project=')[1]
-    if arg.startswith('map='):
-        FNMAP = arg.split("map=")[1]
-    if arg.startswith('sampling='):
-        TS = float(arg.split("sampling=")[1])
-    if arg.startswith('threshold='):
-        MAPTHRESHOLD = float(arg.split("threshold=")[1])
-    if arg.startswith('resolution='):
-        MAPRESOLUTION = float(arg.split("resolution=")[1])
-    if arg.startswith('mapCoordX='):
-        MAPCOORDX = float(arg.split("mapCoordX=")[1])
-    if arg.startswith('mapCoordY='):
-        MAPCOORDY = float(arg.split("mapCoordY=")[1])
-    if arg.startswith('mapCoordZ='):
-        MAPCOORDZ = float(arg.split("mapCoordZ=")[1])
-    if arg.startswith('map1='):
-        FNMAP1 = arg.split("map1=")[1]
-    if arg.startswith('map2='):
-        FNMAP2 = arg.split("map2=")[1]
-    if arg.startswith('avgs='):
-        FNAVGS = arg.split("avgs=")[1]
-    if arg.startswith('avgSampling='):
-        TSAVG = float(arg.split("avgSampling=")[1])
-    if arg.startswith('symmetry='):
-        SYM = arg.split("symmetry=")[1]
-    if arg.startswith('particles='):
-        FNPARTICLES = arg.split("particles=")[1]
-    if arg.startswith('ptclSampling='):
-        TSPARTICLES = float(arg.split("ptclSampling=")[1])
-    if arg.startswith('kV='):
-        KV = float(arg.split("kV=")[1])
-    if arg.startswith('Cs='):
-        CS = float(arg.split("Cs=")[1])
-    if arg.startswith('Q0='):
-        Q0 = float(arg.split("Q0=")[1])
-    if arg.startswith('hasAngles='):
-        HASANGLES = arg.split("hasAngles=")[1]
-    if arg.startswith('micrographs='):
-        MICPATTERN = arg.split("micrographs=")[1]
-    if arg.startswith('micSampling='):
-        TSMIC = float(arg.split("micSampling=")[1])
-    if arg.startswith('atomicModel='):
-        FNMODEL = arg.split("atomicModel=")[1]
-    if arg.startswith('doMultimodel='):
-        doMultimodel = arg.split("doMultimodel=")[1]=="yes"
-    if arg.startswith('workflow='):
-        WORKFLOW = arg.split("workflow=")[1]
-    if arg.startswith('xlm='):
-        XLM = arg.split("xlm=")[1]
-    if arg.startswith('saxs='):
-        SAXS = arg.split("saxs=")[1]
-    if arg.startswith('untiltedMic='):
-        UNTILTEDMIC = arg.split("untiltedMic=")[1]
-    if arg.startswith('tiltedMic='):
-        TILTEDMIC = arg.split("tiltedMic=")[1]
-    if arg.startswith('tiltkV='):
-        TILTKV = float(arg.split("tiltkV=")[1])
-    if arg.startswith('tiltCs='):
-        TILTCS = float(arg.split("tiltCs=")[1])
-    if arg.startswith('tiltQ0='):
-        TILTQ0 = float(arg.split("tiltQ0=")[1])
-    if arg.startswith('tiltSampling='):
-        TILTTS = float(arg.split("tiltSampling=")[1])
-    if arg.startswith('tiltAngle='):
-        TILTANGLE = float(arg.split("tiltAngle=")[1])
-    if arg.startswith('untiltedCoords='):
-        UNTILTEDCOORDS = arg.split("untiltedCoords=")[1]
-    if arg.startswith('tiltedCoords='):
-        TILTEDCOORDS = arg.split("tiltedCoords=")[1]
-
-# Detect level
-argsPresent = [x.split('=')[0] for x in sys.argv]
-LEVEL0 = ["map", "sampling", "threshold", "resolution"]
-LEVEL1 = ["map1", "map2"]
-LEVEL2 = ["avgs", "avgSampling", "symmetry"]
-LEVEL3 = ["particles", "ptclSampling", "kV", "Cs", "Q0"]
-LEVEL4 = ["hasAngles"]
-LEVEL5 = ["micrographs", "micSampling"]
-LEVELA = ["atomicModel", "doMultimodel"]
-LEVELW = ["workflow"]
-LEVELOa = ["xlm"]
-LEVELOb = ["saxs"]
-LEVELOc = ["untiltedMic","tiltedMic","tiltkV","tiltCs","tiltQ0","tiltSampling","tiltAngle","untiltedCoords",
-           "tiltedCoords"]
-
-def detectLevel(labels, args):
-    retval = True
-    for label in labels:
-        if not label in args:
-            retval = False
-            break
-    return retval
-if detectLevel(LEVEL0, argsPresent):
-    levels.append("0")
-if detectLevel(LEVEL1, argsPresent) and detectLevel(LEVEL0, argsPresent):
-    levels.append("1")
-if detectLevel(LEVEL2, argsPresent) and detectLevel(LEVEL0, argsPresent):
-    levels.append("2")
-if detectLevel(LEVEL3, argsPresent) and detectLevel(LEVEL2, argsPresent):
-    levels.append("3")
-if detectLevel(LEVEL4, argsPresent) and detectLevel(LEVEL3, argsPresent):
-    levels.append("4")
-if detectLevel(LEVEL5, argsPresent) and detectLevel(LEVEL3, argsPresent):
-    levels.append("5")
-if detectLevel(LEVELA, argsPresent) and detectLevel(LEVEL0, argsPresent):
-    levels.append("A")
-if detectLevel(LEVELW, argsPresent):
-    levels.append("W")
-if detectLevel(LEVELOa, argsPresent) and detectLevel(LEVELA, argsPresent):
-    levels.append("O")
-if detectLevel(LEVELOb, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO tiene sentido que chequee el nivel A cuando este nivel no depende del atomic model?? Mejor detectLevel(LEVEL0, ...)?
-    if not "O" in levels:
-        levels.append("O")
-if detectLevel(LEVELOc, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO tiene sentido que chequee el nivel A cuando este nivel no depende del atomic model?? Mejor detectLevel(LEVEL0, ...)?
-    if not "O" in levels:
-        levels.append("O")
+        if detectLevel(LEVELW, argsPresent):
+            levels.append("W")
+        if detectLevel(LEVELOa, argsPresent) and detectLevel(LEVELA, argsPresent):
+            levels.append("O")
+        if detectLevel(LEVELOb, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO tiene sentido que chequee el nivel A cuando este nivel no depende del atomic model?? Mejor detectLevel(LEVEL0, ...)?
+            if not "O" in levels:
+                levels.append("O")
+        if detectLevel(LEVELOc, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO tiene sentido que chequee el nivel A cuando este nivel no depende del atomic model?? Mejor detectLevel(LEVEL0, ...)?
+            if not "O" in levels:
+                levels.append("O")
 
 if len(levels)==0 or not "0" in levels:
     usage()
@@ -386,30 +367,32 @@ project = manager.createProject(PROJECT_NAME)
 fnProjectDir = project.getPath()
 os.chdir(fnProjectDir)
 
-# Create report
-from validationReport import ValidationReport
-report = ValidationReport(fnProjectDir, levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION)
-
 # Validate inputs formats
 wrongInputs = {'errors':[], 'warnings':[]}
 # check 'map' arg
-fnDir, fnBase = os.path.split(FNMAP)
 if IS_EMDB_ENTRY:
     protImportMapChecker = project.newProtocol(
         pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
         objLabel='check format - import map from EMDB',
         importFrom=IMPORT_FROM_EMDB,
-        emdbId=EMDB_ID_NUM,)
+        emdbId=EMDB_ID_NUM)
 else:
-    protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-                                            objLabel='check format - import map',
-                                            filesPath=os.path.join(fnDir,FNMAP),
-                                            samplingRate=TS,
-                                            setOrigCoord=True,
-                                            x=MAPCOORDX,
-                                            y=MAPCOORDY,
-                                            z=MAPCOORDZ)
-    
+    fnDir, fnBase = os.path.split(FNMAP)
+    if MAPCOORDX is not None and MAPCOORDY is not None and MAPCOORDZ is not None:
+        protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
+                                                   objLabel='check format - import map',
+                                                   filesPath=os.path.join(fnDir,FNMAP),
+                                                   samplingRate=TS,
+                                                   setOrigCoord=True,
+                                                   x=MAPCOORDX,
+                                                   y=MAPCOORDY,
+                                                   z=MAPCOORDZ)
+    else:
+        protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
+                                                   objLabel='check format - import map',
+                                                   filesPath=os.path.join(fnDir, FNMAP),
+                                                   samplingRate=TS,
+                                                   setOrigCoord=False)
 if useSlurm:
     sendToSlurm(protImportMapChecker)
 project.launchProtocol(protImportMapChecker)
@@ -420,7 +403,20 @@ if protImportMapChecker.isFailed():
     wrongInputs['errors'].append({'param': 'map', 'value': error_value, 'cause': 'There is a problem reading the volume map file'})
 
 else:
-    # check if we can have a proper mask with the thresold specified
+    if IS_EMDB_ENTRY:
+        FNMAP = os.path.join(project.getPath(), protImportMapChecker.outputVolume.getFileName())
+        MAPCOORDX, MAPCOORDY, MAPCOORDZ = protImportMapChecker.outputVolume.getShiftsFromOrigin()
+        if '1' in levels:
+            half_maps, sampling, (x, y, z) = EMDButils.fetch_emdb_halfmaps(EMDB_ID_NUM, protImportMapChecker._getExtraPath())
+            fnMap1 = half_maps[0].replace('.gz', '')
+            fnMap2 = half_maps[1].replace('.gz', '')
+            if os.path.exists(os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1)) and os.path.exists(os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)):
+                protImportMapChecker.outputVolume.setHalfMaps([os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1), os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)])
+                protImportMapChecker._store()
+                FNMAP1 = os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1)
+                FNMAP2 = os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)
+
+    # check if we can have a proper mask with the threshold specified
     protCreateMaskChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
                                                 objLabel='check proper mask',
                                                 inputVolume=protImportMapChecker.outputVolume,
@@ -442,24 +438,23 @@ if "1" in levels:
     # check 'map1' and 'map2' arg
     # 'map1'
     fnDir, fnBase = os.path.split(FNMAP1)
-    # TODO: use auto-download from EMDB. But still not supported by the original protocol
-    # if IS_EMDB_ENTRY:
-    #     protImportMapChecker = project.newProtocol(
-    #         pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-    #         objLabel='check format - import half1 from EMDB',
-    #         importFrom=IMPORT_FROM_EMDB,
-    #         emdbId=EMDB_ID_NUM,)
-    # else:
-    protImportMap1Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-                                                objLabel='check format - import half1',
-                                                filesPath=fnDir,
-                                                filesPattern=FNMAP1,
-                                                samplingRate=TS,
-                                                setOrigCoord=True,
-                                                x=MAPCOORDX,
-                                                y=MAPCOORDY,
-                                                z=MAPCOORDZ)
-
+    if MAPCOORDX is not None and MAPCOORDY is not None and MAPCOORDZ is not None:
+        protImportMap1Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
+                                                    objLabel='check format - import half1',
+                                                    filesPath=fnDir,
+                                                    filesPattern=FNMAP1,
+                                                    samplingRate=TS,
+                                                    setOrigCoord=True,
+                                                    x=MAPCOORDX,
+                                                    y=MAPCOORDY,
+                                                    z=MAPCOORDZ)
+    else:
+        protImportMap1Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
+                                                    objLabel='check format - import half1',
+                                                    filesPath=fnDir,
+                                                    filesPattern=FNMAP1,
+                                                    samplingRate=TS,
+                                                    setOrigCoord=False)
     if useSlurm:
         sendToSlurm(protImportMap1Checker)
     project.launchProtocol(protImportMap1Checker)
@@ -470,24 +465,23 @@ if "1" in levels:
 
     # 'map2'
     fnDir, fnBase = os.path.split(FNMAP2)
-    # TODO: use auto-download from EMDB. But still not supported by the original protocol
-    # if IS_EMDB_ENTRY:
-    #     protImportMapChecker = project.newProtocol(
-    #         pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-    #         objLabel='check format - import half1 from EMDB',
-    #         importFrom=IMPORT_FROM_EMDB,
-    #         emdbId=EMDB_ID_NUM,)
-    # else:
-    protImportMap2Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-                                                objLabel='check format - import half2',
-                                                filesPath=fnDir,
-                                                filesPattern=FNMAP2,
-                                                samplingRate=TS,
-                                                setOrigCoord=True,
-                                                x=MAPCOORDX,
-                                                y=MAPCOORDY,
-                                                z=MAPCOORDZ)
-
+    if MAPCOORDX is not None and MAPCOORDY is not None and MAPCOORDZ is not None:
+        protImportMap2Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
+                                                    objLabel='check format - import half2',
+                                                    filesPath=fnDir,
+                                                    filesPattern=FNMAP2,
+                                                    samplingRate=TS,
+                                                    setOrigCoord=True,
+                                                    x=MAPCOORDX,
+                                                    y=MAPCOORDY,
+                                                    z=MAPCOORDZ)
+    else:
+        protImportMap2Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
+                                                    objLabel='check format - import half2',
+                                                    filesPath=fnDir,
+                                                    filesPattern=FNMAP2,
+                                                    samplingRate=TS,
+                                                    setOrigCoord=False)
     if useSlurm:
         sendToSlurm(protImportMap2Checker)
     project.launchProtocol(protImportMap2Checker)
@@ -559,8 +553,9 @@ if "5" in levels:
         wrongInputs['errors'].append({'param': 'micrographs', 'value': MICPATTERN, 'cause': 'There is a problem reading the micrographs file'})
 
 if "A" in levels and not protImportMapChecker.isFailed():
+    if IS_EMDB_ENTRY:
+        FNMODEL = EMDButils.download_atomicmodel(PDB_ID, project.getPath())
     # Check 'atomicModel' arg
-
     writeAtomicModelFailed = False
     try: # Check if biopython can read atomic model file
         h = UpdatedAtomicStructHandler()
@@ -584,7 +579,8 @@ if "A" in levels and not protImportMapChecker.isFailed():
             wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Atomic model file not valid. Some programs cannot handle it because it cannot be safely written in PDB format'})
             writeAtomicModelFailed = True
     except:
-        wrongInputs['error'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Atomic model file not valid. It cannot be safely read'})
+        wrongInputs['errors'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Atomic model file not valid. It cannot be safely read'})
+        writeAtomicModelFailed = True
 
     if not writeAtomicModelFailed:
         protImportAtomicModelChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportPdb', doRaise=True),
@@ -701,6 +697,9 @@ if "O" in levels and not protImportMapChecker.isFailed():
         wrongInputs['errors'].append({'param': 'untiltedCoords', 'value': UNTILTEDCOORDS, 'cause': 'There is a problem reading the untilted coords file'})
         wrongInputs['errors'].append({'param': 'tiltedCoords', 'value': TILTEDCOORDS, 'cause': 'There is a problem reading the tilted coords file'})
 
+from validationReport import ValidationReport
+report = ValidationReport(fnProjectDir, levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION)
+
 with open (os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f:
         json.dump(wrongInputs, f)
 # if some input data was wrong do whatever we want: inform the user, write error msg in report, etc.
@@ -721,18 +720,15 @@ if protImportMapChecker.isFailed() or \
 
 else: # go ahead
     print("All inputs were correct, let's process them!")
+    # Create report
     # Level 0
     from validationLevel0 import level0
-    protImportMap, protCreateMask, bfactor, protResizeMap, protResizeMask = level0(project, report, 
-        IS_EMDB_ENTRY, EMDB_ID, EMDB_ID_NUM,
-        FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False)
+    protImportMap, protCreateMask, bfactor, protResizeMap, protResizeMask = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False)
 
     # Level 1
     if "1" in levels:
         from validationLevel1 import level1
-        protImportMap1, protImportMap2 = level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ,
-                                                protImportMap, protResizeMap, protCreateMask, protResizeMask,
-                                                skipAnalysis = False)
+        level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protImportMap, protResizeMap, protCreateMask, protResizeMask, skipAnalysis = False)
 
     # Level 2
     if "2" in levels:
@@ -780,6 +776,9 @@ else: # go ahead
 
     # Close report
     report.abstractResolution(MAPRESOLUTION)
+    saveIntermediateData(report.getReportDir(), 'outputData', False, 'resolutionEstimates', report.resolutionEstimates, ['\u212B', 'List of the resolutions of the map estimated by various methods to get the estimated range and average in abstract'])
+    saveIntermediateData(report.getReportDir(), 'outputData', False, 'score', report.score, ['', 'The overall score (passing tests; STATUS OK) of the map'])
+    saveIntermediateData(report.getReportDir(), 'outputData', False, 'scoreN', report.scoreN, ['', 'The total number of evaluable items (tests) to assess the map'])
     # Check if there are warnings
     with open(os.path.join(fnProjectDir, "validationReport", "summaryWarnings.tex")) as summaryWarnings:
         content = summaryWarnings.read()

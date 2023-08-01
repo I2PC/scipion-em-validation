@@ -51,20 +51,12 @@ config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 gpuIdSkipSlurm = config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
 
-def importMap(project, report, label,
-              is_emdb_entry, emdb_ID_num,
-              fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ):
+def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
-    if is_emdb_entry:
-        label = "import map from EMDB"
-        prot = project.newProtocol(Prot,
-                               objLabel=label,
-                               importFrom=IMPORT_FROM_EMDB,
-                               emdbId=emdb_ID_num,
-                               )
-    else:
-        fnDir, fnBase = os.path.split(fnMap)
+
+    fnDir, fnBase = os.path.split(fnMap)
+    if mapCoordX is not None and mapCoordY is not None and mapCoordZ is not None:
         prot = project.newProtocol(Prot,
                                 objLabel=label,
                                 filesPath=os.path.join(fnDir,fnMap),
@@ -73,6 +65,12 @@ def importMap(project, report, label,
                                 x=mapCoordX,
                                 y=mapCoordY,
                                 z=mapCoordZ)
+    else:
+        prot = project.newProtocol(Prot,
+                                objLabel=label,
+                                filesPath=os.path.join(fnDir,fnMap),
+                                samplingRate=Ts,
+                                setOrigCoord=False)
     if fnMap1 is not None and fnMap2 is not None:
         prot.setHalfMaps.set(True)
         prot.half1map.set(fnMap1)
@@ -83,10 +81,10 @@ def importMap(project, report, label,
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
     waitUntilFinishes(project, prot)
-    saveIntermediateData(report.fnReportDir, 'inputData', True, 'map', os.path.join(project.getPath(), prot.filesPath), 'map from EMDB')
+    saveIntermediateData(report.fnReportDir, 'inputData', True, 'map', str(prot.filesPath), 'map from EMDB')
     if fnMap1 is not None and fnMap2 is not None:
-        saveIntermediateData(report.fnReportDir, 'inputData', True, 'map', os.path.join(project.getPath(), prot.half1map), 'halfmap1 from EMDB')
-        saveIntermediateData(report.fnReportDir, "inputData", True, "map", os.path.join(project.getPath(), prot.half2map), 'halfmap2 from EMDB')
+        saveIntermediateData(report.fnReportDir, 'inputData', True, 'map', str(prot.half1map), 'halfmap1 from EMDB')
+        saveIntermediateData(report.fnReportDir, "inputData", True, "map", str(prot.half2map), 'halfmap2 from EMDB')
     return prot
 
 def createMask(project, label, map, Ts, threshold):
@@ -1193,13 +1191,9 @@ Resolution estimated by user: %f \\\\
     report.orthogonalSlices("maxVarMask", msg, "Slices of maximum variation in the three dimensions of the mask",
                             fnMask, "fig:maxVarMask")
 
-def level0(project, report,
-           is_emdb_entry, emdb_ID, emdb_ID_num,
-           fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False):
+def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False):
     # Import map
-    protImportMap = importMap(project, report, "import map",
-                              is_emdb_entry, emdb_ID_num,
-                              fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ)
+    protImportMap = importMap(project, report, "import map", fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap.isFailed():
         raise Exception("Import map did not work")
     saveIntermediateData(report.fnReportDir, 'inputData', False, 'sampling rate', Ts, ['\u212B', 'Sampling rate from EMDB map in Angstroms'])

@@ -8,6 +8,7 @@ import scipy
 import subprocess
 import PIL
 import json
+import requests
 
 from pyworkflow.protocol import StringParam
 from pyworkflow.utils.path import makePath, cleanPath
@@ -83,6 +84,7 @@ def generateChimeraView(fnWorkingDir, fnMap, fnView, isMap=True, threshold=0, an
                         occupancy=False):
     chimeraScript=\
 """
+windowsize 1300 700
 set bgColor white
 """
     if isMap:
@@ -115,6 +117,7 @@ show cartoons
 """turn x %f
 turn y %f
 turn z %f
+view all
 save %s
 exit
 """%(angX, angY, angZ, fnView)
@@ -144,12 +147,15 @@ def generateChimeraColorView(fnWorkingDir, project, fnRoot, fnMap, Ts, fnColor, 
     fhCmd = open(cmdFile, "a")
     toWrite = \
 """
-run(session, 'windowsize 700 700')
+run(session, 'volume voxelLimitForOpen 1000')
+run(session, 'volume showPlane false')
+run(session, 'windowsize 1300 700')
 run(session, 'save %s')
 run(session, 'turn x 90')
 run(session, 'save %s')
 run(session, 'turn x -90')
 run(session, 'turn y 90')
+run(session, 'view all')
 run(session, 'save %s')
 run(session, 'exit')
 """ % (fn1, fn2, fn3)
@@ -307,7 +313,7 @@ def plotMicrograph(fnMic, fnOut, coords=None, boxSize=0, Ts=0):
 
 class ValidationReport:
 
-    def __init__(self, fnDir, levels,  IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION):
+    def __init__(self, fnDir, levels,  IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION):
         self.fnProjectDir = fnDir
         self.fnReportDir = os.path.join(fnDir,"validationReport")
         makePath(self.fnReportDir)
@@ -315,7 +321,7 @@ class ValidationReport:
         self.fh = open(self.fnReport,"w")
         self.fnFrontpage = os.path.join(self.fnReportDir,"frontpage.tex")
         self.fnFrontpage = open(self.fnFrontpage,"w") 
-        self.writeFrontpage(levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION)
+        self.writeFrontpage(levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION)
         self.fnFrontpage.close()
         self.fnContext = os.path.join(self.fnReportDir, "context.tex")
         self.fnContext = open(self.fnContext, "w")
@@ -440,7 +446,7 @@ class ValidationReport:
     def writeAbstract(self, msg):
         self.fhAbstract.write(msg)
 
-    def writeFrontpage(self,  levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION):
+    def writeFrontpage(self,  levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION):
         
         ScipionEmValDir = os.path.dirname(__file__)
         logo = os.path.join(ScipionEmValDir, 'resources', 'figures', 'logo.png') 
@@ -457,22 +463,19 @@ class ValidationReport:
             authors = None
             deposited = None
 
-            # Read metadata file from EMDB to fix some parameters
-            if FN_METADATA:
-
-                # Read metadata.json file
-                with open(FN_METADATA,mode="r") as f:
-                    jdata = json.load(f)
-                
+            try:
+                url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/%s' % EMDB_ID
+                jdata = requests.get(url_rest_api).json()
                 title = jdata["admin"]["title"]
                 deposited = jdata["admin"]["key_dates"]["deposition"]
-
                 # Set authors depending on if it is a list of dicts or a list of strs
                 if type(jdata["admin"]["authors_list"]["author"][0]) == dict:
                     authors_list = [d["valueOf_"] for d in jdata["admin"]["authors_list"]["author"] if "valueOf_" in d]
                     authors = ", ".join(authors_list)
                 else:
                     authors = ", ".join(jdata["admin"]["authors_list"]["author"])
+            except:
+                pass
 
             entryInfoList = [EMDB_ID, PDB_ID, title, authors, deposited, resolution_str]
             
@@ -642,11 +645,14 @@ class ValidationReport:
 
 \\begin{figure}[H]
   \\centering
-  \\subfloat[X Projection]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[Y Projection]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[Z Projection]{\includegraphics[width=4cm]{%s}}
+  \\subfloat[X Projection]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+  \\subfloat[Y Projection]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+\\end{figure}
+\\begin{figure}[H]
+  \\centering
+  \\subfloat[Z Projection]{\includegraphics[width=6.5cm]{%s}}
   \\caption{%s}
   \\label{%s}
 \\end{figure}
@@ -671,11 +677,14 @@ class ValidationReport:
 
 \\begin{figure}[H]
   \\centering
-  \\subfloat[View 1]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[View 2]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[View 3]{\includegraphics[width=4cm]{%s}}
+  \\subfloat[View 1]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+  \\subfloat[View 2]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+\\end{figure}
+\\begin{figure}[H]
+  \\centering
+  \\subfloat[View 3]{\includegraphics[width=6.5cm]{%s}}
   \\caption{%s}
   \\label{%s}
 \\end{figure}
@@ -698,11 +707,14 @@ class ValidationReport:
 
 \\begin{figure}[H]
   \\centering
-  \\subfloat[View 1]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[View 2]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[View 3]{\includegraphics[width=4cm]{%s}}
+  \\subfloat[View 1]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+  \\subfloat[View 2]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+\\end{figure}
+\\begin{figure}[H]
+  \\centering
+  \\subfloat[View 3]{\includegraphics[width=6.5cm]{%s}}
   \\caption{%s}
   \\label{%s}
 \\end{figure}
@@ -730,11 +742,14 @@ class ValidationReport:
         
             \\begin{figure}[H]
               \\centering
-              \\subfloat[View 1]{\includegraphics[width=4cm]{%s}}
-              \\hspace{0.2cm}
-              \\subfloat[View 2]{\includegraphics[width=4cm]{%s}}
-              \\hspace{0.2cm}
-              \\subfloat[View 3]{\includegraphics[width=4cm]{%s}}
+              \\subfloat[View 1]{\includegraphics[width=6.5cm]{%s}}
+              \\hspace{0.1cm}
+              \\subfloat[View 2]{\includegraphics[width=6.5cm]{%s}}
+              \\hspace{0.1cm}
+            \\end{figure}
+            \\begin{figure}[H]
+                \\centering
+              \\subfloat[View 3]{\includegraphics[width=6.5cm]{%s}}
               \\caption{%s}
               \\label{%s}
             \\end{figure}
@@ -772,11 +787,14 @@ class ValidationReport:
         toWrite+=\
 """\\begin{figure}[H]
   \\centering
-  \\subfloat[X Slice %d]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[Y Slice %d]{\includegraphics[width=4cm]{%s}}
-  \\hspace{0.2cm}
-  \\subfloat[Z Slice %d]{\includegraphics[width=4cm]{%s}}
+  \\subfloat[X Slice %d]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+  \\subfloat[Y Slice %d]{\includegraphics[width=6.5cm]{%s}}
+  \\hspace{0.1cm}
+\\end{figure}
+\\begin{figure}[H]
+  \\centering
+  \\subfloat[Z Slice %d]{\includegraphics[width=6.5cm]{%s}}
   \\caption{%s}
   \\label{%s}
 \\end{figure}

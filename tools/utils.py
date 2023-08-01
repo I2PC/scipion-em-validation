@@ -363,3 +363,5 @@ def storeIntermediateData(fnReportDir, destPath):
         # full validationReport folder
         cmd = 'rsync -rltv --progress %s %s' % (fnReportDir, os.path.join(destPath, fnReportDir.split('/')[-2]))
         subprocess.run(cmd, shell=True)
+
+

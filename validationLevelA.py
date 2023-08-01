@@ -54,14 +54,22 @@ useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
-    prot = project.newProtocol(Prot,
-                               objLabel=label,
-                               filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
-                               samplingRate=protImportMap.outputVolume.getSamplingRate(),
-                               setOrigCoord=True,
-                               x=mapCoordX,
-                               y=mapCoordY,
-                               z=mapCoordZ)
+
+    if mapCoordX is not None and mapCoordY is not None and mapCoordZ is not None:
+        prot = project.newProtocol(Prot,
+                                   objLabel=label,
+                                   filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
+                                   samplingRate=protImportMap.outputVolume.getSamplingRate(),
+                                   setOrigCoord=True,
+                                   x=mapCoordX,
+                                   y=mapCoordY,
+                                   z=mapCoordZ)
+    else:
+        prot = project.newProtocol(Prot,
+                                   objLabel=label,
+                                   filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
+                                   samplingRate=protImportMap.outputVolume.getSamplingRate(),
+                                   setOrigCoord=False)
     if useSlurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
@@ -355,13 +363,13 @@ whose FSC-Qr absolute value is beyond 1.5 is %5.1f \\%%.
                             protImportMap.outputVolume.getSamplingRate(),
                             prot._getExtraPath("diferencia_norm.map"), -3.0, 3.0)
 
-    saveIntermediateData(report.getReportDir(), 'FSCQ', False, 'averageFSQr', avgFSCQr, ['?', 'average FSC-Qr'])
-    saveIntermediateData(report.getReportDir(), 'FSCQ', False, 'llcinterval', ci[0], ['?', 'Lower limit 95% confidence interval'])
-    saveIntermediateData(report.getReportDir(), 'FSCQ', False, 'ulcinterval', ci[1], ['?', 'Upper limit 95% confidence interval'])
+    saveIntermediateData(report.getReportDir(), 'FSCQ', False, 'averageFSQr', float(avgFSCQr), ['?', 'average FSC-Qr'])
+    saveIntermediateData(report.getReportDir(), 'FSCQ', False, 'llcinterval', float(ci[0]), ['?', 'Lower limit 95% confidence interval'])
+    saveIntermediateData(report.getReportDir(), 'FSCQ', False, 'ulcinterval', float(ci[1]), ['?', 'Upper limit 95% confidence interval'])
     saveIntermediateData(report.getReportDir(), 'FSCQ', False, 'percentage15', f15, ['%', 'The percentage of values whose FSC-Qr absolute value is beyond 1.5'])
     saveIntermediateData(report.getReportDir(), 'FSCQ', False, 'fscqrList', np.clip(fscqr, -1.5, 1.5).tolist(), ['?', 'List of FSCalues to create the histogram'])
 
-    saveIntermediateData(report.getReportDir(), 'FSCQ', True, 'fscq_struct', prot._getPath('fscq_struct.cif'), 'fscq_struct cif file')
+    saveIntermediateData(report.getReportDir(), 'FSCQ', True, 'fscq_struct', os.path.join(project.getPath(), prot._getPath('fscq_struct.cif')), 'fscq_struct cif file')
     saveIntermediateData(report.getReportDir(), 'FSCQ', True, 'fscqHist', fnHist, 'FSCQ Histogram')
     saveIntermediateData(report.getReportDir(), 'FSCQ', True, 'fscqViewer',
                          [os.path.join(report.getReportDir(), 'fscq1.jpg'),
