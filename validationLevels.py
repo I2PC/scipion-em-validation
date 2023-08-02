@@ -776,7 +776,7 @@ else: # go ahead
 
     # Close report
     report.abstractResolution(MAPRESOLUTION)
-    saveIntermediateData(report.getReportDir(), 'outputData', False, 'resolutionEstimates', report.resolutionEstimates, ['\u212B', 'List of the resolutions of the map estimated by various methods to get the estimated range and average in abstract'])
+    saveIntermediateData(report.getReportDir(), 'outputData', False, 'resolutionEstimates', report.resolutionEstimates.tolist(), ['\u212B', 'List of the resolutions of the map estimated by various methods to get the estimated range and average in abstract'])
     saveIntermediateData(report.getReportDir(), 'outputData', False, 'score', report.score, ['', 'The overall score (passing tests; STATUS OK) of the map'])
     saveIntermediateData(report.getReportDir(), 'outputData', False, 'scoreN', report.scoreN, ['', 'The total number of evaluable items (tests) to assess the map'])
     # Check if there are warnings
