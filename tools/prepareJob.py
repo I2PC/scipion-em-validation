@@ -72,15 +72,12 @@ def getJobRunCommand(inputParams):
     cmmd = cmmd + ' ' + PATH_SCRIPT + CMD_SCRIPT
 
     # EMDBentryId=EMD-35930
-    params = 'inputParams=' + \
-        os.path.join(inputParams["jobUploadsDir"], FN_LOCAL_JSON_PARAMS)
-
-    params = params + "'"
+    params = "EMDBid=" + inputParams["emdbId"] + "'"
 
     logging = os.path.join(
         inputParams["jobLogsDir"], "runJob_%s.log" % inputParams["emdbId"])
 
-    cmmdLine = cmmd + ' ' + params + ' -f ' + logging
+    cmmdLine = cmmd + " " + params + " -f " + logging
     return cmmdLine
 
 
@@ -224,11 +221,6 @@ def main(argv):
         logger.info('Map threshold (recommended contour level): %f' %
                     threshold)
 
-        # Download EMDB map file
-        url = URL_EMDB_WWPDB_REPOSITORY + emdbId + '/map/' + gzMapFileName
-        inMap = downloadEmdbFile(
-            url=url, fileName=gzMapFileName, localPath=jobDir, gunzip=True)
-
     if "structure_determination_list" in jData:
         jData["structure_determination_list"]
         resolution = float(jData["structure_determination_list"]["structure_determination"][0]
@@ -244,33 +236,18 @@ def main(argv):
             for halfmapFile in halfmaps:
                 halfmapFiles.append(halfmapFile["file"])
             logger.info('Half-maps: %s' % halfmapFiles)
-            # Download EMDB half-map files
-            for halfmapFile in halfmapFiles:
-                url = URL_EMDB_WWPDB_REPOSITORY + emdbId + '/other/' + halfmapFile
-                halfMap = downloadEmdbFile(
-                    url=url, fileName=halfmapFile, localPath=jobDir, gunzip=True)
 
         if "additional_map_list" in jData["interpretation"]:
             additionalMaps = jData["interpretation"]["additional_map_list"]["additional_map"]
             for additionalMap in additionalMaps:
                 additionalMapFiles.append(additionalMap["file"])
             logger.info('Additional maps: $s' % additionalMapFiles)
-            # Download EMDB additional map files
-            # for additionalMapFile in additionalMapFiles:
-            #     url = URL_EMDB_WWPDB_REPOSITORY + mapId + '/other/' + additionalMapFile
-            #     addMap = downloadEmdbFile(
-            #         url=url, fileName=additionalMapFile, localPath=jobDir, gunzip=True)
 
         if "segmentation_list" in jData["interpretation"]:
             masks = jData["interpretation"]["segmentation_list"]["segmentation"]
             for mask in masks:
                 maskFiles.append(mask["file"])
             logger.info('masks: %s' % maskFiles)
-            # Download EMDB mask files
-            # for maskFile in maskFiles:
-            #     url = URL_EMDB_WWPDB_REPOSITORY + mapId + '/masks/' + maskFile
-            #     maskMap = downloadEmdbFile(
-            #         url=url, fileName=maskFile, localPath=jobDir)
 
     atomModelIDs = []
     atomModelFiles = []
@@ -282,12 +259,7 @@ def main(argv):
             logger.warning("There are %d atomic models: %s" %
                            (len(atomModels), atomModelIDs))
         logger.info("Atomic model %s" % atomModelIDs[0])
-        # Download PDB atomic models
-        for pdbId in atomModelIDs:
-            atomModelFiles.append(downloadPdbModel(pdbId, jobDir))
         aModelId = atomModelIDs[0]
-        aModel = os.path.basename(atomModelFiles[0])
-        logger.info("Atomic model %s" % aModel)
 
     # Save job params to a json file
     inputParams = {
@@ -311,9 +283,9 @@ def main(argv):
     if halfmapFiles:
         inputParams["map1"] = halfmapFiles[0].replace('.gz', '')
         inputParams["map2"] = halfmapFiles[1].replace('.gz', '')
-    if aModel:
-        inputParams["pdbId"] = aModelId
-        inputParams["modelFileName"] = aModel
+
+    inputParams["pdbId"] = aModelId
+
     save_json(data=inputParams, path=jobDir, filename=FN_LOCAL_JSON_PARAMS)
 
     # Save command line to a bash file (*.sh)
