@@ -74,7 +74,7 @@ class UpdatedAtomicStructHandler(AtomicStructHandler): #TODO: remove it when upd
             raise OutOfAtomsError
         else:
             return n_atoms
-        
+
     def writeAsPdb(self, pdbFile):
         """ 
         Save structure as PDB. Be aware that this is not a lossless conversion
@@ -98,7 +98,7 @@ class UpdatedAtomicStructHandler(AtomicStructHandler): #TODO: remove it when upd
                 # for new, old in list(chainmap.items()):
                 if new != old:
                     print("Renaming chain {0} to {1}".format(old, new))
-            
+
             # Get number of atoms
             try:
                 atoms = self.numberAtomsInStructure(self.getStructure(), writeAsPdb=True)
@@ -216,6 +216,8 @@ UNTILTEDCOORDS = None
 TILTEDCOORDS = None
 
 levels = []
+# Validate inputs formats
+wrongInputs = {'errors':[], 'warnings':[]}
 
 for arg in sys.argv:
     if arg.startswith('EMDBid='):
@@ -226,16 +228,16 @@ if IS_EMDB_ENTRY:
     EMDB_ID_NUM = EMDB_ID.replace("EMD-", "")
     PROJECT_NAME = EMDB_ID
     if EMDButils.does_map_exits(EMDB_ID_NUM):
-        if EMDButils.proper_map_axis_order(EMDB_ID_NUM):
-            TS, MAPTHRESHOLD, MAPRESOLUTION = EMDButils.get_map_metadata(EMDB_ID_NUM)
-            levels.append('0')
-            if EMDButils.has_halfmaps(EMDB_ID_NUM):
-                levels.append('1')
-            PDB_ID = EMDButils.get_atomicmodel(EMDB_ID_NUM)
-            if PDB_ID:
-                levels.append('A')
-        else:
-            print("The axis order of the EMDB %s map is not the proper one (x, y, z). Not able yet to run the validation" % EMDB_ID_NUM)
+        if not EMDButils.proper_map_axis_order(EMDB_ID_NUM):
+            wrongInputs['warnings'].append({'param': 'map', 'value': EMDB_ID, 'cause': 'The axis order of the EMDB %s map is not the common one (x, y, z).'})
+            print("The axis order of the EMDB %s map is not the common one (x, y, z).")
+        TS, MAPTHRESHOLD, MAPRESOLUTION = EMDButils.get_map_metadata(EMDB_ID_NUM)
+        levels.append('0')
+        if EMDButils.has_halfmaps(EMDB_ID_NUM):
+            levels.append('1')
+        PDB_ID = EMDButils.get_atomicmodel(EMDB_ID_NUM)
+        if PDB_ID:
+            levels.append('A')
     else:
         print("There is no EMDB map with code %s" % EMDB_ID_NUM)
 else:
@@ -367,8 +369,6 @@ project = manager.createProject(PROJECT_NAME)
 fnProjectDir = project.getPath()
 os.chdir(fnProjectDir)
 
-# Validate inputs formats
-wrongInputs = {'errors':[], 'warnings':[]}
 # check 'map' arg
 if IS_EMDB_ENTRY:
     protImportMapChecker = project.newProtocol(
@@ -565,7 +565,7 @@ if "A" in levels and not protImportMapChecker.isFailed():
             structure_id = os.path.basename(FNMODEL)
             structure_id = structure_id[:4] if len(structure_id) > 4 else "1xxx"
             pdbFile = '%s.pdb' % (structure_id)
-            
+
             # Get tmp pdb  from imput atomic model to work on
             fnPdb = os.path.join(project.getTmpPath(), pdbFile) #TODO: poner en otra carpet??
             h.writeAsPdb(fnPdb)
@@ -613,7 +613,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
 
         if protImportXLMChecker.isFailed():
             wrongInputs['errors'].append({'param': 'xlm', 'value': XLM, 'cause': 'There is a problem reading the XML file'})
-    #TODO: por que se ejecutan todos los checkers si yo solo he especificado los argumentos del nivel O.a?? No deberia puesto que esta fallando el job porque ejecuta los chequers de postseudo sin tener suficientes parametros (no se especifican en el comando de lanzamiento). REVISAR!!!!!!!!!! 
+    #TODO: por que se ejecutan todos los checkers si yo solo he especificado los argumentos del nivel O.a?? No deberia puesto que esta fallando el job porque ejecuta los chequers de postseudo sin tener suficientes parametros (no se especifican en el comando de lanzamiento). REVISAR!!!!!!!!!!
     # 'sax'
     #TODO: Add 'if SAXS is not None:'
     protCreateMask = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
