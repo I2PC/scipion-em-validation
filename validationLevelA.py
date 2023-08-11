@@ -45,6 +45,7 @@ from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 import configparser
 
 from tools.utils import saveIntermediateData, getFilename, getScoresFromWS
+from tools.emv_utils import convert_2_json
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -172,6 +173,12 @@ have a Gaussian shape.\\\\
         saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map_All.txt')))[0], 'Q__map_All txt file')
         saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map.pdb', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.pdb')))[0], 'Q__map pdb file')
 
+        input_file = glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.pdb')))[0]
+        # emd_26162_pdb_7txz_emv_mapq.json
+        output_file = os.path.join(project.getPath(),prot._getExtraPath(), "%s_pdb_%s_emv_mapq.json" % (emdb_Id.lower().replace('-','_'), pdbdb_Id.lower())
+        json_file = convert_2_json(emdb_Id, pdbdb_Id, method='mapq', input_file=input_file, output_file=output_file)
+        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'EMV json file', json_file, 'MapQ scores in EMV json format')
+
 
     # get histogram
     mapq_scores = []
@@ -270,10 +277,6 @@ percentiles are:
         report.addResolutionEstimate(np.mean(resolutions))
 
         saveIntermediateData(report.getReportDir(), 'MapQ', False, 'estimatedResolution', np.mean(resolutions), ['\u212B', 'The estimated resolution (mean) in Angstroms obtained from MapQ'])
-
-        # TODO: convert results in PDB-format to JSON-format
-        # TODO: save in intermediate results
-
 
     # Warnings
     warnings=[]
