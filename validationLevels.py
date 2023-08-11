@@ -228,9 +228,6 @@ if IS_EMDB_ENTRY:
     EMDB_ID_NUM = EMDB_ID.replace("EMD-", "")
     PROJECT_NAME = EMDB_ID
     if EMDButils.does_map_exits(EMDB_ID_NUM):
-        if not EMDButils.proper_map_axis_order(EMDB_ID_NUM):
-            wrongInputs['warnings'].append({'param': 'map', 'value': EMDB_ID, 'cause': 'The axis order of the EMDB %s map is not the common one (x, y, z).'})
-            print("The axis order of the EMDB %s map is not the common one (x, y, z).")
         TS, MAPTHRESHOLD, MAPRESOLUTION = EMDButils.get_map_metadata(EMDB_ID_NUM)
         levels.append('0')
         if EMDButils.has_halfmaps(EMDB_ID_NUM):
