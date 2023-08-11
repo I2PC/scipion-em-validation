@@ -44,7 +44,7 @@ from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
 import configparser
 
-from tools.utils import saveIntermediateData
+from tools.utils import saveIntermediateData, getFilename, getScoresFromWS
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -96,7 +96,7 @@ def importModel(project, report, label, protImportMap, fnPdb):
 
     return protImport
 
-def mapq(project, report, protImportMap, protAtom, resolution):
+def mapq(project, report, protImportMap, protAtom, resolution, FNMODEL):
     bblCitation = \
 """\\bibitem[Pintilie et~al., 2020]{Pintilie2020}
 Pintilie, G., Zhang, K., Su, Z., Li, S., Schmid, M.~F., and Chiu, W. (2020).
@@ -119,38 +119,79 @@ have a Gaussian shape.\\\\
 """ % secLabel
     report.write(msg)
 
-    #TODO: API calls
 
-    Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
-                                            'ProtMapQ', doRaise=True)
-    prot = project.newProtocol(Prot,
-                               objLabel="A.a MapQ",
-                               inputVol=protImportMap.outputVolume,
-                               pdbs=[protAtom.outputPdb],
-                               mapRes=resolution)
-    if useSlurm:
-        sendToSlurm(prot)
-    project.launchProtocol(prot)
-    #waitOutput(project, prot, 'scoredStructures')
-    waitUntilFinishes(project, prot)
-    if prot.isFailed():
-        report.writeSummary("A.a MapQ", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
-        return
+    # check if we have the precomputed data
+    # https://3dbionotes.cnb.csic.es/bws/api/emv/7xzz/mapq/
+    pdb_file = FNMODEL
+    # pdbdb_Id = protAtom.pdbId if protAtom.pdbId else getFilename(FNMODEL, withExt=False)
+    pdbdb_Id = getFilename(FNMODEL, withExt=False)
+    print("--- PDB-ID", pdbdb_Id)
+    print("Get MapQ scores from 3DBionotes-WS for %s" % pdbdb_Id)
+    has_precalculated_data = False
+    json_data = getScoresFromWS(pdbdb_Id, 'mapq')
 
-    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*.cif')))[0], 'cif file')
-    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map_All.txt')))[0], 'Q__map_All txt file')
-    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map.pdb', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.pdb')))[0], 'Q__map pdb file')
+    if json_data:
+        # "volume_map": "EMD-8606",
+        emdb_Id = json_data["entry"]["volume_map"]
+        # save to report
+        results_msg = \
+            """
+            \\Precomputed Q-scores obtained from the DB source thourgh 3DBionotes-WS:
+            \\\\
+            \\url{https://3dbionotes.cnb.csic.es/bws/api/emv/%s/mapq/}
+            \\\\
+            """ % emdb_Id.lower()
+        report.write(results_msg)
+        has_precalculated_data = True
+    else:
+        print('Could not get data for', pdbdb_Id)
+        print('- Proceed to calculate it localy')
 
-    ASH = AtomicStructHandler()
+    
+    # if there is not precalculated data or failed to retrieve it
+    if not has_precalculated_data:
 
+        Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
+                                                'ProtMapQ', doRaise=True)
+        prot = project.newProtocol(Prot,
+                                objLabel="A.a MapQ",
+                                inputVol=protImportMap.outputVolume,
+                                pdbs=[protAtom.outputPdb],
+                                mapRes=resolution)
+        if useSlurm:
+            sendToSlurm(prot)
+        project.launchProtocol(prot)
+        #waitOutput(project, prot, 'scoredStructures')
+        waitUntilFinishes(project, prot)
+        if prot.isFailed():
+            report.writeSummary("A.a MapQ", secLabel, "{\\color{red} Could not be measured}")
+            report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+            return
+
+        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*.cif')))[0], 'cif file')
+        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map_All.txt')))[0], 'Q__map_All txt file')
+        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map.pdb', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.pdb')))[0], 'Q__map pdb file')
+
+
+    # get histogram
     mapq_scores = []
-    for struct in prot.scoredStructures:
-        fileName = struct.getFileName()
-        fields = ASH.readLowLevel(fileName)
-        attributes = fields["_scipion_attributes.name"]
-        values = fields["_scipion_attributes.value"]
-        mapq_scores += [float(value) for attribute, value in zip(attributes, values) if attribute == "MapQ_Score"]
+    if has_precalculated_data and json_data:
+        chain_data = json_data["chains"]
+        for chain in chain_data:
+            ch_seqData = chain["seqData"]
+            for ch_residue in ch_seqData:
+                mapq_scores.append(float(ch_residue["scoreValue"]))
+    else:
+        ASH = AtomicStructHandler()
+
+        for struct in prot.scoredStructures:
+            fileName = struct.getFileName()
+            fields = ASH.readLowLevel(fileName)
+            attributes = fields["_scipion_attributes.name"]
+            values = fields["_scipion_attributes.value"]
+            mapq_scores += [float(value) for attribute, value in zip(attributes, values) if attribute == "MapQ_Score"]
+
+    
 
     fnHist = os.path.join(report.getReportDir(),"mapqHist.png")
 
@@ -159,7 +200,7 @@ have a Gaussian shape.\\\\
 
     toWrite = \
 """
-Fig. \\ref{fig:histMapQ} shows the histogram of the Q-score according calculated by MapQ. Some representative
+Fig. \\ref{fig:histMapQ} shows the histogram of the calculated Q-score. Some representative
 percentiles are:
 
 \\begin{center}
@@ -190,43 +231,48 @@ percentiles are:
 """ % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist)
     report.write(toWrite)
 
-    files = glob.glob(prot._getExtraPath("*All.txt"))
-    fh = open(files[0])
-    msg=\
-""" The following table shows the average Q score and estimated resolution for each chain.
-\\begin{center}
-    \\begin{tabular}{ccc}
-        \\hline
-        \\textbf{Chain} & \\textbf{Average Q score [0-1]} & \\textbf{Estimated Resol. (\\AA)} \\\\
-        \\hline
-"""
-    state = 0
-    resolutions = []
-    for line in fh.readlines():
-        print(line)
-        if state==0 and line.startswith('Chain'):
-            state=1
-        elif state==1:
-            tokens = line.split()
-            if len(tokens)>0:
-                res = float(tokens[-1])
-                msg+="      %s & %s & %4.1f \\\\ \n"%(tokens[0],tokens[3],res)
-                resolutions.append(res)
-            else:
-                state=2
-                break
-    msg+=\
-"""        \\hline
-    \\end{tabular}
-\\end{center}
+    if not has_precalculated_data:
+        files = glob.glob(prot._getExtraPath("*All.txt"))
+        fh = open(files[0])
+        msg=\
+    """ The following table shows the average Q-score and estimated resolution for each chain.
+    \\begin{center}
+        \\begin{tabular}{ccc}
+            \\hline
+            \\textbf{Chain} & \\textbf{Average Q-score [0-1]} & \\textbf{Estimated Resol. (\\AA)} \\\\
+            \\hline
+    """
 
-"""
-    report.write(msg)
-    fh.close()
+        state = 0
+        resolutions = []
+        for line in fh.readlines():
+            print(line)
+            if state==0 and line.startswith('Chain'):
+                state=1
+            elif state==1:
+                tokens = line.split()
+                if len(tokens)>0:
+                    res = float(tokens[-1])
+                    msg+="      %s & %s & %4.1f \\\\ \n"%(tokens[0],tokens[3],res)
+                    resolutions.append(res)
+                else:
+                    state=2
+                    break
+        msg+=\
+        """        \\hline
+            \\end{tabular}
+        \\end{center}
 
-    report.addResolutionEstimate(np.mean(resolutions))
+        """
+        report.write(msg)
+        fh.close()
 
-    saveIntermediateData(report.getReportDir(), 'MapQ', False, 'estimatedResolution', np.mean(resolutions), ['\u212B', 'The estimated resolution (mean) in Angstroms obtained from MapQ'])
+        report.addResolutionEstimate(np.mean(resolutions))
+
+        saveIntermediateData(report.getReportDir(), 'MapQ', False, 'estimatedResolution', np.mean(resolutions), ['\u212B', 'The estimated resolution (mean) in Angstroms obtained from MapQ'])
+
+        # TODO: convert results in PDB-format to JSON-format
+        # TODO: save in intermediate results
 
 
     # Warnings
@@ -1228,7 +1274,7 @@ def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFaile
             report.writeSection('Level A analysis')
             protConvert = convertPDB(project, report, protImportMap, protAtom)
             if protConvert is not None:
-                mapq(project, report, protImportMap, protAtom, resolution)
+                mapq(project, report, protImportMap, protAtom, resolution, FNMODEL)
                 fscq(project, report, protImportMap, protAtom, protConvert)
                 if doMultimodel:
                     multimodel(project, report, protImportMap, protAtom, resolution)

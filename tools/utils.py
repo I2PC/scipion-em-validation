@@ -329,6 +329,7 @@ def saveIntermediateData(fnReportDir, protocol, isFile, fileOrParamKey, value, d
 
     return intermediateData
 
+
 def storeIntermediateData(fnReportDir, destPath):
     """
     Copy files described in intermediateData.json to the destination path
@@ -365,3 +366,33 @@ def storeIntermediateData(fnReportDir, destPath):
         subprocess.run(cmd, shell=True)
 
 
+def getFilename(path, withExt=False):
+    p = Path(path)
+    if withExt:
+        return p.name
+    else:
+        return p.stem
+
+
+def getScoresFromWS(db_id, method):
+    """
+    Check if there are a precoputed values from the source DB
+    db_id can be a EMDB ID: emd-12345 or PDB ID: 5abc
+    """
+    methods = ['mapq', 'daq']
+    if not method or method not in methods:
+        return
+    url_rest_api = "https://3dbionotes.cnb.csic.es/bws/api/emv/%s/%s/" % (db_id.lower(), method)
+    try:
+        json_data = None
+        print('- getScoresFromWS %s, %s, %s' % (db_id, method, url_rest_api))
+        with requests.get(url_rest_api, verify=False) as response:
+            if response.status_code == 200:
+                json_data = response.json()
+            else:
+                print('- Could not download file %s, %s' % (response.status_code, response.reason))
+    except Exception as ex:
+        print('Could not connect to',url_rest_api, ex)
+        print('- Proceede to calculate it localy')
+
+    return json_data
