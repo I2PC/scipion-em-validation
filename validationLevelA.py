@@ -133,11 +133,11 @@ have a Gaussian shape.\\\\
         # save to report
         results_msg = \
             """
-            \\Precomputed Q-scores obtained from the DB source thourgh 3DBionotes-WS:
+            \\Precalculated MapQ scores obtained from DB source via 3DBionotes-WS:
             \\\\
             \\url{https://3dbionotes.cnb.csic.es/bws/api/emv/%s/mapq/}
             \\\\
-            """ % emdb_Id.lower()
+            """ % emdb_Id.lower().replace('_','-')
         report.write(results_msg)
         has_precalculated_data = True
     else:
@@ -1135,7 +1135,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         # save to report
         results_msg = \
             """
-            \\Precomputed Q-scores obtained from the DB source thourgh 3DBionotes-WS:
+            \\Precalculated DAQ scores obtained from DB source via 3DBionotes-WS:
             \\\\
             \\url{https://3dbionotes.cnb.csic.es/bws/api/emv/%s/daq/}
             \\\\
