@@ -348,10 +348,10 @@ else:
             levels.append("W")
         if detectLevel(LEVELOa, argsPresent) and detectLevel(LEVELA, argsPresent):
             levels.append("O")
-        if detectLevel(LEVELOb, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO tiene sentido que chequee el nivel A cuando este nivel no depende del atomic model?? Mejor detectLevel(LEVEL0, ...)?
+        if detectLevel(LEVELOb, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO check if detecting level A makes sense to execute level Ob (level Ob does not depend on the atomic model). Better detectLevel(LEVEL0, ...)?
             if not "O" in levels:
                 levels.append("O")
-        if detectLevel(LEVELOc, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO tiene sentido que chequee el nivel A cuando este nivel no depende del atomic model?? Mejor detectLevel(LEVEL0, ...)?
+        if detectLevel(LEVELOc, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO check if detecting level A makes sense to execute level Oc (level Oc does not depend on the atomic model). Better detectLevel(LEVEL0, ...)?
             if not "O" in levels:
                 levels.append("O")
 
@@ -564,7 +564,7 @@ if "A" in levels and not protImportMapChecker.isFailed():
             pdbFile = '%s.pdb' % (structure_id)
 
             # Get tmp pdb  from imput atomic model to work on
-            fnPdb = os.path.join(project.getTmpPath(), pdbFile) #TODO: poner en otra carpet??
+            fnPdb = os.path.join(project.getTmpPath(), pdbFile) #TODO: save it in other folder
             h.writeAsPdb(fnPdb)
         except OutOfChainsError:
             wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Atomic model file not valid. Some programs cannot handle it due to size: Too many chains to represent in PDB format'})
@@ -610,7 +610,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
 
         if protImportXLMChecker.isFailed():
             wrongInputs['errors'].append({'param': 'xlm', 'value': XLM, 'cause': 'There is a problem reading the XML file'})
-    #TODO: por que se ejecutan todos los checkers si yo solo he especificado los argumentos del nivel O.a?? No deberia puesto que esta fallando el job porque ejecuta los chequers de postseudo sin tener suficientes parametros (no se especifican en el comando de lanzamiento). REVISAR!!!!!!!!!!
+    #TODO: Avoid launching checkers for the different subsections of level O when not specifying the correspoding parameters
     # 'sax'
     #TODO: Add 'if SAXS is not None:'
     protCreateMask = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
