@@ -390,7 +390,7 @@ def getScoresFromWS(db_id, method):
             if response.status_code == 200:
                 json_data = response.json()
             else:
-                print('- Could not download file %s, %s' % (response.status_code, response.reason))
+                print('- Could not download file: %s, %s' % (response.status_code, response.reason))
     except Exception as ex:
         print('Could not connect to',url_rest_api, ex)
         print('- Proceede to calculate it localy')

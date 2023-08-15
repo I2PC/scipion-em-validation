@@ -97,7 +97,7 @@ def importModel(project, report, label, protImportMap, fnPdb):
 
     return protImport
 
-def mapq(project, report, protImportMap, protAtom, resolution, FNMODEL):
+def mapq(project, report, protImportMap, protAtom, resolution):
     bblCitation = \
 """\\bibitem[Pintilie et~al., 2020]{Pintilie2020}
 Pintilie, G., Zhang, K., Su, Z., Li, S., Schmid, M.~F., and Chiu, W. (2020).
@@ -123,35 +123,27 @@ have a Gaussian shape.\\\\
 
     # check if we have the precomputed data
     # https://3dbionotes.cnb.csic.es/bws/api/emv/7xzz/mapq/
-    pdb_file = FNMODEL
-    # pdbdb_Id = protAtom.pdbId if protAtom.pdbId else getFilename(FNMODEL, withExt=False)
-    pdbdb_Id = getFilename(FNMODEL, withExt=False)
-    print("--- PDB-ID", pdbdb_Id)
+    emdb_Id = getFilename(str(protImportMap.filesPath), withExt=False)
+    pdbdb_Id = getFilename(str(protAtom.outputPdb._filename), withExt=False)
     print("Get MapQ scores from 3DBionotes-WS for %s" % pdbdb_Id)
     has_precalculated_data = False
     json_data = getScoresFromWS(pdbdb_Id, 'mapq')
 
     if json_data:
-        # "volume_map": "EMD-8606",
-        emdb_Id = json_data["entry"]["volume_map"]
         # save to report
         results_msg = \
             """
-            \\Precomputed Q-scores obtained from the DB source thourgh 3DBionotes-WS:
+            \\Precalculated MapQ scores obtained from DB source via 3DBionotes-WS:
             \\\\
             \\url{https://3dbionotes.cnb.csic.es/bws/api/emv/%s/mapq/}
             \\\\
-            """ % emdb_Id.lower()
+            """ % emdb_Id.lower().replace('_','-')
         report.write(results_msg)
         has_precalculated_data = True
     else:
-        print('Could not get data for', pdbdb_Id)
-        print('- Proceed to calculate it localy')
-
-    
-    # if there is not precalculated data or failed to retrieve it
-    if not has_precalculated_data:
-
+        # if there is not precalculated data or failed to retrieve it
+        print('- Could not get data for', pdbdb_Id)
+        print('-- Proceed to calculate it localy')
         Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
                                                 'ProtMapQ', doRaise=True)
         prot = project.newProtocol(Prot,
@@ -1131,39 +1123,76 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     report.write(msg)
 
     #TODO: API call
+    # check if we have the precomputed data
+    # https://3dbionotes.cnb.csic.es/bws/api/emv/7xzz/daq/
+    emdb_Id = getFilename(str(protImportMap.filesPath), withExt=False)
+    pdbdb_Id = getFilename(str(protAtom.outputPdb._filename), withExt=False)
+    print("Get DAQ scores from 3DBionotes-WS for %s" % pdbdb_Id)
+    has_precalculated_data = False
+    json_data = getScoresFromWS(pdbdb_Id, 'daq')
 
-    Prot = pwplugin.Domain.importFromPlugin('kiharalab.protocols',
-                                            'ProtDAQValidation', doRaise=True)
-    prot = project.newProtocol(Prot,
-                               objLabel="A.g DAQ",
-                               stride=3)
-    prot.inputVolume.set(protImportMap.outputVolume)
-    prot.inputAtomStruct.set(protAtom.outputPdb)
-    if useSlurm:
-        sendToSlurm(prot)
-    project.launchProtocol(prot)
-    #waitOutput(project, prot, 'outputAtomStruct')
-    waitUntilFinishes(project, prot)
+    if json_data:
+        # save to report
+        results_msg = \
+            """
+            \\Precalculated DAQ scores obtained from DB source via 3DBionotes-WS:
+            \\\\
+            \\url{https://3dbionotes.cnb.csic.es/bws/api/emv/%s/daq/}
+            \\\\
+            """ % emdb_Id.lower().replace('_','-')
+        report.write(results_msg)
+        has_precalculated_data = True
+    else:
+        # if there is not precalculated data or failed to retrieve it
+        print('- Could not get data for', pdbdb_Id)
+        print('-- Proceed to calculate it localy')
+        Prot = pwplugin.Domain.importFromPlugin('kiharalab.protocols',
+                                                'ProtDAQValidation', doRaise=True)
+        prot = project.newProtocol(Prot,
+                                objLabel="A.g DAQ",
+                                stride=3)
+        prot.inputVolume.set(protImportMap.outputVolume)
+        prot.inputAtomStruct.set(protAtom.outputPdb)
+        if useSlurm:
+            sendToSlurm(prot)
+        project.launchProtocol(prot)
+        #waitOutput(project, prot, 'outputAtomStruct')
+        waitUntilFinishes(project, prot)
 
-    if prot.isFailed():
-        report.writeSummary("A.f DAQ", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
-        return prot
+        if prot.isFailed():
+            report.writeSummary("A.f DAQ", secLabel, "{\\color{red} Could not be measured}")
+            report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+            return prot
+        
+        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQcif', os.path.join(project.getPath(), prot._getPath('outputStructure.cif')), 'cif file containing DAQ scores')
+        input_file = os.path.join(project.getPath(), prot._getPath('outputStructure.cif'))
+        # emd_26162_pdb_7txz_emv_daq.json
+        output_file = os.path.join(project.getPath(), prot._getExtraPath(), "%s_pdb_%s_emv_daq.json" % (emdb_Id.lower().replace('-','_'), pdbdb_Id.lower()))
+        json_file = convert_2_json(emdb_Id, pdbdb_Id, method='daq', input_file=input_file, output_file=output_file)
+        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'EMV json file', json_file, 'DAQ scores in EMV json format')
 
-    try:
-        # daqDic = prot.parseDAQScores(prot.outputAtomStruct.getFileName())
-        # daqValues = [float(x) for x in list(daqDic.values())]
-        from pwem.convert.atom_struct import AtomicStructHandler
-        cifDic = AtomicStructHandler().readLowLevel(prot._getPath('outputStructure.cif'))
+    # get histogram
+    try:            
         daqValues = []
-        for name, value in zip(cifDic['_scipion_attributes.name'],cifDic['_scipion_attributes.value']):
-            if name=="DAQ_score":
-                daqValues.append(float(value))
+        if has_precalculated_data and json_data:
+            chain_data = json_data["chains"]
+            for chain in chain_data:
+                ch_seqData = chain["seqData"]
+                for ch_residue in ch_seqData:
+                    daqValues.append(float(ch_residue["scoreValue"]))
+        else:
+            # daqDic = prot.parseDAQScores(prot.outputAtomStruct.getFileName())
+            # daqValues = [float(x) for x in list(daqDic.values())]
+            from pwem.convert.atom_struct import AtomicStructHandler
+            cifDic = AtomicStructHandler().readLowLevel(prot._getPath('outputStructure.cif'))
+            for name, value in zip(cifDic['_scipion_attributes.name'],cifDic['_scipion_attributes.value']):
+                if name=="DAQ_score":
+                    daqValues.append(float(value))
+
         fnDAQHist = os.path.join(report.getReportDir(),"daqHist.png")
         reportHistogram(daqValues,"DAQ", fnDAQHist)
         saveIntermediateData(report.getReportDir(), 'DAQ', False, 'DAQHistData', daqValues, ['', 'DAQ values to create histogram'])
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQHist', fnDAQHist, 'DAQ histogram')
-        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQcif', os.path.join(project.getPath(), prot._getPath('outputStructure.cif')), 'cif file containing DAQ scores')
 
         avgDaq = np.mean(daqValues)
         stdDaq = np.std(daqValues)
@@ -1184,13 +1213,16 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         saveIntermediateData(report.getReportDir(), 'DAQ', False, 'averageDAQ', avgDaq, ['', 'The mean of the DAQ values'])
         saveIntermediateData(report.getReportDir(), 'DAQ', False, 'stdDAQ', stdDaq, ['', 'The standard deviation'])
 
-        msg="The atomic model colored by DAQ can be seen in Fig. \\ref{fig:daq}.\n\n"
-        report.atomicModel("daqView", msg, "Atomic model colored by DAQ",
-                           os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "fig:daq", True)
-        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQView',
-                             [os.path.join(report.getReportDir(), 'daqView1.jpg'),
-                              os.path.join(report.getReportDir(), 'daqView2.jpg'),
-                              os.path.join(report.getReportDir(), 'daqView3.jpg')], 'DAQ views')
+        # get colored models
+        if not has_precalculated_data:
+            msg="The atomic model colored by DAQ can be seen in Fig. \\ref{fig:daq}.\n\n"
+            report.atomicModel("daqView", msg, "Atomic model colored by DAQ",
+                            os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "fig:daq", True)
+            saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQView',
+                                [os.path.join(report.getReportDir(), 'daqView1.jpg'),
+                                os.path.join(report.getReportDir(), 'daqView2.jpg'),
+                                os.path.join(report.getReportDir(), 'daqView3.jpg')], 'DAQ views')
+
     except:
         report.writeSummary("A.f DAQ", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -1212,7 +1244,9 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     if len(warnings)>0:
         report.writeAbstract("DAQ detects some mismatch between the map and its model (see Sec. \\ref{%s}). "%secLabel)
 
-    return prot
+    if not has_precalculated_data:
+        return prot
+    return
 
 def reportInput(project, report, FNMODEL, writeAtomicModelFailed=False):
 
@@ -1277,7 +1311,7 @@ def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFaile
             report.writeSection('Level A analysis')
             protConvert = convertPDB(project, report, protImportMap, protAtom)
             if protConvert is not None:
-                mapq(project, report, protImportMap, protAtom, resolution, FNMODEL)
+                mapq(project, report, protImportMap, protAtom, resolution)
                 fscq(project, report, protImportMap, protAtom, protConvert)
                 if doMultimodel:
                     multimodel(project, report, protImportMap, protAtom, resolution)
