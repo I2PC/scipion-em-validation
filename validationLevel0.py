@@ -265,7 +265,7 @@ depends on the CTF) on each side to make sure that the CTF can be appropriately 
     
     """%(cx,cy,cz,dcx,dcy,dcz)
                 
-        saveIntermediateData(report.fnReportDir, "massAnalysis", False, "centerOfMass", [cx,cy,cz], ['?', '(x,y,z)'])
+        saveIntermediateData(report.fnReportDir, "massAnalysis", False, "centerOfMass", [cx,cy,cz], ['\u212B', '(x,y,z)'])
         saveIntermediateData(report.fnReportDir, "massAnalysis", False, "decenteringCenterOfMass", [dcx,dcy,dcz], ['%', '(abs(Right-Left)/Size) %'])
 
         warnings=[]
@@ -456,9 +456,9 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulated percent
 
     reportPlot(g,w, 'Gray level', 'Voxel mass', fnFigMass, yscale="log")
 
-    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "Gray level", g.tolist(), ['?', ''])
-    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "Voxel mass", w.tolist(), ['?', ''])
-    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "Molecular mass", mm, ['kDa', ''])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "grayLevel", g.tolist(), ['', 'List of thresholds in table and plot'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "voxelMass", w.tolist(), ['voxels', 'List of voxel mass in table and plot'])
+    saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "molecularMass", mm, ['kDa', ''])
     saveIntermediateData(report.fnReportDir, "maskAnalysis", False, "Aminoacids", aa, ['', ''])
 
     saveIntermediateData(report.fnReportDir, "maskAnalysis", True, "massPlot", fnFigMass, 'Voxel mass as a function of the gray level')
@@ -552,8 +552,8 @@ the symmetry of the structure.
     
     saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "t-statistic", t, ['', "t-statistics after testing with a a one-sample Student's t-test the null hypothesis that the background mean is 0"])
     saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "p-value", p, ['', "p-value after testing with a a one-sample Student's t-test the null hypothesis that the background mean is 0"])
-    saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "mean", float(meanBg), ['?', 'The mean of the background'])
-    saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "standardDeviation", float(stdBg), ['?', 'The standard deviation (sigma) of the background'])
+    saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "mean", float(meanBg), ['', 'The mean of the background (gray level)'])
+    saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "standardDeviation", float(stdBg), ['', 'The standard deviation (sigma) of the background (gray level)'])
     saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "percentageVoxelsLarger5", fractionLarge*100, ['%', 'The percentage of background voxels whose absolute value is larger than 5 times the standard deviation'])
     saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "percentageGaussian", cdf5*100, ['%', 'The same percentage from a Gaussian'])
     saveIntermediateData(report.fnReportDir, "backgroundAnalysis", False, "percentageRatio", cdf5Ratio, ['', 'Ration between the two percentages'])
@@ -649,13 +649,9 @@ Fourier transform) of the experimental map, its fitted line, and the corrected m
 """%(secLabel, bfactor, a, b, fnPlot)
     report.write(msg)
 
-    saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "bfactor", bfactor, ['?', 'The estimated B-factor'])
-    saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "a", a, ['?', '?'])
-    saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "b", b, ['?', '?'])
-
-    # saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "guinierPlot_experimental", lnF.tolist(), ['?', '?'])
-    # saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "guinierPlot_fitted", fitted.tolist(), ['?', '?'])
-    # saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "guinierPlot_corrected", lnFc.tolist(), ['?', '?'])
+    saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "bfactor", bfactor, ['\u212B\u207B\u00B2', 'The estimated B-factor'])
+    saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "a", a, ['', ''])
+    saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "b", b, ['', ''])
 
     saveIntermediateData(report.getReportDir(), 'bFactorAnalysis', True, 'sharpenedMap.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedMap.mrc.guinier'), 'sharpenedMap.mrc.guinier file which contain the data to create the guinier plot')
     saveIntermediateData(report.getReportDir(), 'bFactorAnalysis', True, 'guinierPlot', fnPlot, 'guinier plot for B-Factor Analysis')
@@ -1038,8 +1034,8 @@ Fig. \\ref{fig:locOccupancyColor} shows some representative views of the local o
 """ % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist)
     report.write(toWrite)
 
-    saveIntermediateData(report.getReportDir(), 'locOccupancy', False, 'bfactorPercentiles', Bpercentiles.tolist(), ['?', 'List of local occupancy at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
-    saveIntermediateData(report.getReportDir(), 'locOccupancy', False, 'bfactorList', B.tolist(), ['?', 'List of local occupancy to create the histogram'])
+    saveIntermediateData(report.getReportDir(), 'locOccupancy', False, 'locOccupancyPercentiles', Bpercentiles.tolist(), ['', 'List of local occupancy at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
+    saveIntermediateData(report.getReportDir(), 'locOccupancy', False, 'locOccupancyList', B.tolist(), ['', 'List of local occupancy to create the histogram'])
 
     saveIntermediateData(report.getReportDir(), 'locOccupancy', True, 'locOccupancyHist', fnHist, 'locOccupancy histogram')
 

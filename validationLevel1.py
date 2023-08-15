@@ -238,8 +238,8 @@ behavior. If they have, this is typically due to the presence of a mask in real 
                         ['log10(SSNR)','0'], invertXLabels=True)
     
     saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'SSNRresolution', 1/fSSNR if fSSNR else fSSNR, ['\u212B', 'The resolution according to the SSNR. SSNRresolution = None means that SSNR does not cross the 1 threshold'])
-    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'f', f.tolist(), ['?', 'f data in SSNR plot'])
-    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'logRadialSSNR', logRadialSSNR.tolist(), ['?', 'logRadialSSNR data in SSNR plot'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'f', f.tolist(), ['\u212B\u207B\u00B9', 'frecuency data in SSNR plot'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'logRadialSSNR', logRadialSSNR.tolist(), ['', 'logRadialSSNR data in SSNR plot'])
     saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'SSNRPlot', fnSSNR, 'Plot that shows the SSNR and the 1 threshold')
 
     # Mean and uncertainty
@@ -391,7 +391,7 @@ estimated FSC and resolution.
     report.write(msg)
 
     saveIntermediateData(report.getReportDir(), 'FSCPermutation', False, 'FDRResolution', FDRResolution, ['\u212B', 'The resolution at 1% of FDR'])
-    saveIntermediateData(report.getReportDir(), 'FSCPermutation', False, 'Bfactor', Bfactor, ['?', 'Estimated B-factor'])
+    saveIntermediateData(report.getReportDir(), 'FSCPermutation', False, 'Bfactor', Bfactor, ['\u212B\u207B\u00B2', 'Estimated B-factor'])
 
     warnings=[]
     testWarnings = False
@@ -1219,9 +1219,9 @@ This method analyzes the FSC in different directions and evaluates its homogenei
     """ % (strFSC3D, fnDir, fnHist, fnPower)
         report.write(msg)
 
-        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionX', 1/fx if fx else fx, ['\u212B', 'The FSC 3D resolutions at a 0.143 threshold in X. FSC3DresolutionX = None means that FSC 3D does not cross the 0.143 threshold in X'])
-        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionY', 1/fy if fy else fy, ['\u212B', 'The FSC 3D resolutions at a 0.143 threshold in Y. FSC3DresolutionY = None means that FSC 3D does not cross the 0.143 threshold in Y'])
-        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionZ', 1/fz if fz else fz, ['\u212B', 'The FSC 3D resolutions at a 0.143 threshold in Z. FSC3DresolutionZ = None means that FSC 3D does not cross the 0.143 threshold in Z'])
+        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionX', 1/fx if fx else fx, ['?', 'The FSC 3D resolutions at a 0.143 threshold in X. FSC3DresolutionX = None means that FSC 3D does not cross the 0.143 threshold in X'])
+        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionY', 1/fy if fy else fy, ['?', 'The FSC 3D resolutions at a 0.143 threshold in Y. FSC3DresolutionY = None means that FSC 3D does not cross the 0.143 threshold in Y'])
+        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionZ', 1/fz if fz else fz, ['?', 'The FSC 3D resolutions at a 0.143 threshold in Z. FSC3DresolutionZ = None means that FSC 3D does not cross the 0.143 threshold in Z'])
         saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionGlobal', 1/fg if fg else fg, ['', 'The estimated global resolution according to the FSC 3D. FSC3DresolutionGlobal = None means that FSC 3D does not cross the 0.143 threshold'])
 
         saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'Plotsvol', fnDir, 'Plotsvol image file')
