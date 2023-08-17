@@ -270,6 +270,34 @@ percentiles are:
 
         saveIntermediateData(report.getReportDir(), 'MapQ', False, 'estimatedResolution', np.mean(resolutions), ['\u212B', 'The estimated resolution (mean) in Angstroms obtained from MapQ'])
 
+    else:
+        mapq_scores_by_chain = {}
+        chain_data = json_data["chains"]
+        for chain in chain_data:
+            ch_seqData = chain["seqData"]
+            for ch_residue in ch_seqData:
+                if chain["name"] not in mapq_scores_by_chain:
+                    mapq_scores_by_chain[chain["name"]] = [float(ch_residue["scoreValue"])]
+                else:
+                    mapq_scores_by_chain[chain["name"]].append(float(ch_residue["scoreValue"]))
+        msg = \
+            """ The following table shows the average Q-score and estimated resolution for each chain.
+            \\begin{center}
+                \\begin{tabular}{ccc}
+                    \\hline
+                    \\textbf{Chain} & \\textbf{Average Q-score [0-1]} \\\\
+                    \\hline
+            """
+        for chain in mapq_scores_by_chain:
+            msg += "      %s & %s \\\\ \n" % (chain, round(np.mean(mapq_scores_by_chain[chain]),2))
+        msg+=\
+        """        \\hline
+            \\end{tabular}
+        \\end{center}
+
+        """
+        report.write(msg)
+
     # Warnings
     warnings=[]
     testWarnings = False
