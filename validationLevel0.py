@@ -740,7 +740,8 @@ input map to the appearance of the atomic structures a local resolution label ca
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return
     
-    #TODO: launch convertion from deepres_resolution_origainlSize.vol to .pdb using EMV scripts and save it using saveIntermediateData
+    fnResOriginal = os.path.join(project.getPath(), prot._getExtraPath("deepRes_resolution_originalSize.vol"))
+    saveIntermediateData(report.getReportDir(), 'deepRes', True, 'deepRes_resolution_originalSize.vol', fnResOriginal, 'deepRes output volume map')
 
     Vres = xmipp3.Image(fnRes).getData()
     R = Vres[Vres >0]
@@ -868,7 +869,8 @@ local magnitude and phase term using the spiral transform.\\\\
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
     
-    #TODO: launch convertion from bmap.mrc to .pdb using EMV scripts and save it using saveIntermediateData
+    fnBfactorAbs = os.path.join(project.getPath(), fnBfactor)
+    saveIntermediateData(report.getReportDir(), 'locBfactor', True, 'bmap.mrc', fnBfactorAbs, 'Local b factor output volume map')
 
 
     V = xmipp3.Image(fnBfactor+":mrc").getData()
@@ -989,7 +991,8 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
     
-    #TODO: launch convertion from bmap.mrc to .pdb using EMV scripts and save it using saveIntermediateData
+    fnOccupancyAbs = os.path.join(project.getPath(), fnOccupancy)
+    saveIntermediateData(report.getReportDir(), 'locOccupancy', True, 'omap.mrc', fnOccupancyAbs, 'Local occupancy output volume map')
 
     V = xmipp3.Image(fnOccupancy+":mrc").getData()
     M = xmipp3.Image(mask.getFileName()).getData()

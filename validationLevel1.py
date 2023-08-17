@@ -452,7 +452,8 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
-    #TODO: launch convertion from resolutionMap.map to .pdb using EMV scripts and save it using saveIntermediateData
+    fnBlocres = os.path.join(project.getPath(), prot._getExtraPath("resolutionMap.map"))
+    saveIntermediateData(report.getReportDir(), 'blocRes', True, 'resolutionMap.map', fnBlocres, 'Blocres output volume map')
 
     VblocRes = xmipp3.Image(prot._getExtraPath("resolutionMap.map:mrc")).getData()
     R = VblocRes[VblocRes>0]
@@ -586,7 +587,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return
     
-    #TODO: launch convertion from half1_ori_resmap.mrc to .pdb using EMV scripts (Erney mentioned that EMV scripts should be created for resmap first) and save it using saveIntermediateData
+    saveIntermediateData(report.getReportDir(), 'resMap', True, 'half1_ori_resmap.mrc', fnResMap, 'Resmap output volume map')
 
     Vres = xmipp3.Image(fnResMap+":mrc").getData()
     idx = Vres<100
@@ -725,7 +726,8 @@ if its energy is signficantly above the level of noise.\\\\
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
-    #TODO: launch convertion from monoresResolucionMap.mrc to .pdb using EMV scripts and save it using saveIntermediateData
+    fnMonoRes = os.path.join(project.getPath(), prot._getExtraPath("monoresResolutionMap.mrc"))
+    saveIntermediateData(report.getReportDir(), 'monoRes', True, 'monoresResolutionMap.mrc', fnMonoRes, 'Monores output volume map')
 
     md = xmipp3.MetaData()
     # md.read(prot._getExtraPath("hist.xmd"))
