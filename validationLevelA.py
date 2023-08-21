@@ -44,7 +44,7 @@ from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
 import configparser
 
-from tools.utils import saveIntermediateData, getFilename, getScoresFromWS
+from tools.utils import saveIntermediateData, getFilename, getScoresFromWS, getFileFromWS
 from tools.emv_utils import convert_2_json
 
 config = configparser.ConfigParser()
@@ -245,7 +245,6 @@ percentiles are:
         state = 0
         resolutions = []
         for line in fh.readlines():
-            print(line)
             if state==0 and line.startswith('Chain'):
                 state=1
             elif state==1:
@@ -1242,14 +1241,19 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         saveIntermediateData(report.getReportDir(), 'DAQ', False, 'stdDAQ', stdDaq, ['', 'The standard deviation'])
 
         # get colored models
-        if not has_precalculated_data:
-            msg="The atomic model colored by DAQ can be seen in Fig. \\ref{fig:daq}.\n\n"
-            report.atomicModel("daqView", msg, "Atomic model colored by DAQ",
-                            os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "fig:daq", True)
-            saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQView',
-                                [os.path.join(report.getReportDir(), 'daqView1.jpg'),
-                                os.path.join(report.getReportDir(), 'daqView2.jpg'),
-                                os.path.join(report.getReportDir(), 'daqView3.jpg')], 'DAQ views')
+        msg = "The atomic model colored by DAQ can be seen in Fig. \\ref{fig:daq}.\n\n"
+        if has_precalculated_data:
+            pdbFilename = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_fromWS.pdb')
+            pdbFromWS = open(pdbFilename, 'w')
+            pdbFromWS.write(getFileFromWS(pdbdb_Id, 'daq'))
+            pdbFromWS.close()
+        report.atomicModel("daqView", msg, "Atomic model colored by DAQ",
+                           pdbFilename if has_precalculated_data else os.path.join(project.getPath(), prot.outputAtomStruct.getFileName()), "fig:daq", True)
+
+        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQView',
+                            [os.path.join(report.getReportDir(), 'daqView1.jpg'),
+                            os.path.join(report.getReportDir(), 'daqView2.jpg'),
+                            os.path.join(report.getReportDir(), 'daqView3.jpg')], 'DAQ views')
 
     except:
         report.writeSummary("A.f DAQ", secLabel, "{\\color{red} Could not be measured}")

@@ -393,6 +393,29 @@ def getScoresFromWS(db_id, method):
                 print('- Could not download file: %s, %s' % (response.status_code, response.reason))
     except Exception as ex:
         print('Could not connect to',url_rest_api, ex)
-        print('- Proceede to calculate it localy')
+        print('- Proceed to calculate it localy')
 
     return json_data
+
+
+def getFileFromWS(db_id, method):
+    """
+    Check if there are is raw data file from the source DB
+    db_id can be a EMDB ID: emd-12345 or PDB ID: 5abc
+    """
+    methods = ['mapq', 'daq']
+    if not method or method not in methods:
+        return
+    url_rest_api = "https://3dbionotes.cnb.csic.es/bws/api/emv/%s/%s/%s/" % (db_id.lower(), method, 'mmcif' if method == 'mapq' else 'pdb')
+    try:
+        raw_data = None
+        print('- getFileFromWS %s, %s, %s' % (db_id, method, url_rest_api))
+        with requests.get(url_rest_api, verify=False) as response:
+            if response.status_code == 200:
+                raw_data = response.text
+            else:
+                print('- Could not download file: %s, %s' % (response.status_code, response.reason))
+    except Exception as ex:
+        print('Could not connect to',url_rest_api, ex)
+
+    return raw_data
