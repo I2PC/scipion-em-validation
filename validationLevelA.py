@@ -36,6 +36,7 @@ from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPath, copyFile
 from pwem.convert.atom_struct import AtomicStructHandler
+from pwem.viewers.viewer_localres import replaceOcuppancyWithAttribute, makeResidueValuesDic
 import pwem.convert.atom_struct
 import xmipp3
 
@@ -528,8 +529,6 @@ the different local resolutions or local heterogeneity.\\\\
 
     fnCif = fnCifs[0]
 
-    from pwem.viewers.viewer_localres import replaceOcuppancyWithAttribute, makeResidueValuesDic
-    from pwem.convert.atom_struct import AtomicStructHandler
     fnCifRMSD = os.path.join(report.getReportDir(),"atomicModelRMSD.cif")
     replaceOcuppancyWithAttribute(fnCif, "perResidueRMSD", fnCifRMSD)
 
@@ -1247,8 +1246,12 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
             pdbFromWS = open(pdbFilename, 'w')
             pdbFromWS.write(getFileFromWS(pdbdb_Id, 'daq'))
             pdbFromWS.close()
-        report.atomicModel("daqView", msg, "Atomic model colored by DAQ",
-                           pdbFilename if has_precalculated_data else os.path.join(project.getPath(), prot.outputAtomStruct.getFileName()), "fig:daq", True)
+            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", pdbFilename, "fig:daq", bfactor=True, occupancy=False)
+
+        else:
+            fnCifDAQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_DAQ_score.cif"))
+            replaceOcuppancyWithAttribute(os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "DAQ_score", fnCifDAQ)
+            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", fnCifDAQ, "fig:daq", bfactor=False, occupancy=True, rainbow=False)
 
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQView',
                             [os.path.join(report.getReportDir(), 'daqView1.jpg'),
