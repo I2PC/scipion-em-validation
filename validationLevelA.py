@@ -98,6 +98,8 @@ def importModel(project, report, label, protImportMap, fnPdb):
 
     return protImport
 
+
+
 def mapq(project, report, protImportMap, protAtom, resolution):
     bblCitation = \
 """\\bibitem[Pintilie et~al., 2020]{Pintilie2020}
@@ -1242,16 +1244,16 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         # get colored models
         msg = "The atomic model colored by DAQ can be seen in Fig. \\ref{fig:daq}.\n\n"
         if has_precalculated_data:
-            pdbFilename = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_fromWS.pdb')
+            pdbFilename = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_DAQFromWS.pdb')
             pdbFromWS = open(pdbFilename, 'w')
             pdbFromWS.write(getFileFromWS(pdbdb_Id, 'daq'))
             pdbFromWS.close()
-            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", pdbFilename, "fig:daq", bfactor=True, occupancy=False)
+            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", pdbFilename, "fig:daq", bfactor=True, occupancy=False, legendMin=min(daqValues), legendMax=max(daqValues))
 
         else:
             fnCifDAQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_DAQ_score.cif"))
             replaceOcuppancyWithAttribute(os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "DAQ_score", fnCifDAQ)
-            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", fnCifDAQ, "fig:daq", bfactor=False, occupancy=True, rainbow=False)
+            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", fnCifDAQ, "fig:daq", bfactor=False, occupancy=True, rainbow=False, legendMin=min(daqValues), legendMax=max(daqValues))
 
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQView',
                             [os.path.join(report.getReportDir(), 'daqView1.jpg'),
