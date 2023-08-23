@@ -31,6 +31,7 @@ import numpy as np
 import os
 import pickle
 import subprocess
+import re
 
 from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
@@ -229,11 +230,11 @@ percentiles are:
 \\begin{figure}[H]
     \centering
     \includegraphics[width=10cm]{%s}
-    \\caption{Histogram of the Q-score.}
+    \\caption{Histogram of the %s Q-score.}
     \\label{fig:histMapQ}
 \\end{figure}
 
-""" % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist)
+""" % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist, 'per-atom' if not has_precalculated_data else 'per-residue')
     report.write(toWrite)
 
     if not has_precalculated_data:
@@ -325,6 +326,57 @@ else:
 
     saveIntermediateData(report.getReportDir(), 'MapQ', False, 'estimatedResolution', np.mean(resolutions), ['\u212B', 'The estimated resolution (mean) in Angstroms obtained from MapQ'])
 
+    # get colored models
+    msg = "The atomic model colored by MapQ can be seen in Fig. \\ref{fig:mapq}.\n\n"
+    if not has_precalculated_data:
+        fnCifMapQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_MapQ_score.cif"))
+        replaceOcuppancyWithAttribute(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id)), "MapQ_Score",
+                                      fnCifMapQ)
+        report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", fnCifMapQ, "fig:mapq", bfactor=False,
+                           occupancy=True, rainbow=False, legendMin=round(min(mapq_scores),2), legendMax=round(max(mapq_scores),2))
+
+    else:
+        cifFilename = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS.cif')
+        pdbFromWS = open(cifFilename, 'w')
+        pdbFromWS.write(getFileFromWS(pdbdb_Id, 'mapq'))
+        pdbFromWS.close()
+
+        # we need to manipulate this file a bit
+        # get mean qscore by residue
+        qscores = {}
+        with open(cifFilename) as cif:
+            lines = cif.readlines()
+            for line in lines:
+                if 'ATOM' in line:
+                    line = re.sub(' +', ' ', line)
+                    values = line.split(' ')
+                    if (values[-4], values[-6]) not in qscores:
+                        qscores[(values[-4], values[-6])] = [float(values[-8])]
+                    else:
+                        qscores[(values[-4], values[-6])].append(float(values[-8]))
+        meanQscores = {}
+        for residue in qscores:
+            meanQscores[residue] = round(np.mean(qscores[residue]), 2)
+
+        # add this values to the original cif
+        with open(cifFilename, 'a') as cif:
+            cif.write('loop_\n_scipion_attributes.name\n_scipion_attributes.recipient\n_scipion_attributes.specifier\n_scipion_attributes.value\n')
+            for chain, pos in meanQscores:
+                cif.write('MapQ_Score residues %s:%s %s\n' % (chain, pos, meanQscores[(chain, pos)]))
+            cif.write('#')
+
+        # set q-score value in occupancy column
+        fnCifMapQ = os.path.join(project.getPath(), project.getTmpPath("chimeraAttribute_MapQ_score.cif"))
+        replaceOcuppancyWithAttribute(cifFilename, 'MapQ_Score', fnCifMapQ)
+
+        report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", fnCifMapQ, "fig:mapq", bfactor=False,
+                           occupancy=True, rainbow=False, legendMin=round(min(mapq_scores),2), legendMax=round(max(mapq_scores),2))
+
+    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'MapQView',
+                         [os.path.join(report.getReportDir(), 'mapqView1.jpg'),
+                          os.path.join(report.getReportDir(), 'mapqView1.jpg'),
+                          os.path.join(report.getReportDir(), 'mapqView1.jpg')], 'MapQ views')
+
     # Warnings
     warnings=[]
     testWarnings = False
@@ -378,7 +430,8 @@ def convertPDB(project, report, protImportMap, protAtom):
     volumeData = xmipp3.Image(protConvert.outputVolume.getFileName()).getData()
     if not np.sum(volumeData) > 0:
         report.write(msg)
-        report.write("{\\color{red} \\textbf{ERROR: The volume is empty.}}\\\\ \n")
+        report.write("{\\color{red} \\textbf{ERROR: The volume is empty.}}\\\\ \
+    warnings=[]n")
         return None
     return protConvert
 
@@ -1257,10 +1310,10 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     \\begin{figure}[H]
         \centering
         \includegraphics[width=10cm]{%s}
-        \\caption{Histogram of the DAQ values.}
+        \\caption{Histogram of the %s DAQ values.}
         \\label{fig:daqHist}
     \\end{figure}
-    """%(avgDaq, stdDaq, fnDAQHist)
+    """%(avgDaq, stdDaq, fnDAQHist, 'per-atom' if not has_precalculated_data else 'per-residue')
         report.write(msg)
 
         saveIntermediateData(report.getReportDir(), 'DAQ', False, 'averageDAQ', avgDaq, ['', 'The mean of the DAQ values'])
@@ -1273,12 +1326,12 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
             pdbFromWS = open(pdbFilename, 'w')
             pdbFromWS.write(getFileFromWS(pdbdb_Id, 'daq'))
             pdbFromWS.close()
-            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", pdbFilename, "fig:daq", bfactor=True, occupancy=False, legendMin=min(daqValues), legendMax=max(daqValues))
+            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", pdbFilename, "fig:daq", bfactor=True, occupancy=False, legendMin=round(min(daqValues),2), legendMax=round(max(daqValues),2))
 
         else:
             fnCifDAQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_DAQ_score.cif"))
             replaceOcuppancyWithAttribute(os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "DAQ_score", fnCifDAQ)
-            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", fnCifDAQ, "fig:daq", bfactor=False, occupancy=True, rainbow=False, legendMin=min(daqValues), legendMax=max(daqValues))
+            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", fnCifDAQ, "fig:daq", bfactor=False, occupancy=True, rainbow=False, legendMin=round(min(daqValues),2), legendMax=round(max(daqValues),2))
 
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQView',
                             [os.path.join(report.getReportDir(), 'daqView1.jpg'),
