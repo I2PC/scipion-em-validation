@@ -51,6 +51,9 @@ from tools.emv_utils import convert_2_json
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+chimerProgram = config['MAPQ'].get('CHIMERA_PROGRAM_PATH')
+mapq_path = config['MAPQ'].get('MAPQ_PATH')
+validation_tools_path = config['EM-VALIDATION'].get('VALIDATION_TOOLS_PATH')
 
 
 def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
@@ -235,70 +238,92 @@ percentiles are:
 
     if not has_precalculated_data:
         files = glob.glob(prot._getExtraPath("*All.txt"))
-        fh = open(files[0])
-        msg=\
-    """ The following table shows the average Q-score and estimated resolution for each chain.
-    \\begin{center}
-        \\begin{tabular}{ccc}
-            \\hline
-            \\textbf{Chain} & \\textbf{Average Q-score [0-1]} & \\textbf{Estimated Resol. (\\AA)} \\\\
-            \\hline
-    """
-
-        state = 0
-        resolutions = []
-        for line in fh.readlines():
-            if state==0 and line.startswith('Chain'):
-                state=1
-            elif state==1:
-                tokens = line.split()
-                if len(tokens)>0:
-                    res = float(tokens[-1])
-                    msg+="      %s & %s & %4.1f \\\\ \n"%(tokens[0],tokens[3],res)
-                    resolutions.append(res)
-                else:
-                    state=2
-                    break
-        msg+=\
-        """        \\hline
-            \\end{tabular}
-        \\end{center}
-
-        """
-        report.write(msg)
-        fh.close()
-
-        report.addResolutionEstimate(np.mean(resolutions))
-
-        saveIntermediateData(report.getReportDir(), 'MapQ', False, 'estimatedResolution', np.mean(resolutions), ['\u212B', 'The estimated resolution (mean) in Angstroms obtained from MapQ'])
-
     else:
-        mapq_scores_by_chain = {}
-        chain_data = json_data["chains"]
-        for chain in chain_data:
-            ch_seqData = chain["seqData"]
-            for ch_residue in ch_seqData:
-                if chain["name"] not in mapq_scores_by_chain:
-                    mapq_scores_by_chain[chain["name"]] = [float(ch_residue["scoreValue"])]
-                else:
-                    mapq_scores_by_chain[chain["name"]].append(float(ch_residue["scoreValue"]))
-        msg = \
-            """ The following table shows the average Q-score and estimated resolution for each chain.
-            \\begin{center}
-                \\begin{tabular}{ccc}
-                    \\hline
-                    \\textbf{Chain} & \\textbf{Average Q-score [0-1]} \\\\
-                    \\hline
-            """
-        for chain in mapq_scores_by_chain:
-            msg += "      %s & %s \\\\ \n" % (chain, round(np.mean(mapq_scores_by_chain[chain]),2))
-        msg+=\
-        """        \\hline
-            \\end{tabular}
-        \\end{center}
+        cifFilename = os.path.join(report.getReportDir(), pdbdb_Id + '_MAPQFromWS.cif')
+        cifFromWS = open(cifFilename, 'w')
+        cifFromWS.write(getFileFromWS(pdbdb_Id, 'mapq'))
+        cifFromWS.close()
 
-        """
-        report.write(msg)
+        QStatsScript =\
+"""
+import sys
+import chimera
+
+from chimera import Molecule
+
+mapq_path = "%s"
+sys.path.append(mapq_path)
+
+validation_tools_path = "%s"
+sys.path.append(validation_tools_path)
+
+import mmcif
+import qscores
+from mapq_utils import SaveQStats
+
+print('\\nCreating MapQ Statistics...\\n')
+mol = mmcif.ReadMol("%s")
+
+chimera.openModels.add([mol])
+
+mols = chimera.openModels.list(modelTypes=[Molecule])
+if len(mols) == 0:
+    print(" - no molecules loaded")
+else:
+    print('\\nMolecules loaded correctly')
+    for mi, mol in enumerate(mols):
+        qscores.SetBBAts(mol)
+        SaveQStats(mol, "All", 0.6, %d)
+
+"""%(mapq_path, validation_tools_path, cifFilename, resolution)        
+        fnQStatsScript = os.path.join(report.getReportDir(),"mapq_stats.py")
+        fhQStatsScript = open(fnQStatsScript,"w")
+        fhQStatsScript.write(QStatsScript)
+        fhQStatsScript.close()
+
+        args = "--nogui --script %s "%(fnQStatsScript)
+        print("Running: %s %s" % (chimerProgram, args))
+        p = subprocess.Popen('%s %s' % (chimerProgram, args), shell=True, stderr=subprocess.PIPE)
+        p.wait()
+
+        files = glob.glob(os.path.join(report.getReportDir(), "*All.txt"))
+
+    fh = open(files[0])
+    msg=\
+""" The following table shows the average Q-score and estimated resolution for each chain.
+\\begin{center}
+    \\begin{tabular}{ccc}
+        \\hline
+        \\textbf{Chain} & \\textbf{Average Q-score [0-1]} & \\textbf{Estimated Resol. (\\AA)} \\\\
+        \\hline
+"""
+
+    state = 0
+    resolutions = []
+    for line in fh.readlines():
+        if state==0 and line.startswith('Chain'):
+            state=1
+        elif state==1:
+            tokens = line.split()
+            if len(tokens)>0:
+                res = float(tokens[-1])
+                msg+="      %s & %s & %4.1f \\\\ \n"%(tokens[0],tokens[3],res)
+                resolutions.append(res)
+            else:
+                state=2
+                break
+    msg+=\
+    """        \\hline
+        \\end{tabular}
+    \\end{center}
+
+    """
+    report.write(msg)
+    fh.close()
+
+    report.addResolutionEstimate(np.mean(resolutions))
+
+    saveIntermediateData(report.getReportDir(), 'MapQ', False, 'estimatedResolution', np.mean(resolutions), ['\u212B', 'The estimated resolution (mean) in Angstroms obtained from MapQ'])
 
     # Warnings
     warnings=[]

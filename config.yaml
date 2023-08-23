@@ -11,3 +11,10 @@ MAX_MEM_TO_USE = 60000
 STORE_INTERMEDIATE_DATA = True
 CLEAN_ORIGINAL_DATA = False
 DEST_PATH = /data/ScipionUserDataToRetrieve/projects
+
+[MAPQ]
+MAPQ_PATH = /home/vrs/scipion3/software/em/chimera-1.16/mapq/
+CHIMERA_PROGRAM_PATH = /home/vrs/scipion3/software/em/chimera-1.16/chimera/bin/chimera
+
+[EM-VALIDATION]
+VALIDATION_TOOLS_PATH = /home/vrs/scipion3/scipion-em-validation/tools/
