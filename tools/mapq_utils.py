@@ -5,7 +5,8 @@ import qscores
 
 def SaveQStats(mol, chainId, sigma, RES=3.0):
     '''
-    
+    Adapted from SaveQStats() from the MapQ plugin version 1.8.2. 
+    https://github.com/gregdp/mapq/
     '''
 
     if chainId is None:
