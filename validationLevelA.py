@@ -260,10 +260,10 @@ sys.path.append(validation_tools_path)
 
 import mmcif
 import qscores
-from mapq_utils import SaveQStats
+from mapq_utils import SaveQStats, ReadMol
 
 print('\\nCreating MapQ Statistics...\\n')
-mol = mmcif.ReadMol("%s")
+mol = ReadMol("%s")
 
 chimera.openModels.add([mol])
 

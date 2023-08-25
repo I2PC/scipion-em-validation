@@ -1,6 +1,121 @@
 import os
 import numpy
 import qscores
+import mmcif
+import chimera
+from chimera.resCode import protein3to1, nucleic3to1
+
+def ReadMol(fpath, log=False):
+
+    from random import random
+
+    cif, loops = mmcif.ReadCif(fpath, log)
+
+    # descriptions by chain id:
+    descrByEntityId = mmcif.GetEntityDescr(cif, loops)
+
+    try:
+        atoms = loops['_atom_site']['data']
+        print(" - {} atom records".format(len(atoms)))
+    except:
+        print(" - no atoms in cif?")
+        return None
+
+    labels = loops['_atom_site']['labels']
+    if 0:
+        print("Labels:")
+        for l in labels:
+            print(" : {}".format(l))
+
+    import time
+    start = time.time()
+
+    rmap = {}
+
+    nmol = chimera.Molecule()
+    from os import path
+    # nmol.name = path.splitext(path.split(fpath)[1])[0]
+    nmol.name = path.split(fpath)[1]
+    nmol.openedAs = [fpath, []]
+    nmol.cif = cif
+    nmol.cifLoops = loops
+
+    nmol.chainColors = {}
+    nmol.chainDescr = {}
+
+    numQ = 0
+    first = True
+    for at in atoms:
+        mp = at['asMap']
+
+        if log and first:
+            for li, label in enumerate(labels):
+                print("   {} : {} : {}".format(li+1, label, mp[label]))
+
+        first = False
+
+        atType = mp['type_symbol']
+        atName = mp['label_atom_id']
+        rtype = mp['label_comp_id']
+        chainId = mp['auth_asym_id']
+        chainEId = mp['label_entity_id']
+        px = mp['Cartn_x']
+        py = mp['Cartn_y']
+        pz = mp['Cartn_z']
+        occ = mp['occupancy']
+        bfactor = mp['B_iso_or_equiv']
+        altLoc = mp['label_alt_id']
+        if altLoc == ".":
+            altLoc = ''
+
+        if chainEId in descrByEntityId:
+            nmol.chainDescr[chainId] = descrByEntityId[chainEId]
+
+        resId = mmcif.ResId(mp)
+        if resId is None:
+            continue
+
+        ris = "{}{}".format(chainId, resId)
+        res = None
+        if ris not in rmap:
+            res = nmol.newResidue(rtype, chimera.MolResId(chainId, resId))
+            rmap[ris] = res
+        else:
+            res = rmap[ris]
+
+        clr = None
+        if chainId not in nmol.chainColors:
+            clr = chimera.MaterialColor(random(), random(), random(), 1.0)
+            nmol.chainColors[chainId] = clr
+            if 0 and log:
+                print(" - chain {}".format(chainId))
+        else:
+            clr = nmol.chainColors[chainId]
+
+        nat = nmol.newAtom(atName, chimera.Element(atType))
+
+        drawRib = rtype in protein3to1 or rtype in nucleic3to1
+
+        # aMap[at] = nat
+        res.addAtom(nat)
+        nat.setCoord(chimera.Point(float(px), float(py), float(pz)))
+        nat.altLoc = altLoc
+        nat.occupancy = float(occ)
+        nat.bfactor = float(bfactor)
+
+        if 'Q-score' in mp:
+            try:
+                Q = float(mp['Q-score'])
+                nat.Q = Q
+                numQ += 1
+            except:
+                # print(f" - q score is {mp['Q-score']}")
+                pass
+
+    end = time.time()
+    print(" - created {} atoms, {:.1f}s, {} q-scores".format(len(nmol.atoms), end-start, numQ))
+
+    return nmol
 
 
 def SaveQStats(mol, chainId, sigma, RES=3.0):
@@ -59,7 +174,7 @@ def SaveQStats(mol, chainId, sigma, RES=3.0):
                     tp = "Protein"
                 elif r.isNA:
                     tp = "Nucleic"
-                elif r.type.upper() in chargedIons:
+                elif r.type.upper() in qscores.chargedIons:
                     tp = "Ion"
                 elif r.type.upper() == "HOH":
                     tp = "Water"
