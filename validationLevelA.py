@@ -52,7 +52,7 @@ from tools.emv_utils import convert_2_json
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
-chimerProgram = config['MAPQ'].get('CHIMERA_PROGRAM_PATH')
+chimeraProgram = config['MAPQ'].get('CHIMERA_PROGRAM_PATH')
 mapq_path = config['MAPQ'].get('MAPQ_PATH')
 validation_tools_path = config['EM-VALIDATION'].get('VALIDATION_TOOLS_PATH')
 
@@ -134,9 +134,9 @@ have a Gaussian shape.\\\\
     pdbdb_Id = getFilename(str(protAtom.outputPdb._filename), withExt=False)
     print("Get MapQ scores from 3DBionotes-WS for %s" % pdbdb_Id)
     has_precalculated_data = False
-    json_data = getScoresFromWS(pdbdb_Id, 'mapq')
+    cif_data = getFileFromWS(pdbdb_Id, 'mapq')
 
-    if json_data:
+    if cif_data:
         # save to report
         results_msg = \
             """
@@ -181,12 +181,18 @@ have a Gaussian shape.\\\\
 
     # get histogram
     mapq_scores = []
-    if has_precalculated_data and json_data:
-        chain_data = json_data["chains"]
-        for chain in chain_data:
-            ch_seqData = chain["seqData"]
-            for ch_residue in ch_seqData:
-                mapq_scores.append(float(ch_residue["scoreValue"]))
+    if has_precalculated_data and cif_data:
+        cifWSFilename = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS.cif')
+        pdbFromWS = open(cifWSFilename, 'w')
+        pdbFromWS.write(cif_data)
+        pdbFromWS.close()
+        with open(cifWSFilename) as cif:
+            lines = cif.readlines()
+            for line in lines:
+                if 'ATOM' in line:
+                    line = re.sub(' +', ' ', line)
+                    values = line.split(' ')
+                    mapq_scores.append(float(values[15]))
     else:
         ASH = AtomicStructHandler()
 
@@ -196,8 +202,6 @@ have a Gaussian shape.\\\\
             attributes = fields["_scipion_attributes.name"]
             values = fields["_scipion_attributes.value"]
             mapq_scores += [float(value) for attribute, value in zip(attributes, values) if attribute == "MapQ_Score"]
-
-    
 
     fnHist = os.path.join(report.getReportDir(),"mapqHist.png")
 
@@ -212,7 +216,7 @@ percentiles are:
 \\begin{center}
     \\begin{tabular}{|c|c|}
         \\hline
-        \\textbf{Percentile} & \\textbf{MapQ score [0-1]} \\\\
+        \\textbf{Percentile} & \\textbf{MapQ score [-1,1]} \\\\
         \\hline
         2.5\\%% & %5.2f \\\\
         \\hline
@@ -230,11 +234,11 @@ percentiles are:
 \\begin{figure}[H]
     \centering
     \includegraphics[width=10cm]{%s}
-    \\caption{Histogram of the %s Q-score.}
+    \\caption{Histogram of the per-atom Q-score.}
     \\label{fig:histMapQ}
 \\end{figure}
 
-""" % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist, 'per-atom' if not has_precalculated_data else 'per-residue')
+""" % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist)
     report.write(toWrite)
 
     if not has_precalculated_data:
@@ -283,8 +287,8 @@ else:
         fhQStatsScript.close()
 
         args = "--nogui --script %s "%(fnQStatsScript)
-        print("Running: %s %s" % (chimerProgram, args))
-        p = subprocess.Popen('%s %s' % (chimerProgram, args), shell=True, stderr=subprocess.PIPE)
+        print("Running: %s %s" % (chimeraProgram, args))
+        p = subprocess.Popen('%s %s' % (chimeraProgram, args), shell=True, stderr=subprocess.PIPE)
         p.wait()
 
         files = glob.glob(os.path.join(report.getReportDir(), "*All.txt"))
@@ -295,7 +299,7 @@ else:
 \\begin{center}
     \\begin{tabular}{ccc}
         \\hline
-        \\textbf{Chain} & \\textbf{Average Q-score [0-1]} & \\textbf{Estimated Resol. (\\AA)} \\\\
+        \\textbf{Chain} & \\textbf{Average Q-score [-1,-1]} & \\textbf{Estimated Resol. (\\AA)} \\\\
         \\hline
 """
 
@@ -330,47 +334,37 @@ else:
     msg = "The atomic model colored by MapQ can be seen in Fig. \\ref{fig:mapq}.\n\n"
     if not has_precalculated_data:
         fnCifMapQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_MapQ_score.cif"))
+        # make sure the output mapq file is correct
+        with open(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id))) as cif:
+            cifData = cif.read()
+        cifData = cifData.replace('residues', 'atoms')
+        with open(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id)), 'w') as cif:
+            cif.write(cifData)
+
         replaceOcuppancyWithAttribute(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id)), "MapQ_Score",
                                       fnCifMapQ)
         report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", fnCifMapQ, "fig:mapq", bfactor=False,
-                           occupancy=True, rainbow=False, legendMin=round(min(mapq_scores),2), legendMax=round(max(mapq_scores),2))
+                           occupancy=True, rainbow=False, legendMin=-1, legendMax=1)
 
     else:
-        cifFilename = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS.cif')
-        pdbFromWS = open(cifFilename, 'w')
-        pdbFromWS.write(getFileFromWS(pdbdb_Id, 'mapq'))
-        pdbFromWS.close()
-
-        # we need to manipulate this file a bit
-        # get mean qscore by residue
+        # create .defattr file
         qscores = {}
-        with open(cifFilename) as cif:
+        with open(cifWSFilename) as cif:
             lines = cif.readlines()
             for line in lines:
                 if 'ATOM' in line:
                     line = re.sub(' +', ' ', line)
                     values = line.split(' ')
-                    if (values[-4], values[-6]) not in qscores:
-                        qscores[(values[-4], values[-6])] = [float(values[-8])]
-                    else:
-                        qscores[(values[-4], values[-6])].append(float(values[-8]))
-        meanQscores = {}
-        for residue in qscores:
-            meanQscores[residue] = round(np.mean(qscores[residue]), 2)
+                    qscores[values[1]] = values[15]
 
-        # add this values to the original cif
-        with open(cifFilename, 'a') as cif:
-            cif.write('loop_\n_scipion_attributes.name\n_scipion_attributes.recipient\n_scipion_attributes.specifier\n_scipion_attributes.value\n')
-            for chain, pos in meanQscores:
-                cif.write('MapQ_Score residues %s:%s %s\n' % (chain, pos, meanQscores[(chain, pos)]))
-            cif.write('#')
+        attributeFile = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS.defattr')
+        with open(attributeFile, 'a') as af:
+            af.write('attribute: qscores\nrecipient: atoms\n')
+            for atom in qscores:
+                af.write('\t:%s\t%s\n' % (atom, qscores[atom]))
 
-        # set q-score value in occupancy column
-        fnCifMapQ = os.path.join(project.getPath(), project.getTmpPath("chimeraAttribute_MapQ_score.cif"))
-        replaceOcuppancyWithAttribute(cifFilename, 'MapQ_Score', fnCifMapQ)
-
-        report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", fnCifMapQ, "fig:mapq", bfactor=False,
-                           occupancy=True, rainbow=False, legendMin=round(min(mapq_scores),2), legendMax=round(max(mapq_scores),2))
+        report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", cifWSFilename, "fig:mapq", bfactor=False,
+                           occupancy=False, otherAttribute=[attributeFile, 'qscores'], rainbow=False, legendMin=-1, legendMax=1)
 
     saveIntermediateData(report.getReportDir(), 'MapQ', True, 'MapQView',
                          [os.path.join(report.getReportDir(), 'mapqView1.jpg'),
@@ -1310,10 +1304,10 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     \\begin{figure}[H]
         \centering
         \includegraphics[width=10cm]{%s}
-        \\caption{Histogram of the %s DAQ values.}
+        \\caption{Histogram of the per-residue DAQ values.}
         \\label{fig:daqHist}
     \\end{figure}
-    """%(avgDaq, stdDaq, fnDAQHist, 'per-atom' if not has_precalculated_data else 'per-residue')
+    """%(avgDaq, stdDaq, fnDAQHist)
         report.write(msg)
 
         saveIntermediateData(report.getReportDir(), 'DAQ', False, 'averageDAQ', avgDaq, ['', 'The mean of the DAQ values'])
@@ -1326,12 +1320,12 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
             pdbFromWS = open(pdbFilename, 'w')
             pdbFromWS.write(getFileFromWS(pdbdb_Id, 'daq'))
             pdbFromWS.close()
-            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", pdbFilename, "fig:daq", bfactor=True, occupancy=False, legendMin=round(min(daqValues),2), legendMax=round(max(daqValues),2))
+            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", pdbFilename, "fig:daq", bfactor=True, occupancy=False, legendMin=-1, legendMax=1)
 
         else:
             fnCifDAQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_DAQ_score.cif"))
             replaceOcuppancyWithAttribute(os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "DAQ_score", fnCifDAQ)
-            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", fnCifDAQ, "fig:daq", bfactor=False, occupancy=True, rainbow=False, legendMin=round(min(daqValues),2), legendMax=round(max(daqValues),2))
+            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", fnCifDAQ, "fig:daq", bfactor=False, occupancy=True, rainbow=False, legendMin=-1, legendMax=1)
 
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQView',
                             [os.path.join(report.getReportDir(), 'daqView1.jpg'),
