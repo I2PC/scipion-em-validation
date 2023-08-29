@@ -181,6 +181,25 @@ def removeDir(fullPath, force=False):
         raise
 
 
+def getFilesInPath(path, pattern, recursive= True):
+    """
+    Return a list of pathlib.Path if any file names match the pattern
+    """
+    entry_filenames = []
+    sp = Path(path)
+
+    if recursive:
+        # pattern = '**/' + pattern
+        found_files = sp.rglob(pattern)
+    else:
+        found_files = sp.glob(pattern)
+    
+
+    for found_file in found_files:
+        entry_filenames.append(found_file.absolute())
+
+    return entry_filenames
+
 def ungzipFile(srcFile, destFile, remove=True):
     """
     Uncompress a gz file
