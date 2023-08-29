@@ -2,7 +2,6 @@
 import os
 import sys
 import argparse
-import logging
 import csv
 from utils import *
 
