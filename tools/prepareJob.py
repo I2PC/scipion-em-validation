@@ -251,6 +251,7 @@ def main(argv):
 
     atomModelIDs = []
     atomModelFiles = []
+    aModelId = ""
     if "pdb_list" in jData["crossreferences"]:
         atomModels = jData["crossreferences"]["pdb_list"]["pdb_reference"]
         for model in atomModels:
