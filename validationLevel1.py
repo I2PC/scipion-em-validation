@@ -1087,6 +1087,7 @@ This method analyzes the FSC in different directions and evaluates its homogenei
                                                 'Prot3DFSC', doRaise=True)
         prot = project.newProtocol(Prot,
                                    objLabel=label,
+                                   provideHalfMaps=True,
                                    applyMask=True,
                                    useGpu=True)
         prot.inputVolume.set(protImportMapResize.outputVol)
