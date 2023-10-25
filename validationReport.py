@@ -142,7 +142,7 @@ exit
     fh.close()
 
     from chimera import Plugin
-    args = "chimeraScript.cxc"
+    args = "--nogui --offscreen chimeraScript.cxc"
     Plugin.runChimeraProgram(Plugin.getProgram(), args, cwd=fnWorkingDir)
     cleanPath(fnTmp)
 
@@ -178,7 +178,7 @@ run(session, 'exit')
     fhCmd.close()
 
     from chimera import Plugin
-    args = "--script %s"%cmdFile
+    args = "--nogui --offscreen --script %s"%cmdFile
     Plugin.runChimeraProgram(Plugin.getProgram(), args, cwd=fnWorkingDir)
 
 def formatInv(value, pos):
