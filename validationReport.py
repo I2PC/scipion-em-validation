@@ -8,13 +8,23 @@ import scipy
 import subprocess
 import PIL
 import json
+import requests
 
 from pyworkflow.protocol import StringParam
 from pyworkflow.utils.path import makePath, cleanPath
 from pwem.viewers import LocalResolutionViewer
 from pwem.emlib.metadata import iterRows
+from tools.utils import storeIntermediateData
 
 import xmipp3
+
+import configparser
+config = configparser.ConfigParser()
+config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+maxMemToUse = config['CHIMERA'].getint('MAX_MEM_TO_USE')
+doStoreIntermediateData = config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
+intermediateDataFinalPath = config['INTERMEDIATE_DATA'].get('DEST_PATH')
+cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 
 def readMap(fnMap):
     return xmipp3.Image(fnMap)
@@ -71,15 +81,23 @@ def latexEnumerate(itemList):
     return toWrite
 
 def generateChimeraView(fnWorkingDir, fnMap, fnView, isMap=True, threshold=0, angX=0, angY=0, angZ=0, bfactor=False,\
-                        occupancy=False):
+                        occupancy=False, otherAttribute=[], rainbow=True, legendMin=None, legendMax=None):
     chimeraScript=\
 """
 windowsize 1300 700
 set bgColor white
-volume voxelLimitForOpen 1000
+"""
+    if isMap:
+        chimeraScript+=\
+"""
+volume dataCacheSize %d
+volume voxelLimitForOpen 1200
 volume showPlane false
+""" % maxMemToUse
+    chimeraScript+=\
+"""
 open %s
-"""%fnMap
+""" % fnMap
     if isMap:
         chimeraScript+=\
 """volume #1 level %f
@@ -94,7 +112,22 @@ show cartoons
         if bfactor:
             chimeraScript+="color bfactor\n"
         if occupancy:
-            chimeraScript += "color byattribute occupancy palette rainbow\n"
+            chimeraScript += "color byattribute occupancy"
+            if rainbow:
+                chimeraScript += " palette rainbow\n"
+            if legendMin and legendMax:
+                chimeraScript += " palette bluered range %s,%s\n" % (legendMin, legendMax)
+            else:
+                chimeraScript += "\n"
+        if len(otherAttribute) > 0:
+            chimeraScript += "open %s\n" % otherAttribute[0]
+            chimeraScript += "color byattribute %s" % otherAttribute[1]
+            if legendMin and legendMax:
+                chimeraScript += " palette bluered range %s,%s\n" % (legendMin, legendMax)
+            else:
+                chimeraScript += "\n"
+        if legendMin and legendMax:
+            chimeraScript += "key blue:%s white: red:%s fontSize 15 size 0.025,0.4 pos 0.01,0.3\n" %(legendMin, legendMax)
     chimeraScript+=\
 """turn x %f
 turn y %f
@@ -109,7 +142,7 @@ exit
     fh.close()
 
     from chimera import Plugin
-    args = "chimeraScript.cxc"
+    args = "--nogui --offscreen chimeraScript.cxc"
     Plugin.runChimeraProgram(Plugin.getProgram(), args, cwd=fnWorkingDir)
     cleanPath(fnTmp)
 
@@ -145,7 +178,7 @@ run(session, 'exit')
     fhCmd.close()
 
     from chimera import Plugin
-    args = "--script %s"%cmdFile
+    args = "--nogui --offscreen --script %s"%cmdFile
     Plugin.runChimeraProgram(Plugin.getProgram(), args, cwd=fnWorkingDir)
 
 def formatInv(value, pos):
@@ -295,7 +328,7 @@ def plotMicrograph(fnMic, fnOut, coords=None, boxSize=0, Ts=0):
 
 class ValidationReport:
 
-    def __init__(self, fnDir, levels,  IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION):
+    def __init__(self, fnDir, levels,  IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION):
         self.fnProjectDir = fnDir
         self.fnReportDir = os.path.join(fnDir,"validationReport")
         makePath(self.fnReportDir)
@@ -303,7 +336,7 @@ class ValidationReport:
         self.fh = open(self.fnReport,"w")
         self.fnFrontpage = os.path.join(self.fnReportDir,"frontpage.tex")
         self.fnFrontpage = open(self.fnFrontpage,"w") 
-        self.writeFrontpage(levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION)
+        self.writeFrontpage(levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION)
         self.fnFrontpage.close()
         self.fnContext = os.path.join(self.fnReportDir, "context.tex")
         self.fnContext = open(self.fnContext, "w")
@@ -428,7 +461,7 @@ class ValidationReport:
     def writeAbstract(self, msg):
         self.fhAbstract.write(msg)
 
-    def writeFrontpage(self,  levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, FN_METADATA, MAPRESOLUTION):
+    def writeFrontpage(self,  levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION):
         
         ScipionEmValDir = os.path.dirname(__file__)
         logo = os.path.join(ScipionEmValDir, 'resources', 'figures', 'logo.png') 
@@ -445,22 +478,19 @@ class ValidationReport:
             authors = None
             deposited = None
 
-            # Read metadata file from EMDB to fix some parameters
-            if FN_METADATA:
-
-                # Read metadata.json file
-                with open(FN_METADATA,mode="r") as f:
-                    jdata = json.load(f)
-                
+            try:
+                url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/%s' % EMDB_ID
+                jdata = requests.get(url_rest_api).json()
                 title = jdata["admin"]["title"]
                 deposited = jdata["admin"]["key_dates"]["deposition"]
-
                 # Set authors depending on if it is a list of dicts or a list of strs
                 if type(jdata["admin"]["authors_list"]["author"][0]) == dict:
                     authors_list = [d["valueOf_"] for d in jdata["admin"]["authors_list"]["author"] if "valueOf_" in d]
                     authors = ", ".join(authors_list)
                 else:
                     authors = ", ".join(jdata["admin"]["authors_list"]["author"])
+            except:
+                pass
 
             entryInfoList = [EMDB_ID, PDB_ID, title, authors, deposited, resolution_str]
             
@@ -707,13 +737,13 @@ class ValidationReport:
 """ % (msg, fn1, fn2, fn3, caption, label)
         self.fh.write(toWrite)
 
-    def atomicModel(self, fnRoot, msg, caption, fnModel, label, bfactor=False, occupancy=False):
+    def atomicModel(self, fnRoot, msg, caption, fnModel, label, bfactor=False, occupancy=False, otherAttribute=[], rainbow=True, legendMin=None, legendMax=None):
         generateChimeraView(self.fnReportDir, fnModel, fnRoot + "1.jpg", False, 0, 0, 0, 0, bfactor=bfactor,
-                            occupancy=occupancy)
+                            occupancy=occupancy, otherAttribute=otherAttribute, rainbow=rainbow, legendMin=legendMin, legendMax=legendMax)
         generateChimeraView(self.fnReportDir, fnModel, fnRoot + "2.jpg", False, 0, 90, 0, 0, bfactor=bfactor,
-                            occupancy=occupancy)
+                            occupancy=occupancy, otherAttribute=otherAttribute, rainbow=rainbow, legendMin=legendMin, legendMax=legendMax)
         generateChimeraView(self.fnReportDir, fnModel, fnRoot + "3.jpg", False, 0, 0, 90, 0, bfactor=bfactor,
-                            occupancy=occupancy)
+                            occupancy=occupancy, otherAttribute=otherAttribute, rainbow=rainbow, legendMin=legendMin, legendMax=legendMax)
 
         caption += " Views generated by ChimeraX at a the following " \
                    "X, Y, Z angles: View 1 (0,0,0), View 2 (90, 0, 0), View 3 (0, 90, 0)."
@@ -887,3 +917,8 @@ class ValidationReport:
                        stdout=subprocess.DEVNULL,
                        stderr=subprocess.STDOUT)
         os.chdir(self.fnProjectDir)
+        if doStoreIntermediateData:
+            storeIntermediateData(self.fnReportDir, intermediateDataFinalPath)
+        if cleanOriginalData:
+            cmd = 'rm -rf %s' % self.fnProjectDir
+            subprocess.run(cmd, shell=True)

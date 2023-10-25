@@ -13,6 +13,7 @@ import re
 import logging
 from io import BytesIO
 from pathlib import Path
+import subprocess
 
 PARAM_FIELDS = ['map', 'sampling', 'threshold', 'resolution', 'mapCoordX', 'mapCoordY', 'mapCoordZ',
                 'map1', 'map2',
@@ -180,6 +181,25 @@ def removeDir(fullPath, force=False):
         raise
 
 
+def getFilesInPath(path, pattern, recursive= True):
+    """
+    Return a list of pathlib.Path if any file names match the pattern
+    """
+    entry_filenames = []
+    sp = Path(path)
+
+    if recursive:
+        # pattern = '**/' + pattern
+        found_files = sp.rglob(pattern)
+    else:
+        found_files = sp.glob(pattern)
+    
+
+    for found_file in found_files:
+        entry_filenames.append(found_file.absolute())
+
+    return entry_filenames
+
 def ungzipFile(srcFile, destFile, remove=True):
     """
     Uncompress a gz file
@@ -293,3 +313,128 @@ def downloadEMDB_halfMaps(emdb_id, path):
     else:
         logger.warning('File already exists %s' % outName)
     return outName
+
+
+def saveIntermediateData(fnReportDir, protocol, isFile, fileOrParamKey, value, details=None):
+    """
+    Save intermediate interesting data (files and params) from each method to be stored when the validation finishes
+    'fnReportDir': report path
+    'protocol': protocol name
+    'isFile': True if is a file, False if is a param
+    'fileOrParamKey': measure name
+    'value': measure value (a number, a string, a list, etc.)
+    'details': extra info
+    """
+    file = os.path.join(fnReportDir, 'intermediateData.json')
+    if os.path.exists(file):
+        with open(file, 'r') as json_file:
+            intermediateData = json.load(json_file)
+            if protocol in intermediateData:
+                if 'files' in intermediateData[protocol] if isFile else 'params' in intermediateData[protocol]:
+                    intermediateData[protocol]['files' if isFile else 'params'].append({'name': fileOrParamKey, 'value': value, 'details': details})
+                else:
+                    intermediateData[protocol]['files' if isFile else 'params'] = [{'name': fileOrParamKey, 'value': value, 'details': details}]
+            else:
+                intermediateData[protocol] = {'files' if isFile else 'params': [{'name': fileOrParamKey, 'value': value, 'details': details}]}
+
+        with open(file, 'w') as json_file:
+            json.dump(intermediateData, json_file)
+            json_file.close()
+    else:
+        with open(file, 'w') as json_file:
+            intermediateData = {protocol: {'files' if isFile else 'params': [{'name': fileOrParamKey, 'value': value, 'details': details}]}}
+            json.dump(intermediateData, json_file)
+            json_file.close()
+
+    return intermediateData
+
+
+def storeIntermediateData(fnReportDir, destPath):
+    """
+    Copy files described in intermediateData.json to the destination path
+    @param fnReportDir: report path
+    @param destPath: final path where data should be copied
+    """
+    intermediateDataFile = os.path.join(fnReportDir, 'intermediateData.json')
+    if os.path.exists(intermediateDataFile):
+        with open(intermediateDataFile, 'r') as json_file:
+            intermediateData = json.load(json_file)
+            for protocol in intermediateData:
+                if 'files' in intermediateData[protocol]:
+                    for intermediateProtocolInfo in intermediateData[protocol]['files']:
+                        if type(intermediateProtocolInfo['value']) == list:
+                            for intermediateProtocolPath in intermediateProtocolInfo['value']:
+                                parentFolder = intermediateProtocolPath.split('projects/')[1].rsplit('/', 1)[0]
+                                os.makedirs(os.path.join(destPath, parentFolder), exist_ok=True)
+                                cmd = 'rsync -rltv --progress %s %s' % (intermediateProtocolPath, os.path.join(destPath, parentFolder))
+                                subprocess.run(cmd, shell=True)
+                        else:
+                            parentFolder = intermediateProtocolInfo['value'].split('projects/')[1].rsplit('/', 1)[0]
+                            os.makedirs(os.path.join(destPath, parentFolder), exist_ok=True)
+                            cmd = 'rsync -rltv --progress %s %s' % (
+                            intermediateProtocolInfo['value'], os.path.join(destPath, parentFolder))
+                            subprocess.run(cmd, shell=True)
+        # copy the file itself
+        cmd = 'rsync %s %s' % (intermediateDataFile, os.path.join(destPath, fnReportDir.split('/')[-2]))
+        subprocess.run(cmd, shell=True)
+        # project and settings sqlite
+        cmd = 'rsync %s %s %s' % (os.path.join(fnReportDir.rsplit('/',1)[0], 'project.sqlite'), os.path.join(fnReportDir.rsplit('/',1)[0], 'settings.sqlite'), os.path.join(destPath, fnReportDir.split('/')[-2]))
+        subprocess.run(cmd, shell=True)
+        # full validationReport folder
+        cmd = 'rsync -rltv --progress %s %s' % (fnReportDir, os.path.join(destPath, fnReportDir.split('/')[-2]))
+        subprocess.run(cmd, shell=True)
+
+
+def getFilename(path, withExt=False):
+    p = Path(path)
+    if withExt:
+        return p.name
+    else:
+        return p.stem
+
+
+def getScoresFromWS(db_id, method):
+    """
+    Check if there are a precoputed values from the source DB
+    db_id can be a EMDB ID: emd-12345 or PDB ID: 5abc
+    """
+    methods = ['mapq', 'daq']
+    if not method or method not in methods:
+        return
+    url_rest_api = "https://3dbionotes.cnb.csic.es/bws/api/emv/%s/%s/" % (db_id.lower(), method)
+    try:
+        json_data = None
+        print('- getScoresFromWS %s, %s, %s' % (db_id, method, url_rest_api))
+        with requests.get(url_rest_api, verify=False) as response:
+            if response.status_code == 200:
+                json_data = response.json()
+            else:
+                print('- Could not download file: %s, %s' % (response.status_code, response.reason))
+    except Exception as ex:
+        print('Could not connect to',url_rest_api, ex)
+        print('- Proceed to calculate it localy')
+
+    return json_data
+
+
+def getFileFromWS(db_id, method):
+    """
+    Check if there are is raw data file from the source DB
+    db_id can be a EMDB ID: emd-12345 or PDB ID: 5abc
+    """
+    methods = ['mapq', 'daq']
+    if not method or method not in methods:
+        return
+    url_rest_api = "https://3dbionotes.cnb.csic.es/bws/api/emv/%s/%s/%s/" % (db_id.lower(), method, 'mmcif' if method == 'mapq' else 'pdb')
+    try:
+        raw_data = None
+        print('- getFileFromWS %s, %s, %s' % (db_id, method, url_rest_api))
+        with requests.get(url_rest_api, verify=False) as response:
+            if response.status_code == 200:
+                raw_data = response.text
+            else:
+                print('- Could not download file: %s, %s' % (response.status_code, response.reason))
+    except Exception as ex:
+        print('Could not connect to',url_rest_api, ex)
+
+    return raw_data

@@ -3,3 +3,18 @@
 USE_SLURM = False
 # GPU ID to be used when Slurm is set up and you do want to skip it
 GPU_ID_SKIP_SLURM = 7
+
+[CHIMERA]
+MAX_MEM_TO_USE = 60000
+
+[INTERMEDIATE_DATA]
+STORE_INTERMEDIATE_DATA = True
+CLEAN_ORIGINAL_DATA = False
+DEST_PATH = /data/ScipionUserDataToRetrieve/projects
+
+[MAPQ]
+MAPQ_PATH = /home/vrs/scipion3/software/em/chimera-1.16/mapq/
+CHIMERA_PROGRAM_PATH = /home/vrs/scipion3/software/em/chimera-1.16/chimera/bin/chimera
+
+[EM-VALIDATION]
+VALIDATION_TOOLS_PATH = /home/vrs/scipion3/scipion-em-validation/tools/

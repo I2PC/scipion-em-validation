@@ -44,6 +44,8 @@ from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFi
 
 import configparser
 
+from tools.utils import saveIntermediateData
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
@@ -52,15 +54,23 @@ def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
     fnDir, fnBase = os.path.split(fnMap)
-    prot = project.newProtocol(Prot,
-                               objLabel=label,
-                               filesPath=fnDir,
-                               filesPattern=fnMap,
-                               samplingRate=Ts,
-                               setOrigCoord=True,
-                               x=mapCoordX,
-                               y=mapCoordY,
-                               z=mapCoordZ)
+    if mapCoordX is not None and mapCoordY is not None and mapCoordZ is not None:
+        prot = project.newProtocol(Prot,
+                                   objLabel=label,
+                                   filesPath=fnDir,
+                                   filesPattern=fnMap,
+                                   samplingRate=Ts,
+                                   setOrigCoord=True,
+                                   x=mapCoordX,
+                                   y=mapCoordY,
+                                   z=mapCoordZ)
+    else:
+        prot = project.newProtocol(Prot,
+                                   objLabel=label,
+                                   filesPath=fnDir,
+                                   filesPattern=fnMap,
+                                   samplingRate=Ts,
+                                   setOrigCoord=False)
     if useSlurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
@@ -134,6 +144,9 @@ behavior. If they have, this is typically due to the presence of a mask in real 
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
+    saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'fsc', os.path.join(project.getPath(), prot._getPath('fsc.xmd')), 'fsc xmd file containing data to create plots')
+    saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'structureFactor', os.path.join(project.getPath(), prot._getPath('structureFactor.xmd')), 'structureFactor xmd file containing data to create plots')
+
     md = xmipp3.MetaData()
     md.read(prot._getPath("fsc.xmd"))
     f = md.getColumnValues(xmipp3.MDL_RESOLUTION_FREQ)
@@ -178,6 +191,14 @@ behavior. If they have, this is typically due to the presence of a mask in real 
     reportMultiplePlots(f[:-2], [DPR[:-2], [103.9]*len(DPR[:-2])],
                         "Resolution (A)", "Differential Phase Residual", fnDPR,
                         ['DPR','103.9'], invertXLabels=True)
+    
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'FSCresolution', 1/fFSC if fFSC else fFSC, ['\u212B', 'The resolution according to the FSC. FSCresolution = None means that FSC does not cross the 0.143 threshold'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'DPRresolution', 1/fDPR if fDPR else fDPR, ['\u212B', 'The resolution according to the DPR. DPRresolution = None means that DPR does not cross the 103.9 threshold'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'preservedFSC90resolution', 1/fsc90 if fsc90 else fsc90, ['\u212B', 'The resolution up to which the map information is well preserved (FSC>0.9)'])
+
+    saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'FSCPlot', fnFSC, 'Plot that shows the FSC and the 0.143 threshold')
+    saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'DPRPlot', fnDPR, 'Plot that shows the DPR and the 103.9 threshold')
+
 
     # SSNR
     V1 = xmipp3.Image(protImportMap1.outputVolume.getFileName())
@@ -206,7 +227,7 @@ behavior. If they have, this is typically due to the presence of a mask in real 
     logRadialSSNR = np.log10(radialSSNR[0:N]-1)
 
     fSSNR=findFirstCross(f,logRadialSSNR,0,'lesser')
-    if fDPR is None:
+    if fSSNR is None:
         strSSNR= "The SSNR does not cross the 1 threshold."
     else:
         strSSNR = "The resolution according to the SSNR is %5.2f\\AA."%(1/fSSNR)
@@ -215,6 +236,11 @@ behavior. If they have, this is typically due to the presence of a mask in real 
     reportMultiplePlots(f, [logRadialSSNR, [0]*len(f)],
                         "Resolution (A)", "log10(Radial SSNR)", fnSSNR,
                         ['log10(SSNR)','0'], invertXLabels=True)
+    
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'SSNRresolution', 1/fSSNR if fSSNR else fSSNR, ['\u212B', 'The resolution according to the SSNR. SSNRresolution = None means that SSNR does not cross the 1 threshold'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'f', f.tolist(), ['\u212B\u207B\u00B9', 'frecuency data in SSNR plot'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'logRadialSSNR', logRadialSSNR.tolist(), ['', 'logRadialSSNR data in SSNR plot'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'SSNRPlot', fnSSNR, 'Plot that shows the SSNR and the 1 threshold')
 
     # Mean and uncertainty
     resolutionList = [1/value for value in [fFSC, fDPR, fSSNR] if value is not None]
@@ -227,8 +253,13 @@ Fig. \\ref{fig:SSNR} shows the SSNR and the SSNR=1 threshold. %s\\\\
     report.write(msg)
     if len(resolutionList)>0:
         msg = \
-"""The mean resolution between the three methods is %5.2f\AA~and its range is within the interval [%5.2f,%5.2f]\\AA."""  % (np.mean(resolutionList), np.min(resolutionList), np.min(resolutionList))
+"""The mean resolution between the three methods is %5.2f\AA~and its range is within the interval [%5.2f,%5.2f]\\AA."""  % (np.mean(resolutionList), np.min(resolutionList), np.max(resolutionList))
         report.write(msg)
+
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'meanResolution3', np.mean(resolutionList), ['\u212B', 'The mean resolution between the three methods, FSC, DPR, SSNR'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'llResolutionInterval', np.min(resolutionList), ['\u212B', 'Lower limit resolution interval for the three methods'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'ulResolutionInterval', np.max(resolutionList), ['\u212B', 'Upper limit resolution interval for the three methods'])
+
     msg = \
 """\\begin{figure}[H]
     \centering
@@ -342,6 +373,8 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
     fsc = fscFile[0]
     frecuency = fscFile[1]
     reportPlot(fsc, frecuency, "Frecuency (1/A)", "FSC", prot._getExtraPath("FSC.png"))
+    saveIntermediateData(report.getReportDir(), 'FSCPermutation', True, 'FSC.txt', os.path.join(project.getPath(), prot._getExtraPath("FSC.txt")), 'fsc file')
+    saveIntermediateData(report.getReportDir(), 'FSCPermutation', True, 'FSC.png', os.path.join(project.getPath(), prot._getExtraPath("FSC.png")), 'fsc plot file')
 
     msg=\
 """The resolution at 1\\%% of FDR was %4.1f. The estimated B-factor was %5.1f. Fig. \\ref{fig:fdrfsc} shows the
@@ -356,6 +389,9 @@ estimated FSC and resolution.
 
 """%(FDRResolution, Bfactor, os.path.join(project.getPath(),prot._getExtraPath("FSC.png")))
     report.write(msg)
+
+    saveIntermediateData(report.getReportDir(), 'FSCPermutation', False, 'FDRResolution', FDRResolution, ['\u212B', 'The resolution at 1% of FDR'])
+    saveIntermediateData(report.getReportDir(), 'FSCPermutation', False, 'Bfactor', Bfactor, ['\u212B\u207B\u00B2', 'Estimated B-factor'])
 
     warnings=[]
     testWarnings = False
@@ -416,6 +452,9 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
+    fnBlocres = os.path.join(project.getPath(), prot._getExtraPath("resolutionMap.map"))
+    saveIntermediateData(report.getReportDir(), 'blocRes', True, 'resolutionMap.map', fnBlocres, 'Blocres output volume map')
+
     VblocRes = xmipp3.Image(prot._getExtraPath("resolutionMap.map:mrc")).getData()
     R = VblocRes[VblocRes>0]
     fnHist = os.path.join(report.getReportDir(),"blocRes.png")
@@ -462,12 +501,24 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
        resolutionP, fnHist)
     report.write(toWrite)
 
+    saveIntermediateData(report.getReportDir(), 'blocRes', False, 'resolutionPercentiles', Rpercentiles.tolist(), ['\u212B', 'List of local resolution in Angstroms at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
+    saveIntermediateData(report.getReportDir(), 'blocRes', False, 'resolutionPercentile', resolutionP, ['%', 'The percentile at which the reported resolution is'])
+    saveIntermediateData(report.getReportDir(), 'blocRes', False, 'resolutionList', R.tolist(), ['\u212B', 'List of local resolution in Angstroms obtained from BlocRes to create the histogram'])
+    saveIntermediateData(report.getReportDir(), 'blocRes', False, 'estimatedResolution', Rpercentiles[2], ['\u212B', 'The estimated resolution (median) in Angstroms obtained from BlocRes'])
+
+    saveIntermediateData(report.getReportDir(), 'blocRes', True, 'blocResHist', fnHist, 'blocRes histogram')
+
+
     Ts = protImportMap.outputVolume.getSamplingRate()
     report.colorIsoSurfaces("", "Local resolution according to Blocres.", "fig:blocresColor",
                             project, "blocresViewer",
                             os.path.join(project.getPath(), protImportMap.outputVolume.getFileName()), Ts,
                             os.path.join(project.getPath(), prot._getExtraPath("resolutionMap.map")),
                             Rpercentiles[0], Rpercentiles[-1])
+    saveIntermediateData(report.getReportDir(), 'deepRes', True, 'blocResViewer',
+                         [os.path.join(report.getReportDir(), 'blocresViewer1.jpg'),
+                          os.path.join(report.getReportDir(), 'blocresViewer2.jpg'),
+                          os.path.join(report.getReportDir(), 'blocresViewer3.jpg')], 'blocRes views')
 
     # Warnings
     warnings = []
@@ -535,6 +586,8 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
         report.writeSummary("1.d Resmap", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return
+    
+    saveIntermediateData(report.getReportDir(), 'resMap', True, 'half1_ori_resmap.mrc', fnResMap, 'Resmap output volume map')
 
     Vres = xmipp3.Image(fnResMap+":mrc").getData()
     idx = Vres<100
@@ -585,11 +638,23 @@ Fig. \\ref{fig:resmapColor} shows some representative views of the local resolut
        resolutionP, fnHist)
     report.write(toWrite)
 
+    saveIntermediateData(report.getReportDir(), 'resMap', False, 'resolutionPercentiles', Rpercentiles.tolist(), ['\u212B', 'List of local resolution in Angstroms at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
+    saveIntermediateData(report.getReportDir(), 'resMap', False, 'resolutionPercentile', resolutionP, ['%', 'The percentile at which the reported resolution is'])
+    saveIntermediateData(report.getReportDir(), 'resMap', False, 'resolutionList', R.tolist(), ['\u212B', 'List of local resolution in Angstroms obtained from Resmap to create the histogram'])
+    saveIntermediateData(report.getReportDir(), 'resMap', False, 'estimatedResolution', Rpercentiles[2], ['\u212B', 'The estimated resolution (median) in Angstroms obtained from Resmap'])
+
+    saveIntermediateData(report.getReportDir(), 'resMap', True, 'resMapHist', fnHist, 'Resmap histogram')
+
+
     Ts = protImportMap.outputVolume.getSamplingRate()
     report.colorIsoSurfaces("", "Local resolution according to Resmap.", "fig:resmapColor",
                             project, "resmapViewer",
                             os.path.join(project.getPath(), protImportMap.outputVolume.getFileName()), Ts,
                             fnResMap, Rpercentiles[0], Rpercentiles[-1])
+    saveIntermediateData(report.getReportDir(), 'resMap', True, 'resMapViewer',
+                         [os.path.join(report.getReportDir(), 'resmapViewer1.jpg'),
+                          os.path.join(report.getReportDir(), 'resmapViewer2.jpg'),
+                          os.path.join(report.getReportDir(), 'resmapViewer3.jpg')], 'resMap views')
 
     # Warnings
     warnings = []
@@ -607,7 +672,7 @@ Fig. \\ref{fig:resmapColor} shows some representative views of the local resolut
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.d Resmap", secLabel)
 
-    cleanPath(fnResMap)
+    #cleanPath(fnResMap)
     cleanPath(fnVol1)
     cleanPath(fnVol2)
 
@@ -661,6 +726,9 @@ if its energy is signficantly above the level of noise.\\\\
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
+    fnMonoRes = os.path.join(project.getPath(), prot._getExtraPath("monoresResolutionMap.mrc"))
+    saveIntermediateData(report.getReportDir(), 'monoRes', True, 'monoresResolutionMap.mrc', fnMonoRes, 'Monores output volume map')
+
     md = xmipp3.MetaData()
     # md.read(prot._getExtraPath("hist.xmd"))
     md.read(os.path.join(project.getPath(), prot._getExtraPath("hist.xmd")))
@@ -713,10 +781,22 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
      fnHistMonoRes)
     report.write(toWrite)
 
+    saveIntermediateData(report.getReportDir(), 'monoRes', False, 'resolutionPercentiles', [float(Rpercentil) for Rpercentil in Rpercentiles], ['\u212B', 'List of local resolution in Angstroms at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
+    saveIntermediateData(report.getReportDir(), 'monoRes', False, 'resolutionPercentile', resolutionP*100, ['%', 'The percentile at which the reported resolution is'])
+    saveIntermediateData(report.getReportDir(), 'monoRes', False, 'estimatedResolution', [float(Rpercentil) for Rpercentil in Rpercentiles][2], ['\u212B', 'The estimated resolution (median) in Angstroms obtained from MonoRes'])
+
+
+    saveIntermediateData(report.getReportDir(), 'monoRes', True, 'hist.xmd', os.path.join(project.getPath(), prot._getExtraPath("hist.xmd")), 'hist.xmd file containing data to create histogram')
+    saveIntermediateData(report.getReportDir(), 'monoRes', True, 'monoResHist', fnHistMonoRes, 'monoRes histogram')
+
+
     report.colorIsoSurfaces("", "Local resolution according to Monores.", "fig:monoresColor",
                             project, "monoresViewer", protImportMap.outputVolume.getFileName(),
                             Ts, prot._getExtraPath("monoresResolutionChimera.mrc"), Rpercentiles[0], Rpercentiles[-1])
-
+    saveIntermediateData(report.getReportDir(), 'monoRes', True, 'monoResViewer',
+                         [os.path.join(report.getReportDir(), 'monoresViewer1.jpg'),
+                          os.path.join(report.getReportDir(), 'monoresViewer2.jpg'),
+                          os.path.join(report.getReportDir(), 'monoresViewer3.jpg')], 'monoRes views')
     # Warnings
     warnings=[]
     testWarnings = False
@@ -770,13 +850,6 @@ Vilas, J.~L., Tagare, H.~D., Vargas, J., Carazo, J.~M., and Sorzano, C. O.~S.
 MonoDir \\cite{Vilas2020} extends the concept of local resolution to local and directional resolution by changing 
 the shape of the filter applied to the input map. The directional analysis can reveal image alignment problems.
 
-The histogram of best resolution voxels per direction (Directional Histogram 1D) shows how many voxels in the
-volume have their maximum resolution in that direction. Directions are arbitrarily numbered from 1 to N. This histogram
-should be relatively flat. We perform a Kolmogorov-Smirnov test to check its uniformity. If the null hypothesis is
-rejected, then the directional resolution is not uniform. It does not mean that it is wrong, and it could be caused
-by several reasons: 1) the angular distribution is not uniform, 2) there are missing directions, 3) there is some
-anisotropy in the data (including some preferential directional movement).
-
 Ideally, the radial average of the minimum, maximum, and average resolution at each voxel (note that these are spatial
 radial averages) should be flat and as low as possible. If they show some slope, this is associated with
 inaccuracies in the angular assignment. These averages make sense when the shells are fully contained within the
@@ -791,25 +864,6 @@ protein. As the shells approach the outside of the protein, these radial average
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return prot
 
-    # 1D Histogram
-    fnHistDirMonoDir1 = os.path.join(report.getReportDir(), "histDirMonoDir1D.png")
-    md = xmipp3.MetaData()
-    md.read(prot._getExtraPath("hist_prefdir.xmd"))
-    direction = md.getColumnValues(xmipp3.MDL_X)
-    count = md.getColumnValues(xmipp3.MDL_COUNT)
-    reportPlot(direction, count, 'Direction index', '# of voxels', fnHistDirMonoDir1, plotType="bar")
-
-    # Test
-    randomSample = np.random.choice([x for x in range(int(np.max(direction))+1)], size=50000,
-                                    p=np.array(count,dtype=np.float)/np.sum(count))
-    D, p = scipy.stats.kstest(randomSample, scipy.stats.randint(0, int(np.max(direction))).cdf)
-
-    # 2D Histogram
-    fnHistDirMonoDir2 = os.path.join(report.getReportDir(), "histDirMonoDir2D.png")
-    rot = md.getColumnValues(xmipp3.MDL_ANGLE_ROT)
-    tilt = md.getColumnValues(xmipp3.MDL_ANGLE_TILT)
-    radialPlot(rot, tilt, count, fnHistDirMonoDir2)
-
     # Radial averages
     fnMonodirRadial = os.path.join(report.getReportDir(), "monoDirRadial.png")
     md = xmipp3.MetaData()
@@ -823,28 +877,8 @@ protein. As the shells approach the outside of the protein, these radial average
     avgDirResolution = np.mean(avgResolution)
 
     msg=\
-"""Fig. \\ref{fig:histDirMonoDir1} shows the 1D directional histogram and Fig. \\ref{fig:histDirMonoDir2} the 2D
-directional histogram. We compared the 1D directional histogram to a uniform distribution using a Kolmogorov-Smirnov
-test. The D statistic was %f, and the p-value of the null hypothesis %f.
-
-The radial average of the minimum, maximum and average resolution at each voxel is shown in
+"""The radial average of the minimum, maximum and average resolution at each voxel is shown in
 Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is %5.2f
-
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=9cm]{%s}
-    \\caption{Histogram 1D of the best direction at each voxel.}
-    \\label{fig:histDirMonoDir1}
-\\end{figure}
-
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=9cm]{%s}
-    \\caption{Histogram 2D of the best direction at each voxel. The azimuthal rotation is circular, while the tilt
-    angle is the radius. The size of the point is proportional to the number of voxels whose maximum resolution
-    is in that direction (this count can be seen in Fig. \\ref{fig:histDirMonoDir1}. }
-    \\label{fig:histDirMonoDir2}
-\\end{figure}
 
 \\begin{figure}[H]
     \centering
@@ -852,23 +886,28 @@ Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is
     \\caption{Radial averages (in space) of the minimum, maximum and average resolution at each voxel.}
     \\label{fig:monoDirRadial}
 \\end{figure}
-"""%(D, p, avgDirResolution, fnHistDirMonoDir1, fnHistDirMonoDir2, fnMonodirRadial)
+"""%(avgDirResolution, fnMonodirRadial)
     report.write(msg)
+
+    saveIntermediateData(report.getReportDir(), 'monoDir', False, 'avgResolution', avgDirResolution, ['\u212B', 'The overall mean of the directional resolution'])
+
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_prefdir', os.path.join(project.getPath(), prot._getExtraPath("hist_prefdir.xmd")), 'hist_prefdir xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'thresholds', os.path.join(project.getPath(), prot._getExtraPath("thresholds.xmd")), 'thresholds xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'Radial_averages', os.path.join(project.getPath(), prot._getExtraPath("Radial_averages.xmd")), 'Radial_averages xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_DoA', os.path.join(project.getPath(), prot._getExtraPath("hist_DoA.xmd")), 'hist_DoA xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_DoA2', os.path.join(project.getPath(), prot._getExtraPath("hist_DoA2.xmd")), 'hist_DoA2 xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_radial', os.path.join(project.getPath(), prot._getExtraPath("hist_radial.xmd")), 'hist_radial xmd file')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_azimuthal', os.path.join(project.getPath(), prot._getExtraPath("hist_azimuthal.xmd")), 'hist_azimuthal xmd file')
+
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'monoDirRadialPlot', fnMonodirRadial, 'Plot of Radial averages (in space) of the minimum, maximum and average resolution at each voxel.')
 
     # Warnings
     warnings=[]
-    testWarnings = False
-    if p<0.001 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The distribution of best resolution is not uniform in all directions. "\
-                        "The associated p-value is %f.}}"%p)
-        report.writeAbstract("The resolution does not seem to be uniform in all directions (see Sec. \\ref{%s}). "%\
-                             secLabel)
-    if resolution<0.8*avgDirResolution or testWarnings:
+    if resolution<0.8*avgDirResolution:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the average directional resolution, %5.2f \\AA.}}" % (resolution, avgDirResolution))
     msg = \
-"""\\textbf{Automatic criteria}: The validation is OK if 1) the null hypothesis that the directional resolution is not
-uniform is not rejected with a threshold of 0.001 for the p-value, and 2) the resolution provided by the user is not 
+"""\\textbf{Automatic criteria}: The validation is OK if the resolution provided by the user is not 
 smaller than 0.8 times the average directional resolution.
 \\\\
 
@@ -966,6 +1005,17 @@ respectively. This region is shaded in the plot.
             """ % (fnContour)
     report.write(msg)
 
+    saveIntermediateData(report.getReportDir(), 'FSO', False, 'FSOresolution', 1/f05 if f05 else f05, ['\u212B', 'The resolution according to the FSO. FSCresolution = None means that FSC does not cross the 0.5 threshold'])
+    saveIntermediateData(report.getReportDir(), 'FSO', False, 'llFSO', 1/f09 if f01 else f01, ['\u212B', 'Lower limit of the range at which the fourier shells are occupied between 90 and than 10%'])
+    saveIntermediateData(report.getReportDir(), 'FSO', False, 'ulFSO', 1/f01 if f01 else f01, ['\u212B', 'Upper limit of the range at which the fourier shells are occupied between 90 and than 10%'])
+
+    saveIntermediateData(report.getReportDir(), 'FSO', True, 'fso', os.path.join(project.getPath(), prot._getExtraPath("fso.xmd")), 'fso xmd file')
+    saveIntermediateData(report.getReportDir(), 'FSO', True, 'GlobalFSC', os.path.join(project.getPath(), prot._getExtraPath("GlobalFSC.xmd")), 'GlobalFSC xmd file')
+    saveIntermediateData(report.getReportDir(), 'FSO', True, 'Resolution_Distribution', os.path.join(project.getPath(), prot._getExtraPath("Resolution_Distribution.xmd")), 'Resolution_Distribution xmd file')
+
+    saveIntermediateData(report.getReportDir(), 'FSO', True, 'fso.png', fnFSO, 'FSO and anisotropy plot')
+    saveIntermediateData(report.getReportDir(), 'FSO', True, 'fsoDirectional.png', fnContour, 'Directional resolution in the projection sphere.')
+
     # Warnings
     warnings=[]
     testWarnings = False
@@ -1037,6 +1087,7 @@ This method analyzes the FSC in different directions and evaluates its homogenei
                                                 'Prot3DFSC', doRaise=True)
         prot = project.newProtocol(Prot,
                                    objLabel=label,
+                                   provideHalfMaps=True,
                                    applyMask=True,
                                    useGpu=True)
         prot.inputVolume.set(protImportMapResize.outputVol)
@@ -1070,15 +1121,21 @@ This method analyzes the FSC in different directions and evaluates its homogenei
         fg = findFirstCross(f,fscg,0.143,'lesser')
         if fx is None or fy is None or fz is None or fg is None:
             strFSC3D = "The FSC 3D did not cross the 0.143 threshold in at least one direction."
+            saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'llResolutionRange', None, ['\u212B', 'The FSC 3D resolution range lower limit. llResolutionRange = None means that FSC 3D does not cross the 0.143 threshold in at least one direction'])
+            saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'ulResolutionRange', None, ['\u212B', 'The FSC 3D resolution range upper limit. ulResolutionRange = None means that FSC 3D does not cross the 0.143 threshold in at least one direction'])
+
         else:
             fList = [1/fx, 1/fy, 1/fz, 1/fg]
             strFSC3D = "The FSC 3D resolutions at a 0.143 threshold in X, Y, and Z are %5.2f, %5.2f, and %5.2f \AA, "\
                        "respectively. The global resolution at the same threshold is %5.2f \AA. The resolution range is "\
                        "[%5.2f,%5.2f]\AA."%(1/fx, 1/fy, 1/fz, 1/fg, np.min(fList), np.max(fList))
+            saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'llResolutionRange', np.min(fList), ['\u212B', 'The FSC 3D resolution range lower limit. llResolutionRange = None means that FSC 3D does not cross the 0.143 threshold in at least one direction'])
+            saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'ulResolutionRange', np.max(fList), ['\u212B', 'The FSC 3D resolution range upper limit. ulResolutionRange = None means that FSC 3D does not cross the 0.143 threshold in at least one direction'])
 
         fnDir = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','Plotsvol.jpg'))
         fnHist = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','histogram.png'))
         fnPower = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','FTPlotvol.jpg'))
+
         msg = \
     """Fig. \\ref{fig:fsc3DDir} shows the FSCs in X, Y, Z, and the global FSC. Fig. \\ref{fig:fsc3DHist} shows the global
     FSC and the histogram of the directional FSC. Finally, Fig. \\ref{fig:FSC3DFTPower} shows the rotational average of
@@ -1107,6 +1164,24 @@ This method analyzes the FSC in different directions and evaluates its homogenei
     
     """ % (strFSC3D, fnDir, fnHist, fnPower)
         report.write(msg)
+
+        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionX', 1/fx if fx else fx, ['?', 'The FSC 3D resolutions at a 0.143 threshold in X. FSC3DresolutionX = None means that FSC 3D does not cross the 0.143 threshold in X'])
+        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionY', 1/fy if fy else fy, ['?', 'The FSC 3D resolutions at a 0.143 threshold in Y. FSC3DresolutionY = None means that FSC 3D does not cross the 0.143 threshold in Y'])
+        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionZ', 1/fz if fz else fz, ['?', 'The FSC 3D resolutions at a 0.143 threshold in Z. FSC3DresolutionZ = None means that FSC 3D does not cross the 0.143 threshold in Z'])
+        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionGlobal', 1/fg if fg else fg, ['', 'The estimated global resolution according to the FSC 3D. FSC3DresolutionGlobal = None means that FSC 3D does not cross the 0.143 threshold'])
+
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'Plotsvol', fnDir, 'Plotsvol image file')
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram', fnHist, 'FSC3D histogram')
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'FTPlotvol', fnPower, 'FTPlotvol image file')
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram_raw',
+                             os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'histogram_raw.csv')), 'histogram_raw csv file')
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'Plotsvol',
+                             os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'Plotsvol.csv')), 'Plotsvol csv file')
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'ResEMvolOutglobalFSC',
+                             os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'ResEMvolOutglobalFSC.csv')),
+                             'ResEMvolOutglobalFSC csv file')
+        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram_values',
+                             os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'histogram_values.lst')), 'histogram_values lst file')
 
         # Warnings
         warnings=[]
@@ -1171,8 +1246,7 @@ any structure in this difference. Sometimes some patterns are seen if the map is
                             "Slices of maximum variation in the three dimensions of the difference Half1-Half2.", Vdiff,
                             "fig:maxVarHalfDiff", maxVar=True)
 
-def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized,
-           protCreateMask, protCreateMaskResized, skipAnalysis = False):
+def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized, protCreateMask, protCreateMaskResized, skipAnalysis = False):
     # Import maps
     protImportMap1 = importMap(project, "import half1", fnMap1, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap1.isFailed():
