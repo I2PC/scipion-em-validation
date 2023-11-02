@@ -331,6 +331,7 @@ def plotMicrograph(fnMic, fnOut, coords=None, boxSize=0, Ts=0):
 class ValidationReport:
 
     def __init__(self, fnDir, levels,  IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION):
+        self.citations = {}
         self.fnProjectDir = fnDir
         self.fnReportDir = os.path.join(fnDir,"validationReport")
         makePath(self.fnReportDir)
@@ -342,13 +343,7 @@ class ValidationReport:
         self.fnFrontpage.close()
         self.fnContext = os.path.join(self.fnReportDir, "context.tex")
         self.fnContext = open(self.fnContext, "w")
-        self.fnContext.write("\\begin{center}\\textbf{Context}\\end{center}  \n"\
-                             "Cryo-electron microscopy is currently one of the most active techniques in Structural Biology. The number of maps deposited at the \\href{https://www.ebi.ac.uk/emdb/}{Electron Microscopy Data Bank} is rapidly growing every year and keeping the quality of the submitted maps is essential to maintain the scientific quality of the field. \\\\ \n" \
-                             "The ultimate quality measure is the consistency of the map and an atomic model. However, this is only possible for high resolution maps. Over the years there have been many suggestions about validation measures of 3DEM maps. Unfortunately, most of these measures are not currently in use for their spread in multiple software tools and the associated difficulty to access them. To alleviate this problem, we made available a validation grading system that evaluate the information provided to assess the map. \\\\ \n" \
-                             "This system grades a map from 0 to 5 depending on the amount of information available. In this way, a map could be validated at Level 0 (the deposited map), 1 (two half maps), 2 (2D classes), 3 (particles), 4 (... + angular assignment), 5 (... + micrographs and coordinates). In addition, we can have three optional qualifiers: A (... + atomic model), W (... + image processing workflow), and O (... + other techniques). \\\\ \n\n" \
-                             "This Validation Report Service is explained in more detail in the paper:\\\\ \n\n" \
-                             "C.O.S. Sorzano, J.L. Vilas, E. Ramírez-Aportela, D. del Hoyo, D. Herreros, E. Fernandez-Giménez, D. Marchán, F. de Isidro Gómez, J.R. Macías, I. Sánchez, L. del Caño, Y. Fonseca-Reyna, P. Conesa, A. García-Mena, J. Burguet, J. García Condado, J. Méndez García, M. Martínez, A. Muñoz Barrutia, R. Marabini, J. Vargas, J.M. Carazo. \\textbf{Image processing tools for the validation of CryoEM maps.} Faraday Discuss., 2022,240, 210-227.\n" \
-                             "Open access (peer-reviewed journals) \\href{http://creativecommons.org/licenses/by-nc/3.0/}{Creative Commons BY-NC license} DOI: \\href{https://doi.org/10.1039/D2FD00059H}{10.1039/D2FD00059H}")
+        self.writeContext()
         self.fnContext.close()
         self.fnAbstract = os.path.join(self.fnReportDir,"abstract.tex")
         self.fhAbstract = open(self.fnAbstract,"w")
@@ -357,7 +352,6 @@ class ValidationReport:
         self.fnSummaryWarnings = os.path.join(self.fnReportDir,"summaryWarnings.tex")
         self.fhSummaryWarnings = open(self.fnSummaryWarnings,"w")
         self.fhSummaryWarnings.write("\\textbf{\\underline{Summary of the warnings across sections.}}\\\\ \n\n\n")
-        self.citations = {}
         self.writePreamble()
         self.resolutionEstimates = []
         self.score = 0
@@ -598,6 +592,31 @@ class ValidationReport:
 
 """%(color)
         self.fnFrontpage.write(toWrite)
+
+    def writeContext(self):
+        toWrite = \
+"""
+\\begin{center}\\textbf{Context}\\end{center}
+Cryo-electron microscopy is currently one of the most active techniques in Structural Biology. The number of maps deposited at the \\href{https://www.ebi.ac.uk/emdb/}{Electron Microscopy Data Bank} is rapidly growing every year and keeping the quality of the submitted maps is essential to maintain the scientific quality of the field. \\\\
+The ultimate quality measure is the consistency of the map and an atomic model. However, this is only possible for high resolution maps. Over the years there have been many suggestions about validation measures of 3DEM maps. Unfortunately, most of these measures are not currently in use for their spread in multiple software tools and the associated difficulty to access them. To alleviate this problem, we made available a validation grading system that evaluate the information provided to assess the map. \\\\
+This system grades a map from 0 to 5 depending on the amount of information available. In this way, a map could be validated at Level 0 (the deposited map), 1 (two half maps), 2 (2D classes), 3 (particles), 4 (... + angular assignment), 5 (... + micrographs and coordinates). In addition, we can have three optional qualifiers: A (... + atomic model), W (... + image processing workflow), and O (... + other techniques). \\\\
+
+This Validation Report Service is explained in more detail in the paper \\cite{Sorzano2022} (DOI: \\href{https://doi.org/10.1039/D2FD00059H}{10.1039/D2FD00059H})\\\\
+"""
+        self.fnContext.write(toWrite)
+
+        key = 'Sorzano2022'
+        bblCitation = \
+            """\\bibitem[Sorzano et al., 2022]{%s}
+            Sorzano, C.O.S., Vilas, J.L., Ramírez-Aportela, E., del Hoyo, D., Herreros, D., Fernandez-Giménez, E., Marchán, D., 
+            de Isidro Gómez, F., Macías, J.R., Sánchez, I., del Caño, L., Fonseca-Reyna, Y., Conesa, P., García-Mena, A., 
+            Burguet, J., García Condado, J., Méndez García, J., Martínez, M., Muñoz Barrutia, A., Marabini, R., Vargas, J., 
+            Carazo, J.M. (2022)
+            \\newblock Image processing tools for the validation of CryoEM maps.
+            \\newblock \\textit {Faraday Discuss.}, 240:210--227.""" % (key)
+        #self.fnReport.addCitation("Sorzano2022", bblCitation)
+        if not key in self.citations:
+            self.citations[key] = bblCitation
 
     def addResolutionEstimate(self, R):
         self.resolutionEstimates.append(R)
