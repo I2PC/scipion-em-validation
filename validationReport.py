@@ -466,7 +466,7 @@ class ValidationReport:
     def writeFrontpage(self,  levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION):
         
         ScipionEmValDir = os.path.dirname(__file__)
-        logo = os.path.join(ScipionEmValDir, 'resources', 'figures', 'logo.png') 
+        logo = os.path.join(ScipionEmValDir, 'resources', 'figures', 'i2pc_logo.png') 
 
         if IS_EMDB_ENTRY:
             # Set parameters for public data-based repots
@@ -529,8 +529,7 @@ class ValidationReport:
                  {%s}; 
         \\end{tikzpicture}
         \\begin{center}
-            \\vspace{-1cm}
-            \\includegraphics[width=5cm]{%s}\\\\
+            \\includegraphics[width=8cm]{%s}\\\\
             \\vspace{0.5cm}
             {\\Huge \\bf Validation Report Service}\\\\  
             \\vspace{0.5cm}
