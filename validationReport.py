@@ -165,8 +165,10 @@ def generateChimeraColorView(fnWorkingDir, project, fnRoot, fnMap, Ts, fnColor, 
 run(session, 'volume voxelLimitForOpen 1000')
 run(session, 'volume showPlane false')
 run(session, 'windowsize 1300 700')
+run(session, 'view all')
 run(session, 'save %s')
 run(session, 'turn x 90')
+run(session, 'view all')
 run(session, 'save %s')
 run(session, 'turn x -90')
 run(session, 'turn y 90')
@@ -722,14 +724,13 @@ class ValidationReport:
 
 \\begin{figure}[H]
   \\centering
-  \\subfloat[View 1]{\includegraphics[width=6.5cm]{%s}}
-  \\hspace{0.1cm}
-  \\subfloat[View 2]{\includegraphics[width=6.5cm]{%s}}
+  \\subfloat[View 1]{\includegraphics[width=6.8cm]{%s}}
+  \\subfloat[View 2]{\includegraphics[width=6.8cm]{%s}}
   \\hspace{0.1cm}
 \\end{figure}
 \\begin{figure}[H]
   \\centering
-  \\subfloat[View 3]{\includegraphics[width=6.5cm]{%s}}
+  \\subfloat[View 3]{\includegraphics[width=7cm]{%s}}
   \\caption{%s}
   \\label{%s}
 \\end{figure}
