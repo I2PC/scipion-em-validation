@@ -742,13 +742,15 @@ This Validation Report Service is explained in more detail in the paper \\cite{S
 
 \\begin{figure}[H]
   \\centering
-  \\subfloat[View 1]{\includegraphics[width=6.8cm]{%s}}
-  \\subfloat[View 2]{\includegraphics[width=6.8cm]{%s}}
-  \\hspace{0.1cm}
+  \\subfloat[View 1]{\includegraphics[width=12cm]{%s}}
 \\end{figure}
 \\begin{figure}[H]
   \\centering
-  \\subfloat[View 3]{\includegraphics[width=7cm]{%s}}
+  \\subfloat[View 2]{\includegraphics[width=12cm]{%s}}
+\\end{figure}
+\\begin{figure}[H]
+  \\centering
+  \\subfloat[View 3]{\includegraphics[width=12cm]{%s}}
   \\caption{%s}
   \\label{%s}
 \\end{figure}
