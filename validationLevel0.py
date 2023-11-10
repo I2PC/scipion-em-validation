@@ -666,7 +666,7 @@ Fourier transform) of the experimental map, its fitted line, and the corrected m
     warnings=[]
     testWarnings = False
     if bfactor<-300 or bfactor>0 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The B-factor is out of the interval [-300,0]}}")
+        warnings.append("{\\color{red} \\textbf{The B-factor is out of the interval [-300,0]. %s}}" % "It is oversharpened." if bfactor>0 else "")
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the B-factor is in the range [-300,0].
 \\\\
