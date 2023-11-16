@@ -429,7 +429,7 @@ def convertPDB(project, report, protImportMap, protAtom):
         return None
     return protConvert
 
-def fscq(project, report, protImportMap, protAtom, protConvert):
+def fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask):
     if not protImportMap.outputVolume.hasHalfMaps():
         return
 
@@ -462,7 +462,8 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
                                             'XmippProtValFit', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel="A.b FSC-Q",
-                               inputPDBObj=protAtom.outputPdb)
+                               inputPDBObj=protAtom.outputPdb,
+                               inputMask=protCreateSoftMask)
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.pdbMap.set(protConvert.outputVolume)
     if useSlurm:
@@ -1399,7 +1400,7 @@ Atomic model: %s \\\\
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
     return False
 
-def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis=False):
+def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, skipAnalysis=False):
     if writeAtomicModelFailed:
         reportInput(project, report, FNMODEL, writeAtomicModelFailed)
         protAtom = None
@@ -1421,7 +1422,7 @@ def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFaile
             protConvert = convertPDB(project, report, protImportMap, protAtom)
             if protConvert is not None:
                 mapq(project, report, protImportMap, protAtom, resolution)
-                fscq(project, report, protImportMap, protAtom, protConvert)
+                fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask)
                 if doMultimodel:
                     multimodel(project, report, protImportMap, protAtom, resolution)
                 guinierModel(project, report, protImportMap, protConvert, resolution)

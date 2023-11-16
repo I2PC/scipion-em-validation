@@ -1246,7 +1246,7 @@ any structure in this difference. Sometimes some patterns are seen if the map is
                             "Slices of maximum variation in the three dimensions of the difference Half1-Half2.", Vdiff,
                             "fig:maxVarHalfDiff", maxVar=True)
 
-def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized, protCreateMask, protCreateMaskResized, skipAnalysis = False):
+def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized, protCreateHardMask, protCreateSoftMask, protCreateSoftMaskResized, skipAnalysis = False):
     # Import maps
     protImportMap1 = importMap(project, "import half1", fnMap1, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap1.isFailed():
@@ -1260,14 +1260,14 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY
     if not skipAnalysis:
         report.writeSection('Level 1 analysis')
         globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
-        fscPermutation(project, report, "1.b FSC permutation", protImportMap1, protImportMap2, protCreateMask,
+        fscPermutation(project, report, "1.b FSC permutation", protImportMap1, protImportMap2, protCreateSoftMask,
                        resolution)
-        blocres(project, report, "1.c Blocres", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
-        resmap(project, report, "1.d Resmap", protImportMap, protImportMap1, protImportMap2, protCreateMask, resolution)
-        monores(project, report, "1.e MonoRes", protImportMap, protCreateMask, resolution)
-        monodir(project, report, "1.f MonoDir", protImportMap, protCreateMask, resolution)
-        fso(project, report, "1.g FSO", protImportMap, protCreateMask, resolution)
+        blocres(project, report, "1.c Blocres", protImportMap, protImportMap1, protImportMap2, protCreateHardMask, resolution)
+        resmap(project, report, "1.d Resmap", protImportMap, protImportMap1, protImportMap2, protCreateSoftMask, resolution)
+        monores(project, report, "1.e MonoRes", protImportMap, protCreateHardMask, resolution)
+        monodir(project, report, "1.f MonoDir", protImportMap, protCreateHardMask, resolution)
+        fso(project, report, "1.g FSO", protImportMap, protCreateSoftMask, resolution)
         fsc3d(project, report, "1.h FSC3D", protImportMapResized, protImportMap1, protImportMap2,
-              protCreateMaskResized, resolution)
+              protCreateSoftMaskResized, resolution)
 
     return protImportMap1, protImportMap2

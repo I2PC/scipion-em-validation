@@ -87,7 +87,7 @@ def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapC
         saveIntermediateData(report.fnReportDir, "inputData", True, "map", str(prot.half2map), 'halfmap2 from EMDB')
     return prot
 
-def createMask(project, label, map, Ts, threshold):
+def createMask(project, label, map, Ts, threshold, smooth=False):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess',
                                             'XmippProtCreateMask3D', doRaise=True)
     prot = project.newProtocol(Prot,
@@ -96,8 +96,8 @@ def createMask(project, label, map, Ts, threshold):
                                threshold=threshold,
                                doBig=True,
                                doMorphological=True,
-                               doSmooth=True,
-                               sigmaConvolution=2.0,
+                               doSmooth=True if smooth else False,
+                               sigmaConvolution=2.0 if smooth else None,
                                elementSize=math.ceil(2/Ts)) # Dilation by 2A
     if useSlurm:
         sendToSlurm(prot)
@@ -106,7 +106,7 @@ def createMask(project, label, map, Ts, threshold):
     waitUntilFinishes(project, prot)
     return prot
 
-def resizeProject(project, protMap, protMask, resolution):
+def resizeProject(project, protMap, protHardMask, protSoftMask, resolution):
     Xdim = protMap.outputVolume.getDim()[0]
     Ts = protMap.outputVolume.getSamplingRate()
     AMap = Xdim * Ts
@@ -134,36 +134,67 @@ def resizeProject(project, protMap, protMask, resolution):
     projectPath = os.path.join(project.getPath())
     subprocess.call(['chmod', '-R', 'o+r', projectPath])
 
-    protResizeMask = project.newProtocol(Prot,
-                                         objLabel="Resize Mask Ts=%2.1f"%TsTarget,
+    # hard mask
+    protResizeHardMask = project.newProtocol(Prot,
+                                         objLabel="Resize Hard Mask Ts=%2.1f"%TsTarget,
                                          doResize=True,
                                          resizeSamplingRate=TsTarget,
                                          doWindow=True,
                                          windowOperation=1,
                                          windowSize=Xdimp)
-    protResizeMask.inputVolumes.set(protMask.outputMask)
+    protResizeHardMask.inputVolumes.set(protHardMask.outputMask)
     if useSlurm:
-        sendToSlurm(protResizeMask)
-    project.launchProtocol(protResizeMask)
+        sendToSlurm(protResizeHardMask)
+    project.launchProtocol(protResizeHardMask)
     #waitOutput(project, protResizeMask, 'outputVol')
-    waitUntilFinishes(project, protResizeMask)
+    waitUntilFinishes(project, protResizeHardMask)
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtPreprocessVolumes', doRaise=True)
-    protPreprocessMask = project.newProtocol(Prot,
-                                             objLabel="Binarize",
+    protPreprocessHardMask = project.newProtocol(Prot,
+                                             objLabel="Binarize Hard Mask",
                                              doThreshold=True,
                                              thresholdType=1,
                                              threshold=0.5,
                                              fillType=1)
-    protPreprocessMask.inputVolumes.set(protResizeMask.outputVol)
+    protPreprocessHardMask.inputVolumes.set(protResizeHardMask.outputVol)
     if useSlurm:
-        sendToSlurm(protPreprocessMask)
-    project.launchProtocol(protPreprocessMask)
+        sendToSlurm(protPreprocessHardMask)
+    project.launchProtocol(protPreprocessHardMask)
     #waitOutput(project, protPreprocessMask, 'outputVol')
-    waitUntilFinishes(project, protPreprocessMask)
+    waitUntilFinishes(project, protPreprocessHardMask)
 
-    return protResizeMap, protPreprocessMask
+    # soft mask
+    protResizeSoftMask = project.newProtocol(Prot,
+                                         objLabel="Resize Soft Mask Ts=%2.1f"%TsTarget,
+                                         doResize=True,
+                                         resizeSamplingRate=TsTarget,
+                                         doWindow=True,
+                                         windowOperation=1,
+                                         windowSize=Xdimp)
+    protResizeSoftMask.inputVolumes.set(protSoftMask.outputMask)
+    if useSlurm:
+        sendToSlurm(protResizeSoftMask)
+    project.launchProtocol(protResizeSoftMask)
+    #waitOutput(project, protResizeMask, 'outputVol')
+    waitUntilFinishes(project, protResizeSoftMask)
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtPreprocessVolumes', doRaise=True)
+    protPreprocessSoftMask = project.newProtocol(Prot,
+                                             objLabel="Binarize Soft Mask",
+                                             doThreshold=True,
+                                             thresholdType=1,
+                                             threshold=0.5,
+                                             fillType=1)
+    protPreprocessSoftMask.inputVolumes.set(protResizeSoftMask.outputVol)
+    if useSlurm:
+        sendToSlurm(protPreprocessSoftMask)
+    project.launchProtocol(protPreprocessSoftMask)
+    #waitOutput(project, protPreprocessMask, 'outputVol')
+    waitUntilFinishes(project, protPreprocessSoftMask)
+
+    return protResizeMap, protPreprocessHardMask, protPreprocessSoftMask
 
 def properMask(mask):
     M = readMap(mask.getFileName()).getData()
@@ -1132,7 +1163,7 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
     if len(warnings)>0:
         report.writeAbstract("There seems to be a problem with the map hand (see Sec. \\ref{%s}). "%secLabel)
 
-def reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateMask):
+def reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateHardMask, protCreateSoftMask):
 
     # Get file basename to write it in the report
     basenameFnMap = os.path.basename(fnMap)
@@ -1181,14 +1212,23 @@ Resolution estimated by user: %f \\\\
     report.isoSurfaces("isoInput", msg, "Isosurface at threshold=%f."%threshold,
                        fnImportMap, threshold, "fig:isoInput")
 
-    fnMask = os.path.join(project.getPath(),protCreateMask.outputMask.getFileName())
-    msg = "\\underline{\\textbf{Orthogonal slices of maximum variance of the mask}}\\\\"\
-          "\\textbf{Explanation}:\\\\ The mask has been calculated at the suggested threshold %f, "\
+    fnHardMask = os.path.join(project.getPath(),protCreateHardMask.outputMask.getFileName())
+    msg = "\\underline{\\textbf{Orthogonal slices of maximum variance of the mask with hard borders}}\\\\"\
+          "\\textbf{Explanation}:\\\\ The mask with hard borders has been calculated at the suggested threshold %f, "\
           "the largest connected component was selected, and then dilated by 2\AA.\\\\ \\\\"\
           "\\textbf{Results}:\\\\"\
-          "See Fig. \\ref{fig:maxVarMask}.\\\\"%threshold
-    report.orthogonalSlices("maxVarMask", msg, "Slices of maximum variation in the three dimensions of the mask",
-                            fnMask, "fig:maxVarMask", maxVar=True)
+          "See Fig. \\ref{fig:maxVarHardMask}.\\\\"%threshold
+    report.orthogonalSlices("maxVarHardMask", msg, "Slices of maximum variation in the three dimensions of the mask with hard borders",
+                            fnHardMask, "fig:maxVarHardMask", maxVar=True)
+
+    fnSoftMask = os.path.join(project.getPath(),protCreateSoftMask.outputMask.getFileName())
+    msg = "\\underline{\\textbf{Orthogonal slices of maximum variance of the mask with soft borders}}\\\\"\
+          "\\textbf{Explanation}:\\\\ The mask with soft borders has been calculated at the suggested threshold %f, "\
+          "the largest connected component was selected, and then dilated by 2\AA.\\\\ \\\\"\
+          "\\textbf{Results}:\\\\"\
+          "See Fig. \\ref{fig:maxVarSoftMask}.\\\\"%threshold
+    report.orthogonalSlices("maxVarSoftMask", msg, "Slices of maximum variation in the three dimensions of the mask with soft borders",
+                            fnHardMask, "fig:maxVarSoftMask", maxVar=True)
 
 def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False):
     # Import map
@@ -1199,25 +1239,28 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
     saveIntermediateData(report.fnReportDir, 'inputData', False, 'threshold', threshold, ['', 'Threshold from EMDB map'])
     saveIntermediateData(report.fnReportDir, 'inputData', False, 'resolution', resolution, ['\u212B', 'Resolution from EMDB map'])
 
-    protCreateMask = createMask(project, "create mask", protImportMap.outputVolume, Ts, threshold)
-    if protCreateMask.isFailed():
-        raise Exception("Create mask did not work")
-    reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateMask)
+    protCreateHardMask = createMask(project, "create hard mask", protImportMap.outputVolume, Ts, threshold, smooth=False)
+    if protCreateHardMask.isFailed():
+        raise Exception("Create hard mask did not work")
+    protCreateSoftMask = createMask(project, "create soft mask", protImportMap.outputVolume, Ts, threshold, smooth=True)
+    if protCreateSoftMask.isFailed():
+        raise Exception("Create soft mask did not work")
+    reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateHardMask, protCreateSoftMask)
     # properMask = properMask(protCreateMask.outputMask)
 
     # Resize to the given resolution
-    protResizeMap, protResizeMask = resizeProject(project, protImportMap, protCreateMask, resolution)
+    protResizeMap, protResizeHardMask, protResizeSoftMask = resizeProject(project, protImportMap, protCreateHardMask, protCreateSoftMask, resolution)
 
     # Quality Measures
     report.writeSection('Level 0 analysis')
-    massAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts)
-    maskAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask, Ts, threshold)
-    backgroundAnalysis(report, protImportMap.outputVolume, protCreateMask.outputMask)
+    massAnalysis(report, protImportMap.outputVolume, protCreateHardMask.outputMask, Ts)
+    maskAnalysis(report, protImportMap.outputVolume, protCreateHardMask.outputMask, Ts, threshold)
+    backgroundAnalysis(report, protImportMap.outputVolume, protCreateHardMask.outputMask)
     bfactor=bFactorAnalysis(report, protImportMap.outputVolume, resolution)
 
     if not skipAnalysis:
-        xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateMask.outputMask, resolution)
-        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protResizeMask.outputVol, resolution)
-        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protResizeMask.outputVol, resolution)
+        xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateHardMask.outputMask, resolution)
+        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protCreateSoftMask.outputVol, resolution)
+        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protCreateSoftMask.outputVol, resolution)
         deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, threshold)
-    return protImportMap, protCreateMask, bfactor, protResizeMap, protResizeMask
+    return protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protResizeSoftMask
