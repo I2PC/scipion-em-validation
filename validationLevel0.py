@@ -165,6 +165,8 @@ def resizeProject(project, protMap, protHardMask, protSoftMask, resolution):
     waitUntilFinishes(project, protPreprocessHardMask)
 
     # soft mask
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtCropResizeVolumes', doRaise=True)
     protResizeSoftMask = project.newProtocol(Prot,
                                          objLabel="Resize Soft Mask Ts=%2.1f"%TsTarget,
                                          doResize=True,
@@ -1260,7 +1262,7 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
 
     if not skipAnalysis:
         xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateHardMask.outputMask, resolution)
-        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protCreateSoftMask.outputVol, resolution)
-        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protCreateSoftMask.outputVol, resolution)
+        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protResizeSoftMask.outputVol, resolution)
+        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protResizeSoftMask.outputVol, resolution)
         deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, threshold)
-    return protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protResizeSoftMask
+    return protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protResizeHardMask, protResizeSoftMask
