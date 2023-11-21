@@ -196,6 +196,7 @@ EMDB_ID = None
 EMDB_ID_NUM = None
 PDB_ID = None
 IS_EMDB_ENTRY = False
+LEVELS = None
 
 MAPCOORDX = None
 MAPCOORDY = None
@@ -222,19 +223,23 @@ wrongInputs = {'errors':[], 'warnings':[]}
 for arg in sys.argv:
     if arg.startswith('EMDBid='):
         IS_EMDB_ENTRY = True
+        EMDB_ID = arg.split('EMDBid=')[1]
+        EMDB_ID_NUM = EMDB_ID.replace("EMD-", "")
+        PROJECT_NAME = EMDB_ID
+    if arg.startswith('levels='):
+        LEVELS = arg.split('levels=')[1]
 
 if IS_EMDB_ENTRY:
-    EMDB_ID = arg.split("EMDBid=")[1]
-    EMDB_ID_NUM = EMDB_ID.replace("EMD-", "")
-    PROJECT_NAME = EMDB_ID
     if EMDButils.does_map_exits(EMDB_ID_NUM):
         TS, MAPTHRESHOLD, MAPRESOLUTION = EMDButils.get_map_metadata(EMDB_ID_NUM)
         levels.append('0')
-        if EMDButils.has_halfmaps(EMDB_ID_NUM):
-            levels.append('1')
-        PDB_ID = EMDButils.get_atomicmodel(EMDB_ID_NUM)
-        if PDB_ID:
-            levels.append('A')
+        if (LEVELS and '1' in LEVELS) or (not LEVELS):
+            if EMDButils.has_halfmaps(EMDB_ID_NUM):
+                levels.append('1')
+        if (LEVELS and 'A' in LEVELS.upper()) or (not LEVELS):
+            PDB_ID = EMDButils.get_atomicmodel(EMDB_ID_NUM)
+            if PDB_ID:
+                levels.append('A')
     else:
         print("There is no EMDB map with code %s" % EMDB_ID_NUM)
 else:
