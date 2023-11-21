@@ -1230,7 +1230,7 @@ Resolution estimated by user: %f \\\\
           "\\textbf{Results}:\\\\"\
           "See Fig. \\ref{fig:maxVarSoftMask}.\\\\"%threshold
     report.orthogonalSlices("maxVarSoftMask", msg, "Slices of maximum variation in the three dimensions of the mask with soft borders",
-                            fnHardMask, "fig:maxVarSoftMask", maxVar=True)
+                            fnSoftMask, "fig:maxVarSoftMask", maxVar=True)
 
 def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False):
     # Import map
