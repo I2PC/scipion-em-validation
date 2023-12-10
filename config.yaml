@@ -1,8 +1,10 @@
 [QUEUE]
 # Do you want to use Slurm?
-USE_SLURM = False
+USE_SLURM = True
 # GPU ID to be used when Slurm is set up and you do want to skip it
 GPU_ID_SKIP_SLURM = 7
+# Queue name
+QUEUE_NAME = debug
 
 [CHIMERA]
 MAX_MEM_TO_USE = 60000

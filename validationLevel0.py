@@ -25,6 +25,7 @@
 # **************************************************************************
 
 import math
+
 import numpy as np
 import os
 import scipy
@@ -37,7 +38,7 @@ from validationReport import readMap, readGuinier, latexEnumerate, calculateSha2
 
 import xmipp3
 
-from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes
+from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished
 
 import configparser
 
@@ -623,8 +624,8 @@ amount expected for a Gaussian with the same standard deviation whose mean is 0.
                              "\\ref{%s}). "%secLabel)
 
 
-def bFactorAnalysis(report, map, resolution):
-    fnIn = map.getFileName()
+def bFactorAnalysis(project, report, map, resolution):
+    fnIn = os.path.join(project.getPath(), map.getFileName())
     if fnIn.endswith(".mrc"):
         fnIn+=":mrc"
     fnOut = os.path.join(report.getReportDir(), "sharpenedMap.mrc")
@@ -633,10 +634,22 @@ def bFactorAnalysis(report, map, resolution):
 
     scipionHome = getScipionHome()
     scipion3 = os.path.join(scipionHome,'scipion3')
-    output = subprocess.check_output([scipion3, 'run xmipp_volume_correct_bfactor %s'%args])
+    cmd = '%s run xmipp_volume_correct_bfactor %s'%(scipion3, args)
 
-    p = subprocess.Popen('%s run xmipp_volume_correct_bfactor %s'%(scipion3, args), shell=True, stderr=subprocess.PIPE)
-    outputLines = p.stderr.read().decode('utf-8').split('\n')
+    if not useSlurm:
+        p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
+        outputLines = p.stderr.read().decode('utf-8').split('\n')
+    else:
+        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor', report.getReportDir(), cmd)
+        # send job to queue
+        subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
+        # check if job has finished
+        while True:
+            if checkIfJobFinished('xmipp_volume_correct_bfactor'):
+                break
+        with open(slurmScriptPath.replace('.sh', '.job.err'), 'r') as slurmOutputFile:
+            outputLines = slurmOutputFile.read().split('\n')
+
     tokens = outputLines[0].split()
     a = float(tokens[2])
     b = float(tokens[4])
@@ -754,7 +767,7 @@ input map to the appearance of the atomic structures a local resolution label ca
                                inputVolume=map,
                                Mask=mask)
     if useSlurm:
-        skipSlurm(prot, gpuIdSkipSlurm)
+        sendToSlurm(prot, GPU=True)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'resolution_Volume')
     waitUntilFinishes(project, prot)
@@ -1258,7 +1271,7 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
     massAnalysis(report, protImportMap.outputVolume, protCreateHardMask.outputMask, Ts)
     maskAnalysis(report, protImportMap.outputVolume, protCreateHardMask.outputMask, Ts, threshold)
     backgroundAnalysis(report, protImportMap.outputVolume, protCreateHardMask.outputMask)
-    bfactor=bFactorAnalysis(report, protImportMap.outputVolume, resolution)
+    bfactor=bFactorAnalysis(project, report, protImportMap.outputVolume, resolution)
 
     if not skipAnalysis:
         xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateHardMask.outputMask, resolution)

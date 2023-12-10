@@ -1096,7 +1096,7 @@ This method analyzes the FSC in different directions and evaluates its homogenei
         prot.maskVolume.set(protMaskResize.outputVol)
 
         if useSlurm:
-            sendToSlurm(prot)
+            sendToSlurm(prot, GPU=True)
         project.launchProtocol(prot)
         #waitOutput(project, prot, 'outputVolume')
         waitUntilFinishes(project, prot)
