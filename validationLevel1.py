@@ -40,7 +40,7 @@ from validationReport import readMap, calculateSha256, CDFFromHistogram, CDFperc
     radialPlot, reportMultiplePlots, reportHistogram
 import xmipp3
 
-from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFinishes
+from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished
 
 import configparser
 
@@ -576,12 +576,22 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
 
     fnMask = os.path.join(project.getPath(),protMask.outputMask.getFileName())
     args = "--doBenchMarking --noguiSplit %s %s --vxSize=%f  --maskVol=%s"%(fnVol1, fnVol2, Ts, fnMask)
-    # output = subprocess.check_output([resmap, args])
     print("Running: %s %s" % (resmap, args))
-    p = subprocess.Popen('%s %s' % (resmap, args), shell=True, stderr=subprocess.PIPE)
-    p.wait()
+    cmd = '%s %s' % (resmap, args)
 
-    fnResMap = os.path.join(report.getReportDir(), "half1_ori_resmap.mrc")
+    if not useSlurm:
+        p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
+        p.wait()
+    else:
+        slurmScriptPath = createScriptForSlurm('resmap', report.getReportDir(), cmd)
+        # send job to queue
+        subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
+        # check if job has finished
+        while True:
+            if checkIfJobFinished('resmap'):
+                break
+
+    fnResMap = os.path.join(report.getReportDir() if not useSlurm else os.path.dirname(slurmScriptPath), "half1_ori_resmap.mrc")
     if not os.path.exists(fnResMap):
         report.writeSummary("1.d Resmap", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")

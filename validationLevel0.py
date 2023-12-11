@@ -640,12 +640,12 @@ def bFactorAnalysis(project, report, map, resolution):
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
         outputLines = p.stderr.read().decode('utf-8').split('\n')
     else:
-        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor', report.getReportDir(), cmd)
+        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_level0', report.getReportDir(), cmd)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished
         while True:
-            if checkIfJobFinished('xmipp_volume_correct_bfactor'):
+            if checkIfJobFinished('xmipp_volume_correct_bfactor_level0'):
                 break
         with open(slurmScriptPath.replace('.sh', '.job.err'), 'r') as slurmOutputFile:
             outputLines = slurmOutputFile.read().split('\n')
