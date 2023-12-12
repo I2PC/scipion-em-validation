@@ -107,6 +107,26 @@ def createMask(project, label, map, Ts, threshold, smooth=False):
     waitUntilFinishes(project, prot)
     return prot
 
+def createMaskedMap(report, map, mask):
+    V = xmipp3.Image(map.getFileName()).getData()
+    M = xmipp3.Image(mask.getFileName()).getData()
+
+    save = xmipp3.Image()
+    save.setData(np.multiply(V,M))
+    fnMaskedMap = os.path.join(report.getReportDir(),"maskedMap.mrc")
+    save.write(fnMaskedMap)
+    return fnMaskedMap
+
+def createResizedMaskedMap(report, resizedMap, resizedMask):
+    V = xmipp3.Image(resizedMap.getFileName()).getData()
+    M = xmipp3.Image(resizedMask.getFileName()).getData()
+
+    save = xmipp3.Image()
+    save.setData(np.multiply(V,M))
+    fnResizedMaskedMap = os.path.join(report.getReportDir(),"resizedMaskedMap.mrc")
+    save.write(fnResizedMaskedMap)
+    return fnResizedMaskedMap
+
 def resizeProject(project, protMap, protHardMask, protSoftMask, resolution):
     Xdim = protMap.outputVolume.getDim()[0]
     Ts = protMap.outputVolume.getSamplingRate()
@@ -725,7 +745,7 @@ Fourier transform) of the experimental map, its fitted line, and the corrected m
 
     return bfactor
 
-def xmippDeepRes(project, report, label, map, mask, resolution):
+def xmippDeepRes(project, report, label, map, mask, resolution, fnMaskedMap):
     bblCitation= \
 """\\bibitem[Ram\\'{\i}rez-Aportela et~al., 2019]{Ramirez2019}
 Ram\\'{\i}rez-Aportela, E., Mota, J., Conesa, P., Carazo, J.~M., and Sorzano, C.
@@ -846,7 +866,7 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
     Ts = map.getSamplingRate()
     report.colorIsoSurfaces("", "Local resolution according to DeepRes.", "fig:deepresColor",
                             project, "deepresViewer",
-                            os.path.join(project.getPath(), prot._getExtraPath("originalVolume.vol")), Ts,
+                            fnMaskedMap, Ts,
                             fnRes, Rpercentiles[0], Rpercentiles[-1])
     saveIntermediateData(report.getReportDir(), 'deepRes', True, 'deepResViewer',
                          [os.path.join(report.getReportDir(), 'deepresViewer1.jpg'),
@@ -870,7 +890,7 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
     report.writeWarningsAndSummary(warnings, "0.e DeepRes", secLabel)
     return prot
 
-def locBfactor(project, report, label, map, mask, resolution):
+def locBfactor(project, report, label, map, mask, resolution, fnResizedMaskedMap):
     bblCitation = \
 """\\bibitem[Kaur et~al., 2021]{Kaur2021}
 Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
@@ -971,7 +991,7 @@ Fig. \\ref{fig:locBfactorColor} shows some representative views of the local B-f
     Ts = map.getSamplingRate()
     report.colorIsoSurfaces("", "Local B-factor according to LocBfactor.", "fig:locBfactorColor",
                             project, "locBfactorViewer",
-                            os.path.join(project.getPath(), map.getFileName()), Ts,
+                            fnResizedMaskedMap, Ts,
                             fnBfactor, Bpercentiles[0], Bpercentiles[-1])
     saveIntermediateData(report.getReportDir(), 'locBfactor', True, 'locBfactorViewer',
                          [os.path.join(report.getReportDir(), 'locBfactorViewer1.jpg'),
@@ -994,7 +1014,7 @@ Fig. \\ref{fig:locBfactorColor} shows some representative views of the local B-f
         report.writeAbstract("There seems to be a problem with its local B-factor (see Sec. \\ref{%s}). "%secLabel)
 
 
-def locOccupancy(project, report, label, map, mask, resolution):
+def locOccupancy(project, report, label, map, mask, resolution, fnResizedMaskedMap):
     bblCitation = \
 """\bibitem[Kaur et~al., 2021]{Kaur2021}
 Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
@@ -1091,7 +1111,7 @@ Fig. \\ref{fig:locOccupancyColor} shows some representative views of the local o
     Ts = map.getSamplingRate()
     report.colorIsoSurfaces("", "Local occupancy according to LocOccupancy.", "fig:locOccupancyColor",
                             project, "locOccupancyViewer",
-                            os.path.join(project.getPath(), map.getFileName()), Ts,
+                            fnResizedMaskedMap, Ts,
                             fnOccupancy, Bpercentiles[0], Bpercentiles[-1])
     saveIntermediateData(report.getReportDir(), 'locOccupancy', True, 'locOccupancyViewer',
                          [os.path.join(report.getReportDir(), 'locOccupancyViewer1.jpg'),
@@ -1266,6 +1286,13 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
     # Resize to the given resolution
     protResizeMap, protResizeHardMask, protResizeSoftMask = resizeProject(project, protImportMap, protCreateHardMask, protCreateSoftMask, resolution)
 
+    # Mask map and resized map for chimera views
+    fnMaskedMapDict = {}
+    fnMaskedMapDict['fnHardMaskedMap'] = createMaskedMap(report, protImportMap.outputVolume, protCreateHardMask.outputMask)
+    fnMaskedMapDict['fnSoftMaskedMap'] = createMaskedMap(report, protImportMap.outputVolume, protCreateSoftMask.outputMask)
+    fnMaskedMapDict['fnResizedHardMaskedMap'] = createResizedMaskedMap(report, protResizeMap.outputVol, protResizeHardMask.outputVol)
+    fnMaskedMapDict['fnResizedSoftMaskedMap'] = createResizedMaskedMap(report, protResizeMap.outputVol, protResizeSoftMask.outputVol)     
+
     # Quality Measures
     report.writeSection('Level 0 analysis')
     massAnalysis(report, protImportMap.outputVolume, protCreateHardMask.outputMask, Ts)
@@ -1274,8 +1301,8 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
     bfactor=bFactorAnalysis(project, report, protImportMap.outputVolume, resolution)
 
     if not skipAnalysis:
-        xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateHardMask.outputMask, resolution)
-        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protResizeSoftMask.outputVol, resolution)
-        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protResizeSoftMask.outputVol, resolution)
+        xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateHardMask.outputMask, resolution, fnMaskedMapDict['fnHardMaskedMap'])
+        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protResizeSoftMask.outputVol, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'])
+        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protResizeSoftMask.outputVol, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'])
         deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, threshold)
-    return protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protResizeHardMask, protResizeSoftMask
+    return protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protResizeHardMask, protResizeSoftMask, fnMaskedMapDict

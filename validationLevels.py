@@ -725,13 +725,12 @@ else: # go ahead
     # Create report
     # Level 0
     from validationLevel0 import level0
-    protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protResizeHardMask, protResizeSoftMask = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False)
-
+    protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protResizeHardMask, protResizeSoftMask, fnMaskedMapDict = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False)
 
     # Level 1
     if "1" in levels:
         from validationLevel1 import level1
-        level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protImportMap, protResizeMap, protCreateHardMask, protCreateSoftMask, protResizeSoftMask, skipAnalysis = False)
+        level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protImportMap, protResizeMap, protCreateHardMask, protCreateSoftMask, protResizeSoftMask, fnMaskedMapDict, skipAnalysis = False)
 
     # Level 2
     if "2" in levels:
@@ -760,7 +759,7 @@ else: # go ahead
     #TODO: pass writeAtomicModelFailed to levelA() to write the warning in the report
     if "A" in levels:
         from validationLevelA import levelA
-        protAtom = levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, MAPRESOLUTION, doMultimodel, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protCreateSoftMask, skipAnalysis = False)
+        protAtom = levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, MAPRESOLUTION, doMultimodel, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis = False)
     else:
         protAtom = None
 

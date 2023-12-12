@@ -429,7 +429,7 @@ def convertPDB(project, report, protImportMap, protAtom):
         return None
     return protConvert
 
-def fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask):
+def fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask, fnMaskedMap):
     if not protImportMap.outputVolume.hasHalfMaps():
         return
 
@@ -503,7 +503,7 @@ whose FSC-Qr absolute value is beyond 1.5 is %5.1f \\%%.
 
 """%(avgFSCQr, ci[0], ci[1], f15, fnHist)
     report.colorIsoSurfaces(msg, "Isosurface of the atomic model colored by FSC-Qr between -1.5 and 1.5",
-                            "fig:fscq", project, "fscq", prot._getExtraPath("pdb_volume.map"),
+                            "fig:fscq", project, "fscq", fnMaskedMap,
                             protImportMap.outputVolume.getSamplingRate(),
                             prot._getExtraPath("diferencia_norm.map"), -3.0, 3.0)
 
@@ -1400,7 +1400,7 @@ Atomic model: %s \\\\
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
     return False
 
-def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, skipAnalysis=False):
+def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False):
     if writeAtomicModelFailed:
         reportInput(project, report, FNMODEL, writeAtomicModelFailed)
         protAtom = None
@@ -1422,7 +1422,7 @@ def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFaile
             protConvert = convertPDB(project, report, protImportMap, protAtom)
             if protConvert is not None:
                 mapq(project, report, protImportMap, protAtom, resolution)
-                fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask)
+                fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask, fnMaskedMapDict['fnSoftMaskedMap'])
                 if doMultimodel:
                     multimodel(project, report, protImportMap, protAtom, resolution)
                 guinierModel(project, report, protImportMap, protConvert, resolution)

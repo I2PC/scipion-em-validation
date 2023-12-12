@@ -410,7 +410,7 @@ resolution estimated by FSC permutation.
 
     return prot
 
-def blocres(project, report, label, protImportMap, protImportMap1, protImportMap2, protMask, resolution):
+def blocres(project, report, label, protImportMap, protImportMap1, protImportMap2, protMask, resolution, fnMaskedMap):
     bblCitation = \
 """\\bibitem[Cardone et~al., 2013]{Cardone2013}
 Cardone, G., Heymann, J.~B., and Steven, A.~C. (2013).
@@ -512,7 +512,7 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
     Ts = protImportMap.outputVolume.getSamplingRate()
     report.colorIsoSurfaces("", "Local resolution according to Blocres.", "fig:blocresColor",
                             project, "blocresViewer",
-                            os.path.join(project.getPath(), protImportMap.outputVolume.getFileName()), Ts,
+                            fnMaskedMap, Ts,
                             os.path.join(project.getPath(), prot._getExtraPath("resolutionMap.map")),
                             Rpercentiles[0], Rpercentiles[-1])
     saveIntermediateData(report.getReportDir(), 'deepRes', True, 'blocResViewer',
@@ -536,7 +536,7 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.c Blocres", secLabel)
 
-def resmap(project, report, label,  protImportMap, protImportMap1, protImportMap2, protMask, resolution):
+def resmap(project, report, label,  protImportMap, protImportMap1, protImportMap2, protMask, resolution, fnMaskedMap):
     bblCitation = \
 """\\bibitem[Kucukelbir et~al., 2014]{Kucukelbir2014}
 Kucukelbir, A., Sigworth, F.~J., and Tagare, H.~D. (2014).
@@ -649,7 +649,7 @@ Fig. \\ref{fig:resmapColor} shows some representative views of the local resolut
     Ts = protImportMap.outputVolume.getSamplingRate()
     report.colorIsoSurfaces("", "Local resolution according to Resmap.", "fig:resmapColor",
                             project, "resmapViewer",
-                            os.path.join(project.getPath(), protImportMap.outputVolume.getFileName()), Ts,
+                            fnMaskedMap, Ts,
                             fnResMap, Rpercentiles[0], Rpercentiles[-1])
     saveIntermediateData(report.getReportDir(), 'resMap', True, 'resMapViewer',
                          [os.path.join(report.getReportDir(), 'resmapViewer1.jpg'),
@@ -676,7 +676,7 @@ Fig. \\ref{fig:resmapColor} shows some representative views of the local resolut
     cleanPath(fnVol1)
     cleanPath(fnVol2)
 
-def monores(project, report, label, protImportMap, protCreateMask, resolution):
+def monores(project, report, label, protImportMap, protCreateMask, resolution, fnMaskedMap):
     Ts = protImportMap.outputVolume.getSamplingRate()
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -791,7 +791,7 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
 
 
     report.colorIsoSurfaces("", "Local resolution according to Monores.", "fig:monoresColor",
-                            project, "monoresViewer", protImportMap.outputVolume.getFileName(),
+                            project, "monoresViewer", fnMaskedMap,
                             Ts, prot._getExtraPath("monoresResolutionChimera.mrc"), Rpercentiles[0], Rpercentiles[-1])
     saveIntermediateData(report.getReportDir(), 'monoRes', True, 'monoResViewer',
                          [os.path.join(report.getReportDir(), 'monoresViewer1.jpg'),
@@ -1246,7 +1246,7 @@ any structure in this difference. Sometimes some patterns are seen if the map is
                             "Slices of maximum variation in the three dimensions of the difference Half1-Half2.", Vdiff,
                             "fig:maxVarHalfDiff", maxVar=True)
 
-def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized, protCreateHardMask, protCreateSoftMask, protCreateSoftMaskResized, skipAnalysis = False):
+def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized, protCreateHardMask, protCreateSoftMask, protCreateSoftMaskResized, fnMaskedMapDict, skipAnalysis = False):
     # Import maps
     protImportMap1 = importMap(project, "import half1", fnMap1, Ts, mapCoordX, mapCoordY, mapCoordZ)
     if protImportMap1.isFailed():
@@ -1262,9 +1262,9 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY
         globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
         fscPermutation(project, report, "1.b FSC permutation", protImportMap1, protImportMap2, protCreateSoftMask,
                        resolution)
-        blocres(project, report, "1.c Blocres", protImportMap, protImportMap1, protImportMap2, protCreateHardMask, resolution)
-        resmap(project, report, "1.d Resmap", protImportMap, protImportMap1, protImportMap2, protCreateSoftMask, resolution)
-        monores(project, report, "1.e MonoRes", protImportMap, protCreateHardMask, resolution)
+        blocres(project, report, "1.c Blocres", protImportMap, protImportMap1, protImportMap2, protCreateHardMask, resolution, fnMaskedMapDict['fnHardMaskedMap'])
+        resmap(project, report, "1.d Resmap", protImportMap, protImportMap1, protImportMap2, protCreateSoftMask, resolution, fnMaskedMapDict['fnSoftMaskedMap'])
+        monores(project, report, "1.e MonoRes", protImportMap, protCreateHardMask, resolution, fnMaskedMapDict['fnHardMaskedMap'])
         monodir(project, report, "1.f MonoDir", protImportMap, protCreateHardMask, resolution)
         fso(project, report, "1.g FSO", protImportMap, protCreateSoftMask, resolution)
         fsc3d(project, report, "1.h FSC3D", protImportMapResized, protImportMap1, protImportMap2,
