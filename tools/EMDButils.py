@@ -35,7 +35,7 @@ def has_halfmaps(emdbid):
     Check if an EMDB map has half-maps associated
     """
     url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/supplement/%s' % emdbid
-    print("Fetching metadata from %s in order to check if it has halfmaps associated..." % url_rest_api)
+    print("Checking if EMD-%s has associated halfmaps in %s..." % (emdbid, url_rest_api))
     json_results = requests.get(url_rest_api).json()
     try:
         json_results['interpretation']['half_map_list']['half_map'][0]['file']
@@ -49,18 +49,19 @@ def fetch_emdb_halfmaps(emdbid, directory):
     Get half-maps associated of an EMDB map
     """
     url_supplement_info_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/supplement/%s' % emdbid
-    print("Fetching metadata from %s in order to get the filenames of the halfmaps associated..." % url_supplement_info_rest_api)
     json_results = requests.get(url_supplement_info_rest_api).json()
     half_maps = [json_results['interpretation']['half_map_list']['half_map'][0]['file'], json_results['interpretation']['half_map_list']['half_map'][1]['file']]
 
     url_ftp_other = 'ftp://ftp.ebi.ac.uk/pub/databases/emdb/structures/EMD-%s/other/%s'
+
+    print("Downloading associated halfmaps...")
 
     for map_gz_name in half_maps:
         map_url = url_ftp_other % (emdbid, map_gz_name)
         map_name = map_gz_name.replace('.gz', '')
         noCompressName = os.path.join(directory, map_name)
         compressName = os.path.join(directory, map_gz_name)
-        print('Fetching file from %s' % map_url)
+        print('Downloading file from %s' % map_url)
         urllib.request.urlretrieve(map_url, filename=compressName)
         gunzip(compressName, noCompressName)
 
