@@ -116,6 +116,7 @@ def usage(message=''):
           "\n         EMDBid: EMD-28533"
           "\n         or"
           "\n         project:  myProject"
+          "\n         doLevels: 0,1,A"
           "\n         LEVEL 0 ====="
           "\n            map:  mymap.mrc"
           "\n            sampling:  1 [A]"
@@ -226,8 +227,8 @@ for arg in sys.argv:
         EMDB_ID = arg.split('EMDBid=')[1]
         EMDB_ID_NUM = EMDB_ID.replace("EMD-", "")
         PROJECT_NAME = EMDB_ID
-    if arg.startswith('levels='):
-        LEVELS = arg.split('levels=')[1]
+    if arg.startswith('doLevels='):
+        LEVELS = arg.split('doLevels=')[1]
 
 if IS_EMDB_ENTRY:
     if EMDButils.does_map_exits(EMDB_ID_NUM):
