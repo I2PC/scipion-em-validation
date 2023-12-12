@@ -42,7 +42,7 @@ import pwem.convert.atom_struct
 import xmipp3
 
 from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot
-from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
+from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished
 
 import configparser
 
@@ -658,12 +658,20 @@ def guinierModel(project, report, protImportMap, protConvert, resolution):
 
     scipionHome = getScipionHome()
     scipion3 = os.path.join(scipionHome, 'scipion3')
-    output = subprocess.check_output([scipion3, 'run xmipp_volume_correct_bfactor %s' % args])
+    cmd = '%s run xmipp_volume_correct_bfactor %s' % (scipion3, args)
 
-    p = subprocess.Popen('%s run xmipp_volume_correct_bfactor %s' % (scipion3, args), shell=True,
-                         stderr=subprocess.PIPE)
+    if not useSlurm:
+        p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
+    else:
+        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_levelA', report.getReportDir(), cmd)
+        # send job to queue
+        subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
+        # check if job has finished
+        while True:
+            if checkIfJobFinished('xmipp_volume_correct_bfactor_levelA'):
+                break
 
-    dinv2, lnFMap, _ = readGuinier(os.path.join(report.getReportDir(), "sharpenedMap.mrc") + ".guinier")
+    dinv2, lnFMap, _ = readGuinier(os.path.join(report.getReportDir() if not useSlurm else os.path.dirname(slurmScriptPath), 'sharpenedMap.mrc') + '.guinier')
     _, lnFAtom, _ = readGuinier(fnOut + ".guinier")
     lnFMapp = lnFMap+(np.mean(lnFAtom)-np.mean(lnFMap))
 
