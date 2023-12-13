@@ -437,7 +437,7 @@ the list contains (No. voxels (volume in \AA$^3$), percentage, cumulated percent
                 cumulatedPercentage.append(100.0*cumulatedMass/sumRawM)
         i+=1
     toWrite += toWrite2
-    ncomponents95 = i
+    ncomponents95 = i -1
     toWrite+="\\\\ \\\\Number of components to reach 95\\%% of the mass: %d\\\\ \\\\"%ncomponents95
     ncomponentsRemaining = ncomponents-ncomponents95
     voxelsRemaining = sumRawM-cumulatedMass
