@@ -3,9 +3,9 @@ import requests
 import urllib.request
 import gzip
 
-def does_map_exits(emdbid):
+def does_map_exist(emdbid):
     """
-    Check if a map exits in EMDB give an id
+    Checks if a map exist in EMDB given an id
     """
     url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/%s' % emdbid
     print("Checking if EMD-%s exists..." % emdbid)
@@ -20,7 +20,7 @@ def get_map_metadata(emdbid):
     Returns the sampling, threshold and resolution from an EMDB map
     """
     url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/%s' % emdbid
-    print("Checking some EMD-%s metadata parameters (sampling, threshold and resolution) ..." % emdbid)
+    print("Getting some EMD-%s metadata parameters (sampling, threshold and resolution) ..." % emdbid)
     try:
         json_results = requests.get(url_rest_api).json()
         sampling = float(json_results["map"]["pixel_spacing"]["x"]["valueOf_"])
@@ -32,7 +32,7 @@ def get_map_metadata(emdbid):
 
 def has_halfmaps(emdbid):
     """
-    Check if an EMDB map has half-maps associated
+    Checks if an EMDB map has half-maps associated
     """
     url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/supplement/%s' % emdbid
     print("Checking if EMD-%s has associated halfmaps in %s..." % (emdbid, url_rest_api))
@@ -44,9 +44,9 @@ def has_halfmaps(emdbid):
         return False
     return True
 
-def fetch_emdb_halfmaps(emdbid, directory):
+def download_emdb_halfmaps(emdbid, directory):
     """
-    Get half-maps associated of an EMDB map
+    Downloads half-maps associated to an EMDB map
     """
     url_supplement_info_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/supplement/%s' % emdbid
     json_results = requests.get(url_supplement_info_rest_api).json()
@@ -65,27 +65,9 @@ def fetch_emdb_halfmaps(emdbid, directory):
         urllib.request.urlretrieve(map_url, filename=compressName)
         gunzip(compressName, noCompressName)
 
-    # check metadata
-    url_main_info_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/map/%s' % emdbid
-    print('Fetching metadata from %s' % url_main_info_rest_api)
-    json_results = requests.get(url_main_info_rest_api).json()
-    sampling_tag = 'pixel_spacing'
-    sampling_x_tag = 'x'
-    origin_tag = 'origin'
-    origin_x_tag = 'col'
-    origin_y_tag = 'row'
-    origin_z_tag = 'sec'
-    # units A/px
-    results = json_results['map']
-    sampling = float(results[sampling_tag][sampling_x_tag]['valueOf_'])
-    # units unknown may be pixels since this is integer
-    x = float(results[origin_tag][origin_x_tag])
-    y = float(results[origin_tag][origin_y_tag])
-    z = float(results[origin_tag][origin_z_tag])
+    return half_maps
 
-    return half_maps, sampling, (x, y, z)
-
-def get_atomicmodel(emdbid):
+def has_atomicmodel(emdbid):
     """
     Returns the associated atomic model of an EMDB map
     """
@@ -114,7 +96,7 @@ def download_atomicmodel(pdbid, path):
 
 def proper_map_axis_order(emdbid):
     """
-    Check if axis volume are ordered as x, y and z
+    Checks if axis volume are ordered as x, y and z
     """
     url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/%s' % emdbid
     print("Checking if EMD-%s axis map is ordered as x, y and z ..." % emdbid)

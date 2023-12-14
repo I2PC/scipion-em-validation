@@ -238,7 +238,7 @@ if IS_EMDB_ENTRY:
             if EMDButils.has_halfmaps(EMDB_ID_NUM):
                 levels.append('1')
         if (LEVELS and 'A' in LEVELS.upper()) or (not LEVELS):
-            PDB_ID = EMDButils.get_atomicmodel(EMDB_ID_NUM)
+            PDB_ID = EMDButils.has_atomicmodel(EMDB_ID_NUM)
             if PDB_ID:
                 levels.append('A')
     else:
@@ -410,7 +410,7 @@ else:
         FNMAP = os.path.join(project.getPath(), protImportMapChecker.outputVolume.getFileName())
         MAPCOORDX, MAPCOORDY, MAPCOORDZ = protImportMapChecker.outputVolume.getShiftsFromOrigin()
         if '1' in levels:
-            half_maps, sampling, (x, y, z) = EMDButils.fetch_emdb_halfmaps(EMDB_ID_NUM, protImportMapChecker._getExtraPath())
+            half_maps = EMDButils.download_emdb_halfmaps(EMDB_ID_NUM, protImportMapChecker._getExtraPath())
             fnMap1 = half_maps[0].replace('.gz', '')
             fnMap2 = half_maps[1].replace('.gz', '')
             if os.path.exists(os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1)) and os.path.exists(os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)):
