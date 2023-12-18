@@ -343,11 +343,11 @@ depends on the CTF) on each side to make sure that the CTF can be appropriately 
         if zF<20 or testWarnings:
             warnings.append("{\\color{red} \\textbf{There could be little space from Z right to effectively correct for the CTF.}}")
         if dcx>20 or testWarnings:
-            warnings.append("{\\color{red} \\textbf{The center of mass in X may be significantly shifted.}}")
+            warnings.append("{\\color{red} \\textbf{The center of mass in X may be significantly shifted. This is common when the refinement is applied exclusively to one protein region.}}")
         if dcy>20 or testWarnings:
-            warnings.append("{\\color{red} \\textbf{The center of mass in Y may be significantly shifted.}}")
+            warnings.append("{\\color{red} \\textbf{The center of mass in Y may be significantly shifted. This is common when the refinement is applied exclusively to one protein region.}}")
         if dcz>20 or testWarnings:
-            warnings.append("{\\color{red} \\textbf{The center of mass in Z may be significantly shifted.}}")
+            warnings.append("{\\color{red} \\textbf{The center of mass in Z may be significantly shifted. This is common when the refinement is applied exclusively to one protein region.}}")
 
     else:
         warnings = []
