@@ -231,7 +231,7 @@ for arg in sys.argv:
         LEVELS = arg.split('doLevels=')[1]
 
 if IS_EMDB_ENTRY:
-    if EMDButils.does_map_exits(EMDB_ID_NUM):
+    if EMDButils.does_map_exist(EMDB_ID_NUM):
         TS, MAPTHRESHOLD, MAPRESOLUTION = EMDButils.get_map_metadata(EMDB_ID_NUM)
         levels.append('0')
         if (LEVELS and '1' in LEVELS) or (not LEVELS):
