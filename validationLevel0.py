@@ -343,11 +343,11 @@ depends on the CTF) on each side to make sure that the CTF can be appropriately 
         if zF<20 or testWarnings:
             warnings.append("{\\color{red} \\textbf{There could be little space from Z right to effectively correct for the CTF.}}")
         if dcx>20 or testWarnings:
-            warnings.append("{\\color{red} \\textbf{The center of mass in X may be significantly shifted.}}")
+            warnings.append("{\\color{red} \\textbf{The center of mass in X may be significantly shifted. This is common when the refinement is applied exclusively to one protein region.}}")
         if dcy>20 or testWarnings:
-            warnings.append("{\\color{red} \\textbf{The center of mass in Y may be significantly shifted.}}")
+            warnings.append("{\\color{red} \\textbf{The center of mass in Y may be significantly shifted. This is common when the refinement is applied exclusively to one protein region.}}")
         if dcz>20 or testWarnings:
-            warnings.append("{\\color{red} \\textbf{The center of mass in Z may be significantly shifted.}}")
+            warnings.append("{\\color{red} \\textbf{The center of mass in Z may be significantly shifted. This is common when the refinement is applied exclusively to one protein region.}}")
 
     else:
         warnings = []
@@ -1135,13 +1135,20 @@ Fig. \\ref{fig:locOccupancyColor} shows some representative views of the local o
 
 
 def deepHand(project, report, label, resolution, map, threshold):
+    bblCitation= \
+"""\\bibitem[Garc\\'{\i}a et~al., 2022]{GarciaCondado2022}
+Garc\\'{\i}a Condado, J., Mu\\~{n}oz-Burrutia, A., and Sorzano, C. O.~S. (2022).
+\\newblock {Automatic determination of the handedness of single-particle maps of macromolecules solved by CryoEM.
+\\newblock {\em J. Structural Biology}, 214:107915."""
+    report.addCitation("GarciaCondado2022",bblCitation)
+
     secLabel = "sec:deepHand"
     msg = \
 """
 \\subsection{Level 0.h Hand correction}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-Deep Hand determines the correction of the hand for those maps with a resolution smaller than 5\\AA. The method
+Deep Hand \\cite{GarciaCondado2022} determines the correction of the hand for those maps with a resolution smaller than 5\\AA. The method
 calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neural network to assign its hand.\\\\
 \\\\
 \\textbf{Results:}\\\\

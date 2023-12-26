@@ -237,7 +237,7 @@ for arg in sys.argv:
         EXECUTE_IF = EXECUTE_IF.split(',')
 
 if IS_EMDB_ENTRY:
-    if EMDButils.does_map_exits(EMDB_ID_NUM):
+    if EMDButils.does_map_exist(EMDB_ID_NUM):
         TS, MAPTHRESHOLD, MAPRESOLUTION = EMDButils.get_map_metadata(EMDB_ID_NUM)
         levels.append('0')
         AVAILABLE_DATA.append('map')
@@ -246,7 +246,7 @@ if IS_EMDB_ENTRY:
                 levels.append('1')
                 AVAILABLE_DATA.append('halfmaps')
         if (LEVELS and 'A' in LEVELS.upper()) or (not LEVELS):
-            PDB_ID = EMDButils.get_atomicmodel(EMDB_ID_NUM)
+            PDB_ID = EMDButils.has_atomicmodel(EMDB_ID_NUM)
             if PDB_ID:
                 levels.append('A')
                 AVAILABLE_DATA.append('atomic')
@@ -432,7 +432,7 @@ else:
         FNMAP = os.path.join(project.getPath(), protImportMapChecker.outputVolume.getFileName())
         MAPCOORDX, MAPCOORDY, MAPCOORDZ = protImportMapChecker.outputVolume.getShiftsFromOrigin()
         if '1' in levels:
-            half_maps, sampling, (x, y, z) = EMDButils.fetch_emdb_halfmaps(EMDB_ID_NUM, protImportMapChecker._getExtraPath())
+            half_maps = EMDButils.download_emdb_halfmaps(EMDB_ID_NUM, protImportMapChecker._getExtraPath())
             fnMap1 = half_maps[0].replace('.gz', '')
             fnMap2 = half_maps[1].replace('.gz', '')
             if os.path.exists(os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1)) and os.path.exists(os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)):
