@@ -2,6 +2,7 @@ import os
 import requests
 import urllib.request
 import gzip
+from bs4 import BeautifulSoup
 
 def does_map_exist(emdbid):
     """
@@ -122,3 +123,91 @@ def gunzip(gzpath, path):
     f.close()
     gzf.close()
     os.remove(gzpath)
+
+def get_emdb_entries(output_file):
+    """
+    Gets all EMDB entries
+    """
+    url = 'https://ftp.ebi.ac.uk/pub/databases/emdb/structures/'
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        content = BeautifulSoup(response.content, 'html.parser')
+        emdb_entries = content.find_all('a')
+
+        with open(output_file, 'a') as output:
+            output.writelines(('%s\n' % emdb_entry.get_text().replace('/','') for emdb_entry in emdb_entries if 'EMD-' in emdb_entry.get_text()))
+    else:
+        print('Error getting the page:', response.status_code)
+
+def is_spa_entry(emdbid):
+    """
+    Checks if an EMDB entry was obtained using Single Particle Analysis method
+    """
+    url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/%s' % emdbid
+    print("Checking if EMD-%s was obtained using Single Particle Analysis method..." % (emdbid))
+    json_results = requests.get(url_rest_api).json()
+    try:
+        method = json_results["structure_determination_list"]["structure_determination"][0]["method"]
+        if method == 'singleParticle':
+            return True
+        else:
+            return False
+    except:
+        return False
+
+def check_entry_level(emdb_entries_input_file, level1_output_file, levelA_output_file, failures_output_file):
+    """
+    Checks which EMDB entry has half-maps (level 1) and atomic model associated (level A)
+    """
+    with open(emdb_entries_input_file, 'r') as input:
+        emdb_entries = [emdb_entry.strip() for emdb_entry in input.readlines()]
+
+    level1_entries = []
+    levelA_entries = []
+    failures = []
+
+    for emdb_entry in emdb_entries:
+        try:
+            if has_halfmaps(emdb_entry):
+                level1_entries.append(emdb_entry)
+            if has_atomicmodel(emdb_entry):
+                levelA_entries.append(emdb_entry)
+        except:
+            failures.append(emdb_entry)
+
+    with open(level1_output_file, 'a') as output:
+        output.writelines('%s\n' % level1_entry for level1_entry in level1_entries)
+    with open(levelA_output_file, 'a') as output:
+        output.writelines('%s\n' % levelA_entry for levelA_entry in levelA_entries)
+    with open(failures_output_file, 'a') as output:
+        output.writelines('%s\n' % failure for failure in failures)
+
+def get_subsets(levelO_input_file, level1_input_file, levelA_input_file, level0notAnot1_output_file, level0Anot1_output_file, level01AnotA_output_file, level01A_output_file):
+    """
+    Creates several lists:
+        - Level 0 - Level 1 - Level A: Entries with map but without half-maps and atomic model
+        - (Level 0 & Level A) - Level 1: Entries with map and atomic model but without half-maps
+        - (Level 0 & Level 1) - Level A:: Entries with map and half-maps but without atomic model
+        - Level 0 & Level 1 & Level A: Entries with maps, half-maps and atomic model
+    """
+    with open(levelO_input_file, 'r') as input:
+        level0_entries = [emdb_entry.strip() for emdb_entry in input.readlines()]
+    with open(level1_input_file, 'r') as input:
+        level1_entries = [emdb_entry.strip() for emdb_entry in input.readlines()]
+    with open(levelA_input_file, 'r') as input:
+        levelA_entries = [emdb_entry.strip() for emdb_entry in input.readlines()]
+
+    level0notAnot1_entries = list(set(level0_entries) - set(levelA_entries) - set(level1_entries))
+    level0Anot1_entries = list((set(level0_entries) & set(levelA_entries)) - set(level1_entries))
+    level01AnotA_entries = list((set(level0_entries) & set(level1_entries)) - set(levelA_entries))
+    level01A_entries = list(set(level0_entries) & set(levelA_entries) & set(level1_entries))
+
+    with open(level0notAnot1_output_file, 'a') as output:
+        output.writelines('%s\n' % entry for entry in level0notAnot1_entries)
+    with open(level0Anot1_output_file, 'a') as output:
+        output.writelines('%s\n' % entry for entry in level0Anot1_entries)
+    with open(level01AnotA_output_file, 'a') as output:
+        output.writelines('%s\n' % entry for entry in level01AnotA_entries)
+    with open(level01A_output_file, 'a') as output:
+        output.writelines('%s\n' % entry for entry in level01A_entries)
