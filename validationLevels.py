@@ -375,16 +375,17 @@ if len(levels)==0 or not "0" in levels:
     usage()
 
 # Check execution restrinctions for emdb entries
-EXECUTE_IF.sort()
-AVAILABLE_DATA.sort()
+if EXECUTE_IF and AVAILABLE_DATA:
+    EXECUTE_IF.sort()
+    AVAILABLE_DATA.sort()
 
-if EXECUTE_IF == AVAILABLE_DATA:
-    print('Executing analisis on %s...' % (', '.join(AVAILABLE_DATA)))
-    pass
-else:
-    print('Execution restricted to: %s (data available: %s)' % (', '.join(EXECUTE_IF), ', '.join(AVAILABLE_DATA)))
-    print('Exiting execution...')
-    sys.exit()
+    if EXECUTE_IF == AVAILABLE_DATA:
+        print('Executing analisis on %s...' % (', '.join(AVAILABLE_DATA)))
+        pass
+    else:
+        print('Execution restricted to: %s (data available: %s)' % (', '.join(EXECUTE_IF), ', '.join(AVAILABLE_DATA)))
+        print('Exiting execution...')
+        sys.exit()
 
 # Creating the project
 projectDir = manager.getProjectPath(PROJECT_NAME)
