@@ -30,6 +30,8 @@ import numpy as np
 import os
 import scipy
 import subprocess
+from datetime import datetime
+from random import randint
 
 from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
@@ -660,12 +662,13 @@ def bFactorAnalysis(project, report, map, resolution, priority=False):
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
         outputLines = p.stderr.read().decode('utf-8').split('\n')
     else:
-        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_level0_' + project.getPath(), report.getReportDir(), cmd, priority=priority)
+        randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
+        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_level0_' + str(randomInt), report.getReportDir(), cmd, priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished
         while True:
-            if checkIfJobFinished('xmipp_volume_correct_bfactor_level0_' + project.getPath()):
+            if checkIfJobFinished('xmipp_volume_correct_bfactor_level0_' + str(randomInt)):
                 break
         with open(slurmScriptPath.replace('.sh', '.job.err'), 'r') as slurmOutputFile:
             outputLines = slurmOutputFile.read().split('\n')

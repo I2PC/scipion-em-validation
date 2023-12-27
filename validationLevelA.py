@@ -32,6 +32,8 @@ import os
 import pickle
 import subprocess
 import re
+from datetime import datetime
+from random import randint
 
 from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
@@ -663,12 +665,13 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
     if not useSlurm:
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
     else:
-        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_levelA_' + project.getPath(), report.getReportDir(), cmd, priority=priority)
+        randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
+        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_levelA_' + str(randomInt), report.getReportDir(), cmd, priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished
         while True:
-            if checkIfJobFinished('xmipp_volume_correct_bfactor_levelA_' + project.getPath()):
+            if checkIfJobFinished('xmipp_volume_correct_bfactor_levelA_' + str(randomInt)):
                 break
 
     dinv2, lnFMap, _ = readGuinier(os.path.join(report.getReportDir() if not useSlurm else os.path.dirname(slurmScriptPath), 'sharpenedMap.mrc') + '.guinier')

@@ -31,6 +31,8 @@ import os
 import scipy
 from scipy.ndimage import gaussian_filter
 import subprocess
+from datetime import datetime
+from random import randint
 
 from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
@@ -583,12 +585,13 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
         p.wait()
     else:
-        slurmScriptPath = createScriptForSlurm('resmap_' + project.getPath(), report.getReportDir(), cmd, priority=priority)
+        randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
+        slurmScriptPath = createScriptForSlurm('resmap_' + str(randomInt), report.getReportDir(), cmd, priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished
         while True:
-            if checkIfJobFinished('resmap_' + project.getPath()):
+            if checkIfJobFinished('resmap_' + str(randomInt)):
                 break
 
     fnResMap = os.path.join(report.getReportDir() if not useSlurm else os.path.dirname(slurmScriptPath), "half1_ori_resmap.mrc")
