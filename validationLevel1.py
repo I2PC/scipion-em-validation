@@ -50,7 +50,7 @@ config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 
-def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ):
+def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
     fnDir, fnBase = os.path.split(fnMap)
@@ -72,7 +72,7 @@ def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ):
                                    samplingRate=Ts,
                                    setOrigCoord=False)
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
     waitUntilFinishes(project, prot)
@@ -95,7 +95,7 @@ def findFirstCross(x,y,y0,mode):
     else:
         return None
 
-def globalResolution(project, report, label, protImportMap1, protImportMap2, resolution):
+def globalResolution(project, report, label, protImportMap1, protImportMap2, resolution, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtResolution3D', doRaise=True)
     prot = project.newProtocol(Prot,
@@ -104,7 +104,7 @@ def globalResolution(project, report, label, protImportMap1, protImportMap2, res
     prot.referenceVolume.set(protImportMap2.outputVolume)
 
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputFSC')
     waitUntilFinishes(project, prot)
@@ -310,7 +310,7 @@ resolution estimated by 1) FSC, 2) DPR, and 3) SSNR.
 
     return prot
 
-def fscPermutation(project, report, label, protImportMap1, protImportMap2, protMask, resolution):
+def fscPermutation(project, report, label, protImportMap1, protImportMap2, protMask, resolution, priority=False):
     bblCitation = \
 """\\bibitem[Beckers and Sachse, 2020]{Beckers2020b}
 Beckers, M. and Sachse, C. (2020).
@@ -342,7 +342,7 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
     prot.mask.set(protMask.outputMask)
 
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputFSC')
     waitUntilFinishes(project, prot)
@@ -410,7 +410,7 @@ resolution estimated by FSC permutation.
 
     return prot
 
-def blocres(project, report, label, protImportMap, protImportMap1, protImportMap2, protMask, resolution, fnMaskedMap):
+def blocres(project, report, label, protImportMap, protImportMap1, protImportMap2, protMask, resolution, fnMaskedMap, priority=False):
     bblCitation = \
 """\\bibitem[Cardone et~al., 2013]{Cardone2013}
 Cardone, G., Heymann, J.~B., and Steven, A.~C. (2013).
@@ -442,7 +442,7 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
     prot.mask.set(protMask.outputMask)
 
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'resolution_Volume')
     waitUntilFinishes(project, prot)
@@ -536,7 +536,7 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.c Blocres", secLabel)
 
-def resmap(project, report, label,  protImportMap, protImportMap1, protImportMap2, protMask, resolution, fnMaskedMap):
+def resmap(project, report, label,  protImportMap, protImportMap1, protImportMap2, protMask, resolution, fnMaskedMap, priority=False):
     bblCitation = \
 """\\bibitem[Kucukelbir et~al., 2014]{Kucukelbir2014}
 Kucukelbir, A., Sigworth, F.~J., and Tagare, H.~D. (2014).
@@ -583,7 +583,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
         p.wait()
     else:
-        slurmScriptPath = createScriptForSlurm('resmap', report.getReportDir(), cmd)
+        slurmScriptPath = createScriptForSlurm('resmap', report.getReportDir(), cmd, priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished
@@ -686,7 +686,7 @@ Fig. \\ref{fig:resmapColor} shows some representative views of the local resolut
     cleanPath(fnVol1)
     cleanPath(fnVol2)
 
-def monores(project, report, label, protImportMap, protCreateMask, resolution, fnMaskedMap):
+def monores(project, report, label, protImportMap, protCreateMask, resolution, fnMaskedMap, priority=False):
     Ts = protImportMap.outputVolume.getSamplingRate()
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -699,7 +699,7 @@ def monores(project, report, label, protImportMap, protCreateMask, resolution, f
     prot.associatedHalves.set(protImportMap.outputVolume)
     prot.mask.set(protCreateMask.outputMask)
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'resolution_Volume')
     #waitOutputFile(project, prot, "hist.xmd")
@@ -824,7 +824,7 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
     report.writeWarningsAndSummary(warnings, "1.e MonoRes", secLabel)
     return prot
 
-def monodir(project, report, label, protImportMap, protCreateMask, resolution):
+def monodir(project, report, label, protImportMap, protCreateMask, resolution, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtMonoDir', doRaise=True)
     prot = project.newProtocol(Prot,
@@ -834,7 +834,7 @@ def monodir(project, report, label, protImportMap, protCreateMask, resolution):
     prot.inputVolumes.set(protImportMap.outputVolume)
     prot.Mask.set(protCreateMask.outputMask)
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume_doa')
     #waitOutput(project, prot, 'azimuthalVolume')
@@ -926,7 +926,7 @@ smaller than 0.8 times the average directional resolution.
     report.writeWarningsAndSummary(warnings, "1.f MonoDir", secLabel)
     report.addResolutionEstimate(avgDirResolution)
 
-def fso(project, report, label, protImportMap, protMask, resolution):
+def fso(project, report, label, protImportMap, protMask, resolution, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtFSO', doRaise=True)
     prot = project.newProtocol(Prot,
@@ -937,7 +937,7 @@ def fso(project, report, label, protImportMap, protMask, resolution):
     prot.mask.set(protMask.outputMask)
 
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
 
@@ -1047,7 +1047,7 @@ smaller than 0.8 times the resolution estimated by the first cross of FSO below 
 
     return prot
 
-def resizeMapToTargetResolution(project, map, TsTarget):
+def resizeMapToTargetResolution(project, map, TsTarget, priority=False):
     Xdim = map.getDim()[0]
     Ts = map.getSamplingRate()
     AMap = Xdim * Ts
@@ -1065,6 +1065,8 @@ def resizeMapToTargetResolution(project, map, TsTarget):
                                         windowOperation=1,
                                         windowSize=Xdimp)
     protResizeMap.inputVolumes.set(map)
+    if useSlurm:
+        sendToSlurm(protResizeMap, priority=True if priority else False)
     project.launchProtocol(protResizeMap, wait=True)
 
     if protResizeMap.isFailed():
@@ -1073,11 +1075,11 @@ def resizeMapToTargetResolution(project, map, TsTarget):
     return protResizeMap
 
 
-def fsc3d(project, report, label, protImportMapResize, protImportMap1, protImportMap2, protMaskResize, resolution):
+def fsc3d(project, report, label, protImportMapResize, protImportMap1, protImportMap2, protMaskResize, resolution, priority=False):
     Xdim = protImportMapResize.outputVol.getDim()[0]
 
-    protResizeHalf1 = resizeMapToTargetResolution(project, protImportMap1.outputVolume, resolution/2)
-    protResizeHalf2 = resizeMapToTargetResolution(project, protImportMap2.outputVolume, resolution/2)
+    protResizeHalf1 = resizeMapToTargetResolution(project, protImportMap1.outputVolume, resolution/2, priority=priority)
+    protResizeHalf2 = resizeMapToTargetResolution(project, protImportMap2.outputVolume, resolution/2, priority=priority)
 
     secLabel = "sec:fsc3d"
     msg = \
@@ -1106,7 +1108,7 @@ This method analyzes the FSC in different directions and evaluates its homogenei
         prot.maskVolume.set(protMaskResize.outputVol)
 
         if useSlurm:
-            sendToSlurm(prot, GPU=True)
+            sendToSlurm(prot, GPU=True, priority=True if priority else False)
         project.launchProtocol(prot)
         #waitOutput(project, prot, 'outputVolume')
         waitUntilFinishes(project, prot)
@@ -1256,12 +1258,12 @@ any structure in this difference. Sometimes some patterns are seen if the map is
                             "Slices of maximum variation in the three dimensions of the difference Half1-Half2.", Vdiff,
                             "fig:maxVarHalfDiff", maxVar=True)
 
-def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized, protCreateHardMask, protCreateSoftMask, protCreateSoftMaskResized, fnMaskedMapDict, skipAnalysis = False):
+def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized, protCreateHardMask, protCreateSoftMask, protCreateSoftMaskResized, fnMaskedMapDict, skipAnalysis = False, priority=False):
     # Import maps
-    protImportMap1 = importMap(project, "import half1", fnMap1, Ts, mapCoordX, mapCoordY, mapCoordZ)
+    protImportMap1 = importMap(project, "import half1", fnMap1, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=priority)
     if protImportMap1.isFailed():
         raise Exception("Import map did not work")
-    protImportMap2 = importMap(project, "import half2", fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ)
+    protImportMap2 = importMap(project, "import half2", fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=priority)
     if protImportMap2.isFailed():
         raise Exception("Import map did not work")
     reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2)
@@ -1269,15 +1271,15 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY
     # Quality Measures
     if not skipAnalysis:
         report.writeSection('Level 1 analysis')
-        globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution)
+        globalResolution(project, report, "1.a Global", protImportMap1, protImportMap2, resolution, priority=priority)
         fscPermutation(project, report, "1.b FSC permutation", protImportMap1, protImportMap2, protCreateSoftMask,
-                       resolution)
-        blocres(project, report, "1.c Blocres", protImportMap, protImportMap1, protImportMap2, protCreateHardMask, resolution, fnMaskedMapDict['fnHardMaskedMap'])
-        resmap(project, report, "1.d Resmap", protImportMap, protImportMap1, protImportMap2, protCreateSoftMask, resolution, fnMaskedMapDict['fnSoftMaskedMap'])
-        monores(project, report, "1.e MonoRes", protImportMap, protCreateHardMask, resolution, fnMaskedMapDict['fnHardMaskedMap'])
-        monodir(project, report, "1.f MonoDir", protImportMap, protCreateHardMask, resolution)
-        fso(project, report, "1.g FSO", protImportMap, protCreateSoftMask, resolution)
+                       resolution, priority=priority)
+        blocres(project, report, "1.c Blocres", protImportMap, protImportMap1, protImportMap2, protCreateHardMask, resolution, fnMaskedMapDict['fnHardMaskedMap'], priority=priority)
+        resmap(project, report, "1.d Resmap", protImportMap, protImportMap1, protImportMap2, protCreateSoftMask, resolution, fnMaskedMapDict['fnSoftMaskedMap'], priority=priority)
+        monores(project, report, "1.e MonoRes", protImportMap, protCreateHardMask, resolution, fnMaskedMapDict['fnHardMaskedMap'], priority=priority)
+        monodir(project, report, "1.f MonoDir", protImportMap, protCreateHardMask, resolution, priority=priority)
+        fso(project, report, "1.g FSO", protImportMap, protCreateSoftMask, resolution, priority=priority)
         fsc3d(project, report, "1.h FSC3D", protImportMapResized, protImportMap1, protImportMap2,
-              protCreateSoftMaskResized, resolution)
+              protCreateSoftMaskResized, resolution, priority=priority)
 
     return protImportMap1, protImportMap2

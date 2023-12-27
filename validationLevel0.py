@@ -52,7 +52,7 @@ config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 gpuIdSkipSlurm = config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
 
-def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ):
+def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
 
@@ -78,7 +78,7 @@ def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapC
         prot.half2map.set(fnMap2)
 
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
     waitUntilFinishes(project, prot)
@@ -88,7 +88,7 @@ def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapC
         saveIntermediateData(report.fnReportDir, "inputData", True, "map", str(prot.half2map), 'halfmap2 from EMDB')
     return prot
 
-def createMask(project, label, map, Ts, threshold, smooth=False):
+def createMask(project, label, map, Ts, threshold, smooth=False, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess',
                                             'XmippProtCreateMask3D', doRaise=True)
     prot = project.newProtocol(Prot,
@@ -101,7 +101,7 @@ def createMask(project, label, map, Ts, threshold, smooth=False):
                                sigmaConvolution=2.0 if smooth else None,
                                elementSize=math.ceil(2/Ts)) # Dilation by 2A
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputMask')
     waitUntilFinishes(project, prot)
@@ -127,7 +127,7 @@ def createResizedMaskedMap(report, resizedMap, resizedMask):
     save.write(fnResizedMaskedMap)
     return fnResizedMaskedMap
 
-def resizeProject(project, protMap, protHardMask, protSoftMask, resolution):
+def resizeProject(project, protMap, protHardMask, protSoftMask, resolution, priority=False):
     Xdim = protMap.outputVolume.getDim()[0]
     Ts = protMap.outputVolume.getSamplingRate()
     AMap = Xdim * Ts
@@ -147,7 +147,7 @@ def resizeProject(project, protMap, protHardMask, protSoftMask, resolution):
                                         windowSize=Xdimp)
     protResizeMap.inputVolumes.set(protMap.outputVolume)
     if useSlurm:
-        sendToSlurm(protResizeMap)
+        sendToSlurm(protResizeMap, priority=True if priority else False)
     project.launchProtocol(protResizeMap)
     #waitOutput(project, protResizeMap, 'outputVol')
     waitUntilFinishes(project, protResizeMap)
@@ -165,7 +165,7 @@ def resizeProject(project, protMap, protHardMask, protSoftMask, resolution):
                                          windowSize=Xdimp)
     protResizeHardMask.inputVolumes.set(protHardMask.outputMask)
     if useSlurm:
-        sendToSlurm(protResizeHardMask)
+        sendToSlurm(protResizeHardMask, priority=True if priority else False)
     project.launchProtocol(protResizeHardMask)
     #waitOutput(project, protResizeMask, 'outputVol')
     waitUntilFinishes(project, protResizeHardMask)
@@ -180,7 +180,7 @@ def resizeProject(project, protMap, protHardMask, protSoftMask, resolution):
                                              fillType=1)
     protPreprocessHardMask.inputVolumes.set(protResizeHardMask.outputVol)
     if useSlurm:
-        sendToSlurm(protPreprocessHardMask)
+        sendToSlurm(protPreprocessHardMask, priority=True if priority else False)
     project.launchProtocol(protPreprocessHardMask)
     #waitOutput(project, protPreprocessMask, 'outputVol')
     waitUntilFinishes(project, protPreprocessHardMask)
@@ -197,7 +197,7 @@ def resizeProject(project, protMap, protHardMask, protSoftMask, resolution):
                                          windowSize=Xdimp)
     protResizeSoftMask.inputVolumes.set(protSoftMask.outputMask)
     if useSlurm:
-        sendToSlurm(protResizeSoftMask)
+        sendToSlurm(protResizeSoftMask, priority=True if priority else False)
     project.launchProtocol(protResizeSoftMask)
     #waitOutput(project, protResizeMask, 'outputVol')
     waitUntilFinishes(project, protResizeSoftMask)
@@ -212,7 +212,7 @@ def resizeProject(project, protMap, protHardMask, protSoftMask, resolution):
                                              fillType=1)
     protPreprocessSoftMask.inputVolumes.set(protResizeSoftMask.outputVol)
     if useSlurm:
-        sendToSlurm(protPreprocessSoftMask)
+        sendToSlurm(protPreprocessSoftMask, priority=True if priority else False)
     project.launchProtocol(protPreprocessSoftMask)
     #waitOutput(project, protPreprocessMask, 'outputVol')
     waitUntilFinishes(project, protPreprocessSoftMask)
@@ -644,7 +644,7 @@ amount expected for a Gaussian with the same standard deviation whose mean is 0.
                              "\\ref{%s}). "%secLabel)
 
 
-def bFactorAnalysis(project, report, map, resolution):
+def bFactorAnalysis(project, report, map, resolution, priority=False):
     fnIn = os.path.join(project.getPath(), map.getFileName())
     if fnIn.endswith(".mrc"):
         fnIn+=":mrc"
@@ -660,7 +660,7 @@ def bFactorAnalysis(project, report, map, resolution):
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
         outputLines = p.stderr.read().decode('utf-8').split('\n')
     else:
-        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_level0', report.getReportDir(), cmd)
+        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_level0', report.getReportDir(), cmd, priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished
@@ -745,7 +745,7 @@ Fourier transform) of the experimental map, its fitted line, and the corrected m
 
     return bfactor
 
-def xmippDeepRes(project, report, label, map, mask, resolution, fnMaskedMap):
+def xmippDeepRes(project, report, label, map, mask, resolution, fnMaskedMap, priority=False):
     bblCitation= \
 """\\bibitem[Ram\\'{\i}rez-Aportela et~al., 2019]{Ramirez2019}
 Ram\\'{\i}rez-Aportela, E., Mota, J., Conesa, P., Carazo, J.~M., and Sorzano, C.
@@ -787,7 +787,7 @@ input map to the appearance of the atomic structures a local resolution label ca
                                inputVolume=map,
                                Mask=mask)
     if useSlurm:
-        sendToSlurm(prot, GPU=True)
+        sendToSlurm(prot, GPU=True, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'resolution_Volume')
     waitUntilFinishes(project, prot)
@@ -890,7 +890,7 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
     report.writeWarningsAndSummary(warnings, "0.e DeepRes", secLabel)
     return prot
 
-def locBfactor(project, report, label, map, mask, resolution, fnResizedMaskedMap):
+def locBfactor(project, report, label, map, mask, resolution, fnResizedMaskedMap, priority=False):
     bblCitation = \
 """\\bibitem[Kaur et~al., 2021]{Kaur2021}
 Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
@@ -923,7 +923,7 @@ local magnitude and phase term using the spiral transform.\\\\
                                max_res=resolution,
                                numberOfThreads=1)
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'bmap')
     #waitOutputFile(project, prot, "bmap.mrc")
@@ -1014,7 +1014,7 @@ Fig. \\ref{fig:locBfactorColor} shows some representative views of the local B-f
         report.writeAbstract("There seems to be a problem with its local B-factor (see Sec. \\ref{%s}). "%secLabel)
 
 
-def locOccupancy(project, report, label, map, mask, resolution, fnResizedMaskedMap):
+def locOccupancy(project, report, label, map, mask, resolution, fnResizedMaskedMap, priority=False):
     bblCitation = \
 """\bibitem[Kaur et~al., 2021]{Kaur2021}
 Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
@@ -1046,7 +1046,7 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
                                max_res=resolution,
                                numberOfThreads=1)
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'omap')
     waitUntilFinishes(project, prot)
@@ -1134,7 +1134,7 @@ Fig. \\ref{fig:locOccupancyColor} shows some representative views of the local o
         report.writeAbstract("There seems to be a problem with its local occupancy (see Sec. \\ref{%s}). "%secLabel)
 
 
-def deepHand(project, report, label, resolution, map, threshold):
+def deepHand(project, report, label, resolution, map, threshold, priority=False):
     bblCitation= \
 """\\bibitem[Garc\\'{\i}a et~al., 2022]{GarciaCondado2022}
 Garc\\'{\i}a Condado, J., Mu\\~{n}oz-Burrutia, A., and Sorzano, C. O.~S. (2022).
@@ -1170,7 +1170,7 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
                                inputVolume=map,
                                threshold=threshold)
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputHand')
     #waitOutput(project, prot, 'outputVol')
@@ -1272,26 +1272,26 @@ Resolution estimated by user: %f \\\\
     report.orthogonalSlices("maxVarSoftMask", msg, "Slices of maximum variation in the three dimensions of the mask with soft borders",
                             fnSoftMask, "fig:maxVarSoftMask", maxVar=True)
 
-def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False):
+def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False, priority=False):
     # Import map
-    protImportMap = importMap(project, report, "import map", fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ)
+    protImportMap = importMap(project, report, "import map", fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=priority)
     if protImportMap.isFailed():
         raise Exception("Import map did not work")
     saveIntermediateData(report.fnReportDir, 'inputData', False, 'sampling rate', Ts, ['\u212B', 'Sampling rate from EMDB map in Angstroms'])
     saveIntermediateData(report.fnReportDir, 'inputData', False, 'threshold', threshold, ['', 'Threshold from EMDB map'])
     saveIntermediateData(report.fnReportDir, 'inputData', False, 'resolution', resolution, ['\u212B', 'Resolution from EMDB map'])
 
-    protCreateHardMask = createMask(project, "create hard mask", protImportMap.outputVolume, Ts, threshold, smooth=False)
+    protCreateHardMask = createMask(project, "create hard mask", protImportMap.outputVolume, Ts, threshold, smooth=False, priority=priority)
     if protCreateHardMask.isFailed():
         raise Exception("Create hard mask did not work")
-    protCreateSoftMask = createMask(project, "create soft mask", protImportMap.outputVolume, Ts, threshold, smooth=True)
+    protCreateSoftMask = createMask(project, "create soft mask", protImportMap.outputVolume, Ts, threshold, smooth=True, priority=priority)
     if protCreateSoftMask.isFailed():
         raise Exception("Create soft mask did not work")
     reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateHardMask, protCreateSoftMask)
     # properMask = properMask(protCreateMask.outputMask)
 
     # Resize to the given resolution
-    protResizeMap, protResizeHardMask, protResizeSoftMask = resizeProject(project, protImportMap, protCreateHardMask, protCreateSoftMask, resolution)
+    protResizeMap, protResizeHardMask, protResizeSoftMask = resizeProject(project, protImportMap, protCreateHardMask, protCreateSoftMask, resolution, priority=priority)
 
     # Mask map and resized map for chimera views
     fnMaskedMapDict = {}
@@ -1305,11 +1305,11 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
     massAnalysis(report, protImportMap.outputVolume, protCreateHardMask.outputMask, Ts)
     maskAnalysis(report, protImportMap.outputVolume, protCreateHardMask.outputMask, Ts, threshold)
     backgroundAnalysis(report, protImportMap.outputVolume, protCreateHardMask.outputMask)
-    bfactor=bFactorAnalysis(project, report, protImportMap.outputVolume, resolution)
+    bfactor=bFactorAnalysis(project, report, protImportMap.outputVolume, resolution, priority=priority)
 
     if not skipAnalysis:
-        xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateHardMask.outputMask, resolution, fnMaskedMapDict['fnHardMaskedMap'])
-        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protResizeSoftMask.outputVol, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'])
-        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protResizeSoftMask.outputVol, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'])
-        deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, threshold)
+        xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateHardMask.outputMask, resolution, fnMaskedMapDict['fnHardMaskedMap'], priority=priority)
+        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protResizeSoftMask.outputVol, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
+        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protResizeSoftMask.outputVol, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
+        deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, threshold, priority=priority)
     return protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protResizeHardMask, protResizeSoftMask, fnMaskedMapDict
