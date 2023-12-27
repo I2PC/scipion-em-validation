@@ -583,12 +583,12 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
         p.wait()
     else:
-        slurmScriptPath = createScriptForSlurm('resmap', report.getReportDir(), cmd, priority=priority)
+        slurmScriptPath = createScriptForSlurm('resmap_' + project.getPath(), report.getReportDir(), cmd, priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished
         while True:
-            if checkIfJobFinished('resmap'):
+            if checkIfJobFinished('resmap_' + project.getPath()):
                 break
 
     fnResMap = os.path.join(report.getReportDir() if not useSlurm else os.path.dirname(slurmScriptPath), "half1_ori_resmap.mrc")

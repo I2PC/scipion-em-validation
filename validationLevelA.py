@@ -663,12 +663,12 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
     if not useSlurm:
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
     else:
-        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_levelA', report.getReportDir(), cmd, priority=priority)
+        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_levelA_' + project.getPath(), report.getReportDir(), cmd, priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished
         while True:
-            if checkIfJobFinished('xmipp_volume_correct_bfactor_levelA'):
+            if checkIfJobFinished('xmipp_volume_correct_bfactor_levelA_' + project.getPath()):
                 break
 
     dinv2, lnFMap, _ = readGuinier(os.path.join(report.getReportDir() if not useSlurm else os.path.dirname(slurmScriptPath), 'sharpenedMap.mrc') + '.guinier')

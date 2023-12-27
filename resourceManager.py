@@ -122,7 +122,7 @@ def createScriptForSlurm(jobname, path, command, nTasks=1, cpusPerTask=1, memory
   return os.path.join(path, jobname + '.sh')
 
 def checkIfJobFinished(jobname):
-  command = 'squeue -o "%.200j"'
+  command = 'squeue -o "%.500j"'
   process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
   output, _ = process.communicate()
   output = output.decode('utf-8')
