@@ -57,11 +57,12 @@ def launcher(entry, cmd, log_file, levels):
         if stderr:
             log_file.write(stderr)
 
-    data = (1, int(datetime.now().timestamp()), 0 if process.returncode == 0 else 1,
-            os.path.join(scipionProjects_path, entry, 'validationReport', 'report.pdf') if process.returncode == 0 else None,
-            stderr if process.returncode != 0 else None, entry)
+    reportPath = os.path.join(scipionProjects_path, entry, 'validationReport', 'report.pdf')
+    data = (1, int(datetime.now().timestamp()), 0 if process.returncode == 0 and os.path.exists(reportPath) else 1,
+            reportPath if process.returncode == 0 and os.path.exists(reportPath) else None,
+            stderr if process.returncode != 0 else None, entry, n_launchs+1)
     cursor.execute(
-        'UPDATE launch SET finished = ?, finish_date = ?, failed = ?, report_path = ?, fail_reason = ? WHERE entry_id = ?',
+        'UPDATE launch SET finished = ?, finish_date = ?, failed = ?, report_path = ?, fail_reason = ? WHERE entry_id = ? AND version = ?',
         data)
     connection.commit()
     connection.close()
