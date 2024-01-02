@@ -145,7 +145,7 @@ def get_emdb_entries(output_file):
         content = BeautifulSoup(response.content, 'html.parser')
         emdb_entries = content.find_all('a')
 
-        with open(output_file, 'a') as output:
+        with open(output_file, 'w') as output:
             output.writelines(('%s\n' % emdb_entry.get_text().replace('/','') for emdb_entry in emdb_entries if 'EMD-' in emdb_entry.get_text()))
     else:
         print('Error getting the page:', response.status_code)
@@ -186,11 +186,11 @@ def check_entry_level(emdb_entries_input_file, level1_output_file, levelA_output
         except:
             failures.append(emdb_entry)
 
-    with open(level1_output_file, 'a') as output:
+    with open(level1_output_file, 'w') as output:
         output.writelines('%s\n' % level1_entry for level1_entry in level1_entries)
-    with open(levelA_output_file, 'a') as output:
+    with open(levelA_output_file, 'w') as output:
         output.writelines('%s\n' % levelA_entry for levelA_entry in levelA_entries)
-    with open(failures_output_file, 'a') as output:
+    with open(failures_output_file, 'w') as output:
         output.writelines('%s\n' % failure for failure in failures)
 
 def format_EMDB_list(list_unsorted):
@@ -238,11 +238,11 @@ def get_subsets(levelO_input_file, level1_input_file, levelA_input_file, level0n
     level01A_entries_sorted.sort()
     level01A_entries_sorted_formatted = format_EMDB_list(level01A_entries_sorted)
 
-    with open(level0notAnot1_output_file, 'a') as output:
+    with open(level0notAnot1_output_file, 'w') as output:
         output.writelines('%s\n' % entry for entry in level0notAnot1_entries_sorted_formatted)
-    with open(level0Anot1_output_file, 'a') as output:
+    with open(level0Anot1_output_file, 'w') as output:
         output.writelines('%s\n' % entry for entry in level0Anot1_entries_sorted_formatted)
-    with open(level01AnotA_output_file, 'a') as output:
+    with open(level01AnotA_output_file, 'w') as output:
         output.writelines('%s\n' % entry for entry in level01notA_entries_sorted_formatted)
-    with open(level01A_output_file, 'a') as output:
+    with open(level01A_output_file, 'w') as output:
         output.writelines('%s\n' % entry for entry in level01A_entries_sorted_formatted)
