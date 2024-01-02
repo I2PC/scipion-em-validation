@@ -193,6 +193,16 @@ def check_entry_level(emdb_entries_input_file, level1_output_file, levelA_output
     with open(failures_output_file, 'a') as output:
         output.writelines('%s\n' % failure for failure in failures)
 
+def format_EMDB_list(list_unsorted):
+    """
+    Formats a list with EMDB entries to have the 'EMDB-xxxx' pattern
+    """
+    list_sorted = []
+    for entry in list_unsorted:
+        entry_str = f"EMD-{entry:04d}"
+        list_sorted.append(entry_str)
+    return list_sorted
+
 def get_subsets(levelO_input_file, level1_input_file, levelA_input_file, level0notAnot1_output_file, level0Anot1_output_file, level01AnotA_output_file, level01A_output_file):
     """
     Creates several lists:
@@ -209,15 +219,30 @@ def get_subsets(levelO_input_file, level1_input_file, levelA_input_file, level0n
         levelA_entries = [emdb_entry.strip() for emdb_entry in input.readlines()]
 
     level0notAnot1_entries = list(set(level0_entries) - set(levelA_entries) - set(level1_entries))
+    level0notAnot1_entries_sorted = [int(entry.replace('EMD-', '')) for entry in level0notAnot1_entries]
+    level0notAnot1_entries_sorted.sort()
+    level0notAnot1_entries_sorted_formatted = format_EMDB_list(level0notAnot1_entries_sorted)
+
     level0Anot1_entries = list((set(level0_entries) & set(levelA_entries)) - set(level1_entries))
-    level01AnotA_entries = list((set(level0_entries) & set(level1_entries)) - set(levelA_entries))
+    level0Anot1_entries_sorted = [int(entry.replace('EMD-', '')) for entry in level0Anot1_entries]
+    level0Anot1_entries_sorted.sort()
+    level0Anot1_entries_sorted_formatted = format_EMDB_list(level0Anot1_entries_sorted)
+
+    level01notA_entries = list((set(level0_entries) & set(level1_entries)) - set(levelA_entries))
+    level01notA_entries_sorted = [int(entry.replace('EMD-', '')) for entry in level01notA_entries]
+    level01notA_entries_sorted.sort()
+    level01notA_entries_sorted_formatted = format_EMDB_list(level01notA_entries_sorted)
+
     level01A_entries = list(set(level0_entries) & set(levelA_entries) & set(level1_entries))
+    level01A_entries_sorted = [int(entry.replace('EMD-', '')) for entry in level01A_entries]
+    level01A_entries_sorted.sort()
+    level01A_entries_sorted_formatted = format_EMDB_list(level01A_entries_sorted)
 
     with open(level0notAnot1_output_file, 'a') as output:
-        output.writelines('%s\n' % entry for entry in level0notAnot1_entries)
+        output.writelines('%s\n' % entry for entry in level0notAnot1_entries_sorted_formatted)
     with open(level0Anot1_output_file, 'a') as output:
-        output.writelines('%s\n' % entry for entry in level0Anot1_entries)
+        output.writelines('%s\n' % entry for entry in level0Anot1_entries_sorted_formatted)
     with open(level01AnotA_output_file, 'a') as output:
-        output.writelines('%s\n' % entry for entry in level01AnotA_entries)
+        output.writelines('%s\n' % entry for entry in level01notA_entries_sorted_formatted)
     with open(level01A_output_file, 'a') as output:
-        output.writelines('%s\n' % entry for entry in level01A_entries)
+        output.writelines('%s\n' % entry for entry in level01A_entries_sorted_formatted)
