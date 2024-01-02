@@ -12,9 +12,9 @@ def does_map_exist(emdbid):
     print("Checking if EMD-%s exists..." % emdbid)
     response = requests.get(url_rest_api)
     if response.status_code == 200:
-        return True
+        return True, response.status_code, response.text
     else:
-        return False
+        return False, response.status_code, response.text
 
 def get_map_metadata(emdbid):
     """
@@ -22,14 +22,24 @@ def get_map_metadata(emdbid):
     """
     url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/%s' % emdbid
     print("Getting some EMD-%s metadata parameters (sampling, threshold and resolution) ..." % emdbid)
-    try:
-        json_results = requests.get(url_rest_api).json()
-        sampling = float(json_results["map"]["pixel_spacing"]["x"]["valueOf_"])
-        threshold = float(json_results["map"]["contour_list"]["contour"][0]["level"])
-        resolution = float(json_results["structure_determination_list"]["structure_determination"][0]["image_processing"][0]["final_reconstruction"]["resolution"]["valueOf_"])
-        return sampling, threshold, resolution
-    except:
-        return None, None, None
+    sampling, threshold, resolution = None, None, None
+    response = requests.get(url_rest_api)
+
+    if response.status_code == 200:
+        json_results = response.json()
+        try:
+            sampling = float(json_results["map"]["pixel_spacing"]["x"]["valueOf_"])
+        except:
+            pass
+        try:
+            threshold = float(json_results["map"]["contour_list"]["contour"][0]["level"])
+        except:
+            pass
+        try:
+            resolution = float(json_results["structure_determination_list"]["structure_determination"][0]["image_processing"][0]["final_reconstruction"]["resolution"]["valueOf_"])
+        except:
+            pass
+    return sampling, threshold, resolution, response.status_code, response.text
 
 def has_halfmaps(emdbid):
     """

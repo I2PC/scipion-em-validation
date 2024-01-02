@@ -238,22 +238,31 @@ for arg in sys.argv:
         EXECUTE_IF = EXECUTE_IF.split(',')
 
 if IS_EMDB_ENTRY:
-    if EMDButils.does_map_exist(EMDB_ID_NUM):
-        TS, MAPTHRESHOLD, MAPRESOLUTION = EMDButils.get_map_metadata(EMDB_ID_NUM)
-        levels.append('0')
-        AVAILABLE_DATA.append('map')
-        if (LEVELS and '1' in LEVELS) or (not LEVELS):
-            if EMDButils.has_halfmaps(EMDB_ID_NUM):
-                levels.append('1')
-                AVAILABLE_DATA.append('halfmaps')
-        if (LEVELS and 'A' in LEVELS.upper()) or (not LEVELS):
-            PDB_ID = EMDButils.has_atomicmodel(EMDB_ID_NUM)
-            if PDB_ID:
-                levels.append('A')
-                AVAILABLE_DATA.append('atomic')
-        print('Available data for %s: %s' % (EMDB_ID, ', '.join(AVAILABLE_DATA)))
+    does_map_exist = EMDButils.does_map_exist(EMDB_ID_NUM)
+    if does_map_exist[0]:
+        TS, MAPTHRESHOLD, MAPRESOLUTION, map_metadata_response_code, map_metadata_response_text = EMDButils.get_map_metadata(EMDB_ID_NUM)
+        if map_metadata_response_code == 200:
+            levels.append('0')
+            AVAILABLE_DATA.append('map')
+            if (LEVELS and '1' in LEVELS) or (not LEVELS):
+                if EMDButils.has_halfmaps(EMDB_ID_NUM):
+                    levels.append('1')
+                    AVAILABLE_DATA.append('halfmaps')
+            if (LEVELS and 'A' in LEVELS.upper()) or (not LEVELS):
+                PDB_ID = EMDButils.has_atomicmodel(EMDB_ID_NUM)
+                if PDB_ID:
+                    levels.append('A')
+                    AVAILABLE_DATA.append('atomic')
+            print('Available data for %s: %s' % (EMDB_ID, ', '.join(AVAILABLE_DATA)))
+        else:
+            print('There was a problem retrieving metadata from map')
+            print('Response code:', map_metadata_response_code)
+            print('Response text:', map_metadata_response_text)
     else:
         print("There is no EMDB map with code %s" % EMDB_ID_NUM)
+        print("Results of 'does_map_exist':")
+        print('Response code:', does_map_exist[1])
+        print('Response text:', does_map_exist[2])
 else:
     PRIORITY_QUEUE = True
     for arg in sys.argv:
