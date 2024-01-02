@@ -6,6 +6,10 @@ import concurrent.futures
 import sqlite3
 from datetime import datetime
 from random import sample
+from time import sleep
+import sys
+import argparse
+import re
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.yaml'))
@@ -51,6 +55,7 @@ def launcher(entry, cmd, log_file, levels):
         data)
     connection.commit()
 
+    log_file = log_file + '_' + str(n_launchs+1) + '.log'
     with open(log_file, 'w') as log_file:
         process = subprocess.Popen(cmd.split(), stdout=log_file, stderr=subprocess.PIPE, text=True)
         stderr = process.communicate()[1]
@@ -67,66 +72,162 @@ def launcher(entry, cmd, log_file, levels):
     connection.commit()
     connection.close()
 
+def get_EMDB_entry_subsets():
+    print('Getting EMDB entries...')
+    # Get all EMDB entries
+    get_emdb_entries(os.path.join(EMDB_entries_path, 'EMDB_all_entries.txt'))
 
-# Get all EMDB entries
-get_emdb_entries(os.path.join(EMDB_entries_path, 'EMDB_all_entries.txt'))
+    with open(os.path.join(EMDB_entries_path, 'EMDB_all_entries.txt'), 'r') as input:
+        all_emdb_entries = [emdb_entry.strip() for emdb_entry in input.readlines()]
 
-with open(os.path.join(EMDB_entries_path, 'EMDB_all_entries.txt'), 'r') as input:
-    all_emdb_entries = [emdb_entry.strip() for emdb_entry in input.readlines()]
+    # Keep just the spa ones
+    spa_emdb_entries = []
+    for entry in all_emdb_entries:
+        if is_spa_entry(entry):
+            spa_emdb_entries.append(entry)
 
-# Keep just the spa ones
-spa_emdb_entries = []
-for entry in all_emdb_entries:
-    if is_spa_entry(entry):
-        spa_emdb_entries.append(entry)
+    with open(os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries.txt'), 'a') as output:
+        output.writelines('%s\n' % entry for entry in spa_emdb_entries)
 
-with open(os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries.txt'), 'a') as output:
-    output.writelines('%s\n' % entry for entry in spa_emdb_entries)
+    # Check if entries have half-maps and atomic models associated
+    check_entry_level(os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries.txt'),
+                      os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_level1.txt'),
+                      os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_levelA.txt'),
+                      os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_failures.txt'))
 
-# Check if entries have half-maps and atomic models associated
-check_entry_level(os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries.txt'),
-                  os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_level1.txt'),
-                  os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_levelA.txt'),
-                  os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_failures.txt'))
+    # Create subsets of entries
+    get_subsets(os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries.txt'),
+                os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_level1.txt'),
+                os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_levelA.txt'),
+                os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_level0notAnot1.txt'),
+                os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_level0Anot1.txt'),
+                os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_level01notA.txt'),
+                os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_level01A.txt'))
 
-# Create subsets of entries
-get_subsets(os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries.txt'),
-            os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_level1.txt'),
-            os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_levelA.txt'),
-            os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_level0notAnot1.txt'),
-            os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_level0Anot1.txt'),
-            os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_level01notA.txt'),
-            os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_level01A.txt'))
+def get_fails():
+    connection = sqlite3.connect(ddbb_path)
+    cursor = connection.cursor()
+    # get entries whose last launch failed
+    cursor.execute("SELECT entry_id, levels FROM (SELECT entry_id, MAX(version) as last_version, levels, failed FROM launch GROUP BY entry_id) as last_launchs WHERE failed=1;")
+    failed_entries = cursor.fetchall()
+    return failed_entries
 
-# Create database for keeping track of the validations launched
-create_ddbb_data()
+def launch(levels, n_entries, start_entry=1, random=False):
+    print('Launching validations over EMDB entries...')
+    # Create database for keeping track of the validations launched
+    create_ddbb_data()
 
-# For every subset of entries, launch the validations over them in a concurrent way
-subsets = ['EMDB_all_spa_entries_level0notAnot1.txt', 'EMDB_all_spa_entries_level0Anot1.txt', 'EMDB_all_spa_entries_level01notA.txt', 'EMDB_all_spa_entries_level01A.txt']
-doLevels = ['0', '0,A', '0,1', '0,1,A']
-start_entry = 1  # start entry
-random = False  # random selection of entries
-n = 5  # amount of test entries
+    if 'A' in levels:
+        if '1' not in levels:
+            doLevels = '0,A'
+            subset = 'EMDB_all_spa_entries_level0Anot1.txt'
+        else:
+            doLevels = '0,1,A'
+            subset = 'EMDB_all_spa_entries_level01A.txt'
+    elif '1' in levels:
+        doLevels = '0,1'
+        subset = 'EMDB_all_spa_entries_level01notA.txt'
+    else:
+        doLevels = '0'
+        subset = 'EMDB_all_spa_entries_level0notAnot1.txt'
 
-i = 0
-for subset in subsets:
+    # Launch the validations over the subset in a concurrent way
     with open(os.path.join(EMDB_entries_path, subset), 'r') as input:
         emdb_entries = [emdb_entry.strip() for emdb_entry in input.readlines()]
 
     if start_entry:
-        emdb_entries = emdb_entries[start_entry-1:start_entry+n-1]
+        emdb_entries = emdb_entries[start_entry-1:start_entry+n_entries-1]
     elif random:
-        emdb_entries = sample(emdb_entries, k=n)
+        emdb_entries = sample(emdb_entries, k=n_entries)
 
     cmd = '%s python %s EMDBid=%s doLevels=%s'
     cmds = []
     output_files = []
 
     for entry in emdb_entries:
-        cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, doLevels[i]))
-        output_files.append(os.path.join(log_folder, entry + '.log'))
+        cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, doLevels))
+        output_files.append(os.path.join(log_folder, entry))
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         for cmd, output_file, entry in zip(cmds, output_files, emdb_entries):
-            executor.submit(launcher, entry, cmd, output_file, doLevels[i])
-    i+=1
+            executor.submit(launcher, entry, cmd, output_file, doLevels)
+            sleep(60)
+
+def launch_fails(exceptions=[]):
+    print('Launching validations again over previous fails...')
+    cmd = '%s python %s EMDBid=%s doLevels=%s'
+    cmds = []
+    output_files = []
+    emdb_entries = []
+    if exceptions:
+        exceptions = exceptions.spit(',')
+    doLevels = []
+
+    fails = get_fails()
+    for entry, level in fails:
+        if entry not in exceptions:
+            emdb_entries.append(entry)
+            doLevels.append(level)
+            cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, level))
+            output_files.append(os.path.join(log_folder, entry))
+
+    if emdb_entries:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for cmd, output_file, entry, level in zip(cmds, output_files, emdb_entries, doLevels):
+                executor.submit(launcher, entry, cmd, output_file, level)
+                sleep(60)
+    else:
+        print('There are no failed entries to relaunch')
+
+def EMDB_pattern_validator(emdb_list):
+    emdb_list = [emdb_entry for emdb_entry in emdb_list.replace(' ', '').split(',')]
+    for emdb_entry in emdb_list:
+        if not re.match(r'^EMD-\d{4,}$', emdb_entry):
+            raise argparse.ArgumentTypeError('The EMDB entry must follow the pattern: EMD-xxxx')
+    return emdb_list
+
+def main(argv):
+    parser = argparse.ArgumentParser(description='Launch validations over EMDB entries')
+    main_group = parser.add_mutually_exclusive_group()
+    subgroup = parser.add_mutually_exclusive_group()
+
+    main_group.add_argument('--getEMDBentries', '-g', help='retrieve EMDB entries', action='store_true')
+
+    main_group.add_argument('--launchAll', '-la', help='launch validations over all EMDB entries', action='store_true')
+    parser.add_argument('--level', '-l', help='when --launchAll: which level launch', choices=['0', '0,A', '0,1', 'O,A,1'])
+    parser.add_argument('--nEntries', '-n', type=int, help='when --launchAll: how many EMDB entries (i.e: 100)')
+    subgroup.add_argument('--startEntry', '-start', type=int, help='when --launchAll: starting EMDB position entry from list (i.e:1)')
+    subgroup.add_argument('--random', '-r', help='when --launchAll: select nEntries random entries from list', action='store_true')
+
+    main_group.add_argument('--launchFails', '-lf', help='repeat validations over failed EMDB entries', action='store_true')
+    parser.add_argument('--exceptions', '-e', type=EMDB_pattern_validator, help='when --launchFails: list of comma separated EMDB entries you want to avoid launch (i.e: EMD-1111, EMD-4374)')
+
+    args = parser.parse_args()
+
+    if args.getEMDBentries:
+        get_EMDB_entry_subsets()
+
+    elif args.launchAll:
+        level = args.level
+        n_entries = args.nEntries
+        start_entry = args.startEntry
+        random = args.random
+
+        if not level:
+            parser.error('--launchAll requires --level')
+        if not n_entries:
+            parser.error('--launchAll requires --nEntries')
+        if not (start_entry or random):
+            parser.error('--launchAll requires either --startEntry or --random')
+
+        launch(level, n_entries, start_entry=start_entry, random=random)
+
+    elif args.launchFails:
+        exceptions = args.exceptions
+        launch_fails(exceptions=exceptions if exceptions else [])
+
+    else:
+        print('You must use a valid option. Use -h or --help to see the help.')
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
