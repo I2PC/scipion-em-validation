@@ -33,6 +33,7 @@ from scipy.ndimage import gaussian_filter
 import subprocess
 from datetime import datetime
 from random import randint
+from time import sleep
 
 from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
@@ -593,6 +594,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
         while True:
             if checkIfJobFinished('resmap_' + str(randomInt)):
                 break
+        sleep(30)
 
     fnResMap = os.path.join(report.getReportDir() if not useSlurm else os.path.dirname(slurmScriptPath), "half1_ori_resmap.mrc")
     if not os.path.exists(fnResMap):
