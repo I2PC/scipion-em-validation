@@ -671,7 +671,7 @@ def bFactorAnalysis(project, report, map, resolution, priority=False):
         while True:
             if checkIfJobFinished('xmipp_volume_correct_bfactor_level0_' + str(randomInt)):
                 break
-        sleep(30)
+        sleep(120)
         with open(slurmScriptPath.replace('.sh', '.job.err'), 'r') as slurmOutputFile:
             outputLines = slurmOutputFile.read().split('\n')
 

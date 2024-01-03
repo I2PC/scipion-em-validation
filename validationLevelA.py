@@ -674,7 +674,7 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
         while True:
             if checkIfJobFinished('xmipp_volume_correct_bfactor_levelA_' + str(randomInt)):
                 break
-        sleep(30)
+        sleep(120)
 
     dinv2, lnFMap, _ = readGuinier(os.path.join(report.getReportDir() if not useSlurm else os.path.dirname(slurmScriptPath), 'sharpenedMap.mrc') + '.guinier')
     _, lnFAtom, _ = readGuinier(fnOut + ".guinier")
