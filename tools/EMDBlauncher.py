@@ -159,8 +159,6 @@ def launch_fails(exceptions=[]):
     cmds = []
     output_files = []
     emdb_entries = []
-    if exceptions:
-        exceptions = exceptions.spit(',')
     doLevels = []
 
     fails = get_fails()
