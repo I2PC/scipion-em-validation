@@ -117,7 +117,6 @@ def usage(message=''):
           "\n         or"
           "\n         project:  myProject"
           "\n         doLevels: 0,1,A"
-          "\n         executeIf: map,halfmaps,atomic"
           "\n         LEVEL 0 ====="
           "\n            map:  mymap.mrc"
           "\n            sampling:  1 [A]"
@@ -199,8 +198,6 @@ EMDB_ID_NUM = None
 PDB_ID = None
 IS_EMDB_ENTRY = False
 LEVELS = None
-EXECUTE_IF = None
-AVAILABLE_DATA = []
 PRIORITY_QUEUE = False
 
 MAPCOORDX = None
@@ -233,9 +230,6 @@ for arg in sys.argv:
         PROJECT_NAME = EMDB_ID
     if arg.startswith('doLevels='):
         LEVELS = arg.split('doLevels=')[1]
-    if arg.startswith('executeIf='):
-        EXECUTE_IF = arg.split('executeIf=')[1]
-        EXECUTE_IF = EXECUTE_IF.split(',')
 
 if IS_EMDB_ENTRY:
     does_map_exist = EMDButils.does_map_exist(EMDB_ID_NUM)
@@ -243,17 +237,13 @@ if IS_EMDB_ENTRY:
         TS, MAPTHRESHOLD, MAPRESOLUTION, map_metadata_response_code, map_metadata_response_text = EMDButils.get_map_metadata(EMDB_ID_NUM)
         if map_metadata_response_code == 200:
             levels.append('0')
-            AVAILABLE_DATA.append('map')
             if (LEVELS and '1' in LEVELS) or (not LEVELS):
                 if EMDButils.has_halfmaps(EMDB_ID_NUM):
                     levels.append('1')
-                    AVAILABLE_DATA.append('halfmaps')
             if (LEVELS and 'A' in LEVELS.upper()) or (not LEVELS):
                 PDB_ID = EMDButils.has_atomicmodel(EMDB_ID_NUM)
                 if PDB_ID:
                     levels.append('A')
-                    AVAILABLE_DATA.append('atomic')
-            print('Available data for %s: %s' % (EMDB_ID, ', '.join(AVAILABLE_DATA)))
         else:
             print('There was a problem retrieving metadata from map')
             print('Response code:', map_metadata_response_code)
@@ -384,19 +374,6 @@ else:
 
 if len(levels)==0 or not "0" in levels:
     usage()
-
-# Check execution restrinctions for emdb entries
-if EXECUTE_IF and AVAILABLE_DATA:
-    EXECUTE_IF.sort()
-    AVAILABLE_DATA.sort()
-
-    if EXECUTE_IF == AVAILABLE_DATA:
-        print('Executing analisis on %s...' % (', '.join(AVAILABLE_DATA)))
-        pass
-    else:
-        print('Execution restricted to: %s (data available: %s)' % (', '.join(EXECUTE_IF), ', '.join(AVAILABLE_DATA)))
-        print('Exiting execution...')
-        sys.exit()
 
 # Creating the project
 projectDir = manager.getProjectPath(PROJECT_NAME)
