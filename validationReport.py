@@ -22,6 +22,7 @@ import configparser
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 maxMemToUse = config['CHIMERA'].getint('MAX_MEM_TO_USE')
+maxVoxelsToOpen = config['CHIMERA'].getint('MAX_VOXELS')
 doStoreIntermediateData = config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
 intermediateDataFinalPath = config['INTERMEDIATE_DATA'].get('DEST_PATH')
 cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
@@ -91,16 +92,17 @@ set bgColor white
         chimeraScript+=\
 """
 volume dataCacheSize %d
-volume voxelLimitForOpen 1200
+volume voxelLimitForOpen %d
 volume showPlane false
-""" % maxMemToUse
+""" % (maxMemToUse, maxVoxelsToOpen)
     chimeraScript+=\
 """
 open %s
 """ % fnMap
     if isMap:
         chimeraScript+=\
-"""volume #1 level %f
+"""show #1 models
+volume #1 level %f
 volume #1 color #4e9a06
 lighting soft
 """%threshold
@@ -162,7 +164,7 @@ def generateChimeraColorView(fnWorkingDir, project, fnRoot, fnMap, Ts, fnColor, 
     fhCmd = open(cmdFile, "a")
     toWrite = \
 """
-run(session, 'volume voxelLimitForOpen 1000')
+run(session, 'volume voxelLimitForOpen %d')
 run(session, 'volume showPlane false')
 run(session, 'windowsize 1300 700')
 run(session, 'view all')
@@ -175,7 +177,7 @@ run(session, 'turn y 90')
 run(session, 'view all')
 run(session, 'save %s')
 run(session, 'exit')
-""" % (fn1, fn2, fn3)
+""" % (maxVoxelsToOpen, fn1, fn2, fn3)
     fhCmd.write(toWrite)
     fhCmd.close()
 

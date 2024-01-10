@@ -2,6 +2,7 @@ import os
 import requests
 import urllib.request
 import gzip
+from bs4 import BeautifulSoup
 
 def does_map_exist(emdbid):
     """
@@ -11,9 +12,9 @@ def does_map_exist(emdbid):
     print("Checking if EMD-%s exists..." % emdbid)
     response = requests.get(url_rest_api)
     if response.status_code == 200:
-        return True
+        return True, response.status_code, response.text
     else:
-        return False
+        return False, response.status_code, response.text
 
 def get_map_metadata(emdbid):
     """
@@ -21,14 +22,24 @@ def get_map_metadata(emdbid):
     """
     url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/%s' % emdbid
     print("Getting some EMD-%s metadata parameters (sampling, threshold and resolution) ..." % emdbid)
-    try:
-        json_results = requests.get(url_rest_api).json()
-        sampling = float(json_results["map"]["pixel_spacing"]["x"]["valueOf_"])
-        threshold = float(json_results["map"]["contour_list"]["contour"][0]["level"])
-        resolution = float(json_results["structure_determination_list"]["structure_determination"][0]["image_processing"][0]["final_reconstruction"]["resolution"]["valueOf_"])
-        return sampling, threshold, resolution
-    except:
-        return None, None, None
+    sampling, threshold, resolution = None, None, None
+    response = requests.get(url_rest_api)
+
+    if response.status_code == 200:
+        json_results = response.json()
+        try:
+            sampling = float(json_results["map"]["pixel_spacing"]["x"]["valueOf_"])
+        except:
+            pass
+        try:
+            threshold = float(json_results["map"]["contour_list"]["contour"][0]["level"])
+        except:
+            pass
+        try:
+            resolution = float(json_results["structure_determination_list"]["structure_determination"][0]["image_processing"][0]["final_reconstruction"]["resolution"]["valueOf_"])
+        except:
+            pass
+    return sampling, threshold, resolution, response.status_code, response.text
 
 def has_halfmaps(emdbid):
     """
@@ -122,3 +133,116 @@ def gunzip(gzpath, path):
     f.close()
     gzf.close()
     os.remove(gzpath)
+
+def get_emdb_entries(output_file):
+    """
+    Gets all EMDB entries
+    """
+    url = 'https://ftp.ebi.ac.uk/pub/databases/emdb/structures/'
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        content = BeautifulSoup(response.content, 'html.parser')
+        emdb_entries = content.find_all('a')
+
+        with open(output_file, 'w') as output:
+            output.writelines(('%s\n' % emdb_entry.get_text().replace('/','') for emdb_entry in emdb_entries if 'EMD-' in emdb_entry.get_text()))
+    else:
+        print('Error getting the page:', response.status_code)
+
+def is_spa_entry(emdbid):
+    """
+    Checks if an EMDB entry was obtained using Single Particle Analysis method
+    """
+    url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/%s' % emdbid
+    print("Checking if EMD-%s was obtained using Single Particle Analysis method..." % (emdbid))
+    json_results = requests.get(url_rest_api).json()
+    try:
+        method = json_results["structure_determination_list"]["structure_determination"][0]["method"]
+        if method == 'singleParticle':
+            return True
+        else:
+            return False
+    except:
+        return False
+
+def check_entry_level(emdb_entries_input_file, level1_output_file, levelA_output_file, failures_output_file):
+    """
+    Checks which EMDB entry has half-maps (level 1) and atomic model associated (level A)
+    """
+    with open(emdb_entries_input_file, 'r') as input:
+        emdb_entries = [emdb_entry.strip() for emdb_entry in input.readlines()]
+
+    level1_entries = []
+    levelA_entries = []
+    failures = []
+
+    for emdb_entry in emdb_entries:
+        try:
+            if has_halfmaps(emdb_entry):
+                level1_entries.append(emdb_entry)
+            if has_atomicmodel(emdb_entry):
+                levelA_entries.append(emdb_entry)
+        except:
+            failures.append(emdb_entry)
+
+    with open(level1_output_file, 'w') as output:
+        output.writelines('%s\n' % level1_entry for level1_entry in level1_entries)
+    with open(levelA_output_file, 'w') as output:
+        output.writelines('%s\n' % levelA_entry for levelA_entry in levelA_entries)
+    with open(failures_output_file, 'w') as output:
+        output.writelines('%s\n' % failure for failure in failures)
+
+def format_EMDB_list(list_unsorted):
+    """
+    Formats a list with EMDB entries to have the 'EMDB-xxxx' pattern
+    """
+    list_sorted = []
+    for entry in list_unsorted:
+        entry_str = f"EMD-{entry:04d}"
+        list_sorted.append(entry_str)
+    return list_sorted
+
+def get_subsets(levelO_input_file, level1_input_file, levelA_input_file, level0notAnot1_output_file, level0Anot1_output_file, level01AnotA_output_file, level01A_output_file):
+    """
+    Creates several lists:
+        - Level 0 - Level 1 - Level A: Entries with map but without half-maps and atomic model
+        - (Level 0 & Level A) - Level 1: Entries with map and atomic model but without half-maps
+        - (Level 0 & Level 1) - Level A:: Entries with map and half-maps but without atomic model
+        - Level 0 & Level 1 & Level A: Entries with maps, half-maps and atomic model
+    """
+    with open(levelO_input_file, 'r') as input:
+        level0_entries = [emdb_entry.strip() for emdb_entry in input.readlines()]
+    with open(level1_input_file, 'r') as input:
+        level1_entries = [emdb_entry.strip() for emdb_entry in input.readlines()]
+    with open(levelA_input_file, 'r') as input:
+        levelA_entries = [emdb_entry.strip() for emdb_entry in input.readlines()]
+
+    level0notAnot1_entries = list(set(level0_entries) - set(levelA_entries) - set(level1_entries))
+    level0notAnot1_entries_sorted = [int(entry.replace('EMD-', '')) for entry in level0notAnot1_entries]
+    level0notAnot1_entries_sorted.sort()
+    level0notAnot1_entries_sorted_formatted = format_EMDB_list(level0notAnot1_entries_sorted)
+
+    level0Anot1_entries = list((set(level0_entries) & set(levelA_entries)) - set(level1_entries))
+    level0Anot1_entries_sorted = [int(entry.replace('EMD-', '')) for entry in level0Anot1_entries]
+    level0Anot1_entries_sorted.sort()
+    level0Anot1_entries_sorted_formatted = format_EMDB_list(level0Anot1_entries_sorted)
+
+    level01notA_entries = list((set(level0_entries) & set(level1_entries)) - set(levelA_entries))
+    level01notA_entries_sorted = [int(entry.replace('EMD-', '')) for entry in level01notA_entries]
+    level01notA_entries_sorted.sort()
+    level01notA_entries_sorted_formatted = format_EMDB_list(level01notA_entries_sorted)
+
+    level01A_entries = list(set(level0_entries) & set(levelA_entries) & set(level1_entries))
+    level01A_entries_sorted = [int(entry.replace('EMD-', '')) for entry in level01A_entries]
+    level01A_entries_sorted.sort()
+    level01A_entries_sorted_formatted = format_EMDB_list(level01A_entries_sorted)
+
+    with open(level0notAnot1_output_file, 'w') as output:
+        output.writelines('%s\n' % entry for entry in level0notAnot1_entries_sorted_formatted)
+    with open(level0Anot1_output_file, 'w') as output:
+        output.writelines('%s\n' % entry for entry in level0Anot1_entries_sorted_formatted)
+    with open(level01AnotA_output_file, 'w') as output:
+        output.writelines('%s\n' % entry for entry in level01notA_entries_sorted_formatted)
+    with open(level01A_output_file, 'w') as output:
+        output.writelines('%s\n' % entry for entry in level01A_entries_sorted_formatted)

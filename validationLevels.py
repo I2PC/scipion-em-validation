@@ -198,6 +198,7 @@ EMDB_ID_NUM = None
 PDB_ID = None
 IS_EMDB_ENTRY = False
 LEVELS = None
+PRIORITY_QUEUE = False
 
 MAPCOORDX = None
 MAPCOORDY = None
@@ -231,19 +232,29 @@ for arg in sys.argv:
         LEVELS = arg.split('doLevels=')[1]
 
 if IS_EMDB_ENTRY:
-    if EMDButils.does_map_exist(EMDB_ID_NUM):
-        TS, MAPTHRESHOLD, MAPRESOLUTION = EMDButils.get_map_metadata(EMDB_ID_NUM)
-        levels.append('0')
-        if (LEVELS and '1' in LEVELS) or (not LEVELS):
-            if EMDButils.has_halfmaps(EMDB_ID_NUM):
-                levels.append('1')
-        if (LEVELS and 'A' in LEVELS.upper()) or (not LEVELS):
-            PDB_ID = EMDButils.has_atomicmodel(EMDB_ID_NUM)
-            if PDB_ID:
-                levels.append('A')
+    does_map_exist = EMDButils.does_map_exist(EMDB_ID_NUM)
+    if does_map_exist[0]:
+        TS, MAPTHRESHOLD, MAPRESOLUTION, map_metadata_response_code, map_metadata_response_text = EMDButils.get_map_metadata(EMDB_ID_NUM)
+        if map_metadata_response_code == 200:
+            levels.append('0')
+            if (LEVELS and '1' in LEVELS) or (not LEVELS):
+                if EMDButils.has_halfmaps(EMDB_ID_NUM):
+                    levels.append('1')
+            if (LEVELS and 'A' in LEVELS.upper()) or (not LEVELS):
+                PDB_ID = EMDButils.has_atomicmodel(EMDB_ID_NUM)
+                if PDB_ID:
+                    levels.append('A')
+        else:
+            print('There was a problem retrieving metadata from map')
+            print('Response code:', map_metadata_response_code)
+            print('Response text:', map_metadata_response_text)
     else:
         print("There is no EMDB map with code %s" % EMDB_ID_NUM)
+        print("Results of 'does_map_exist':")
+        print('Response code:', does_map_exist[1])
+        print('Response text:', does_map_exist[2])
 else:
+    PRIORITY_QUEUE = True
     for arg in sys.argv:
         if arg.startswith('project='):
             PROJECT_NAME = arg.split('project=')[1]
@@ -397,7 +408,7 @@ else:
                                                    samplingRate=TS,
                                                    setOrigCoord=False)
 if useSlurm:
-    sendToSlurm(protImportMapChecker)
+    sendToSlurm(protImportMapChecker, priority=False if IS_EMDB_ENTRY else True)
 project.launchProtocol(protImportMapChecker)
 #waitOutput(project, protImportMapChecker, 'outputVolume')
 waitUntilFinishes(project, protImportMapChecker)
@@ -428,7 +439,7 @@ else:
                                                 doMorphological=True,
                                                 elementSize=math.ceil(2/TS)) # Dilation by 2A
     if useSlurm:
-        sendToSlurm(protCreateMaskChecker)
+        sendToSlurm(protCreateMaskChecker, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protCreateMaskChecker)
     waitUntilFinishes(project, protCreateMaskChecker)
 
@@ -459,7 +470,7 @@ if "1" in levels:
                                                     samplingRate=TS,
                                                     setOrigCoord=False)
     if useSlurm:
-        sendToSlurm(protImportMap1Checker)
+        sendToSlurm(protImportMap1Checker, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protImportMap1Checker)
     #waitOutput(project, protImportMap1Checker, 'outputVolume')
     waitUntilFinishes(project, protImportMap1Checker)
@@ -486,7 +497,7 @@ if "1" in levels:
                                                     samplingRate=TS,
                                                     setOrigCoord=False)
     if useSlurm:
-        sendToSlurm(protImportMap2Checker)
+        sendToSlurm(protImportMap2Checker, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protImportMap2Checker)
     #waitOutput(project, protImportMap2Checker, 'outputVolume')
     waitUntilFinishes(project, protImportMap2Checker)
@@ -592,7 +603,7 @@ if "A" in levels and not protImportMapChecker.isFailed():
                                                         pdbFile=fnPdb)
         protImportAtomicModelChecker.inputVolume.set(protImportMapChecker.outputVolume)
         if useSlurm:
-            sendToSlurm(protImportAtomicModelChecker)
+            sendToSlurm(protImportAtomicModelChecker, priority=False if IS_EMDB_ENTRY else True)
         project.launchProtocol(protImportAtomicModelChecker)
         #waitOutput(project, protImportAtomicModelChecker, 'outputPdb')
         waitUntilFinishes(project, protImportAtomicModelChecker)
@@ -726,12 +737,12 @@ else: # go ahead
     # Create report
     # Level 0
     from validationLevel0 import level0
-    protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protResizeHardMask, protResizeSoftMask, fnMaskedMapDict = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False)
+    protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protResizeHardMask, protResizeSoftMask, fnMaskedMapDict = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False, priority=False if IS_EMDB_ENTRY else True)
 
     # Level 1
     if "1" in levels:
         from validationLevel1 import level1
-        level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protImportMap, protResizeMap, protCreateHardMask, protCreateSoftMask, protResizeSoftMask, fnMaskedMapDict, skipAnalysis = False)
+        level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protImportMap, protResizeMap, protCreateHardMask, protCreateSoftMask, protResizeSoftMask, fnMaskedMapDict, skipAnalysis = False, priority=False if IS_EMDB_ENTRY else True)
 
     # Level 2
     if "2" in levels:
@@ -760,7 +771,7 @@ else: # go ahead
     #TODO: pass writeAtomicModelFailed to levelA() to write the warning in the report
     if "A" in levels:
         from validationLevelA import levelA
-        protAtom = levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, MAPRESOLUTION, doMultimodel, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis = False)
+        protAtom = levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, MAPRESOLUTION, doMultimodel, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis = False, priority=False if IS_EMDB_ENTRY else True)
     else:
         protAtom = None
 

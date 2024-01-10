@@ -32,6 +32,9 @@ import os
 import pickle
 import subprocess
 import re
+from datetime import datetime
+from random import randint
+from time import sleep
 
 from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
@@ -57,7 +60,7 @@ mapq_path = config['MAPQ'].get('MAPQ_PATH')
 validation_tools_path = config['EM-VALIDATION'].get('VALIDATION_TOOLS_PATH')
 
 
-def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
+def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
 
@@ -77,13 +80,13 @@ def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ):
                                    samplingRate=protImportMap.outputVolume.getSamplingRate(),
                                    setOrigCoord=False)
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
     waitUntilFinishes(project, prot)
     return prot
 
-def importModel(project, report, label, protImportMap, fnPdb):
+def importModel(project, report, label, protImportMap, fnPdb, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportPdb', doRaise=True)
     protImport = project.newProtocol(Prot,
@@ -92,7 +95,7 @@ def importModel(project, report, label, protImportMap, fnPdb):
                                      pdbFile=fnPdb)
     protImport.inputVolume.set(protImportMap.outputVolume)
     if useSlurm:
-        sendToSlurm(protImport)
+        sendToSlurm(protImport, priority=True if priority else False)
     project.launchProtocol(protImport)
     #waitOutput(project, protImport, 'outputPdb')
     waitUntilFinishes(project, protImport)
@@ -104,7 +107,7 @@ def importModel(project, report, label, protImportMap, fnPdb):
 
 
 
-def mapq(project, report, protImportMap, protAtom, resolution):
+def mapq(project, report, protImportMap, protAtom, resolution, priority=False):
     bblCitation = \
 """\\bibitem[Pintilie et~al., 2020]{Pintilie2020}
 Pintilie, G., Zhang, K., Su, Z., Li, S., Schmid, M.~F., and Chiu, W. (2020).
@@ -159,7 +162,7 @@ have a Gaussian shape.\\\\
                                 pdbs=[protAtom.outputPdb],
                                 mapRes=resolution)
         if useSlurm:
-            sendToSlurm(prot)
+            sendToSlurm(prot, priority=True if priority else False)
         project.launchProtocol(prot)
         #waitOutput(project, prot, 'scoredStructures')
         waitUntilFinishes(project, prot)
@@ -387,7 +390,7 @@ else:
         report.writeAbstract("There seems to be a problem with its MapQ scores (see Sec. \\ref{%s}). "%secLabel)
 
 
-def convertPDB(project, report, protImportMap, protAtom):
+def convertPDB(project, report, protImportMap, protAtom, priority=False):
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtConvertPdb', doRaise=True)
@@ -400,7 +403,7 @@ def convertPDB(project, report, protImportMap, protAtom):
     protConvert.pdbObj.set(protAtom.outputPdb)
     protConvert.volObj.set(protImportMap.outputVolume)
     if useSlurm:
-        sendToSlurm(protConvert)
+        sendToSlurm(protConvert, priority=True if priority else False)
     project.launchProtocol(protConvert)
     #waitOutput(project, protConvert, 'outputVolume')
     waitUntilFinishes(project, protConvert)
@@ -429,7 +432,7 @@ def convertPDB(project, report, protImportMap, protAtom):
         return None
     return protConvert
 
-def fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask, fnMaskedMap):
+def fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask, fnMaskedMap, priority=False):
     if not protImportMap.outputVolume.hasHalfMaps():
         return
 
@@ -467,7 +470,7 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
     prot.pdbMap.set(protConvert.outputVolume)
     prot.inputMask.set(protCreateSoftMask.outputMask)
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputAtomStruct')
     waitUntilFinishes(project, prot)
@@ -537,7 +540,7 @@ in absolute value is smaller than 10\\%.
         report.writeAbstract("According to FSC-Q, it seems that there is a mismatch between the map and its model "\
                              "(see Sec. \\ref{%s}). "%secLabel)
 
-def multimodel(project, report, protImportMap, protAtom, resolution):
+def multimodel(project, report, protImportMap, protAtom, resolution, priority=False):
     bblCitation = \
 """\\bibitem[Herzik et~al., 2019]{Herzik2019}
 Herzik, M.~A., Fraser, J.~S., and Lander, G.~C. (2019).
@@ -570,7 +573,7 @@ the different local resolutions or local heterogeneity.\\\\
                                  resolution=resolution,
                                  numMods=2)
     if useSlurm:
-        sendToSlurm(prot1, GPU=True)
+        sendToSlurm(prot1, GPU=True, priority=True if priority else False)
     project.launchProtocol(prot1)
     #waitOutput(project, prot1, 'outputAtomStructs')
     waitUntilFinishes(project, prot1)
@@ -587,7 +590,7 @@ the different local resolutions or local heterogeneity.\\\\
                                 objLabel="A.c RMSD",
                                 inputStructureSet=prot1.outputAtomStructs)
     if useSlurm:
-        sendToSlurm(prot2)
+        sendToSlurm(prot2, priority=True if priority else False)
     project.launchProtocol(prot2)
     #waitOutput(project, prot2, 'outputAtomStructs')
     waitUntilFinishes(project, prot2)
@@ -648,7 +651,7 @@ is %4.2f \\AA. Fig. \\ref{fig:modelRMSD} shows the atomic model colored by RMSD.
         report.writeAbstract("It seems that the model is too ambiguous (see Sec. \\ref{%s}). "%\
                              secLabel)
 
-def guinierModel(project, report, protImportMap, protConvert, resolution):
+def guinierModel(project, report, protImportMap, protConvert, resolution, priority=False):
     map = protImportMap.outputVolume
     Ts = map.getSamplingRate()
 
@@ -663,13 +666,15 @@ def guinierModel(project, report, protImportMap, protConvert, resolution):
     if not useSlurm:
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
     else:
-        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_levelA', report.getReportDir(), cmd)
+        randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
+        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_levelA_' + str(randomInt), report.getReportDir(), cmd, priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished
         while True:
-            if checkIfJobFinished('xmipp_volume_correct_bfactor_levelA'):
+            if checkIfJobFinished('xmipp_volume_correct_bfactor_levelA_' + str(randomInt)):
                 break
+        sleep(120)
 
     dinv2, lnFMap, _ = readGuinier(os.path.join(report.getReportDir() if not useSlurm else os.path.dirname(slurmScriptPath), 'sharpenedMap.mrc') + '.guinier')
     _, lnFAtom, _ = readGuinier(fnOut + ".guinier")
@@ -727,7 +732,7 @@ than 0.5.
     saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'sharpenedModel.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedModel.mrc.guinier'), 'sharpenedModel.mrc.guinier file which contain the data to create the guinier plot')
     saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'guinierPlot', fnPlot, 'guinier plot for Map-Model Guinier Analysis')
 
-def phenix(project, report, protImportMap, protAtom, resolution):
+def phenix(project, report, protImportMap, protAtom, resolution, priority=False):
     bblCitation = \
 """\\bibitem[Afonine et~al., 2018]{Afonine2018}
 Afonine, P.~V., Klaholz, B.~P., Moriarty, N.~W., Poon, B.~K., Sobolev, O.~V.,
@@ -784,7 +789,7 @@ quality of the map.
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
 
@@ -1050,7 +1055,7 @@ resolution estimated between the map and model at FSC=0.5.
                              "and its model (see Sec. \\ref{%s}). "%secLabel)
 
 
-def emringer(project, report, protImportMap, protAtom):
+def emringer(project, report, protImportMap, protAtom, priority=False):
     bblCitation = \
 """\\bibitem[Barad et~al., 2015]{Barad2015}
 Barad, B.~A., Echols, N., Wang, R. Y.-R., Cheng, Y., DiMaio, F., Adams, P.~D.,
@@ -1092,7 +1097,7 @@ that may need improvement.
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
     if useSlurm:
-        sendToSlurm(prot)
+        sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'stringDataDict')
     #waitOutputFile(project, prot, '*_emringer_plots')
@@ -1207,7 +1212,7 @@ sequence of the protein chains.
 
     saveIntermediateData(report.getReportDir(), 'EMRinger', True, '_emringer_plots', _emringer_plots, '_emringer_plots files')
 
-def daq(project, report, protImportMap, protAtom):
+def daq(project, report, protImportMap, protAtom, priority=False):
     bblCitation = \
 """\\bibitem[Terashi et~al., 2022]{Terashi2022}
 Terashi, G., Wang, X., Subramaniya, S.R.M.V., Tesmer, J.J.G. and Kihara, D. (2022).
@@ -1263,7 +1268,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         prot.inputVolume.set(protImportMap.outputVolume)
         prot.inputAtomStruct.set(protAtom.outputPdb)
         if useSlurm:
-            sendToSlurm(prot)
+            sendToSlurm(prot, priority=True if priority else False)
         project.launchProtocol(prot)
         #waitOutput(project, prot, 'outputAtomStruct')
         waitUntilFinishes(project, prot)
@@ -1408,34 +1413,34 @@ Atomic model: %s \\\\
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
     return False
 
-def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False):
+def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False):
     if writeAtomicModelFailed:
         reportInput(project, report, FNMODEL, writeAtomicModelFailed)
         protAtom = None
         return protAtom
     else:
         if protImportMap.outputVolume.hasHalfMaps():
-            protImportMapWOHalves = importMap(project, "Import map2", protImportMap, mapCoordX, mapCoordY, mapCoordZ)
+            protImportMapWOHalves = importMap(project, "Import map2", protImportMap, mapCoordX, mapCoordY, mapCoordZ, priority=priority)
             protImportForPhenix = protImportMapWOHalves
         else:
             protImportForPhenix = protImportMap
 
-        protAtom = importModel(project, report, "Import atomic", protImportMap, fnPdb)
+        protAtom = importModel(project, report, "Import atomic", protImportMap, fnPdb, priority=priority)
 
         skipAnalysis = skipAnalysis or reportInput(project, report, FNMODEL)
 
         # Quality Measures
         if not skipAnalysis:
             report.writeSection('Level A analysis')
-            protConvert = convertPDB(project, report, protImportMap, protAtom)
+            protConvert = convertPDB(project, report, protImportMap, protAtom, priority=priority)
             if protConvert is not None:
-                mapq(project, report, protImportMap, protAtom, resolution)
-                fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask, fnMaskedMapDict['fnSoftMaskedMap'])
+                mapq(project, report, protImportMap, protAtom, resolution, priority=priority)
+                fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask, fnMaskedMapDict['fnSoftMaskedMap'], priority=priority)
                 if doMultimodel:
-                    multimodel(project, report, protImportMap, protAtom, resolution)
-                guinierModel(project, report, protImportMap, protConvert, resolution)
-                phenix(project, report, protImportForPhenix, protAtom, resolution)
-                emringer(project, report, protImportForPhenix, protAtom)
-                daq(project, report, protImportMap, protAtom)
+                    multimodel(project, report, protImportMap, protAtom, resolution, priority=priority)
+                guinierModel(project, report, protImportMap, protConvert, resolution, priority=priority)
+                phenix(project, report, protImportForPhenix, protAtom, resolution, priority=priority)
+                emringer(project, report, protImportForPhenix, protAtom, priority=priority)
+                daq(project, report, protImportMap, protAtom, priority=priority)
 
     return protAtom

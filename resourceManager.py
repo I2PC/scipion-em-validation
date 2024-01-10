@@ -8,7 +8,8 @@ import configparser
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
-queue = config['QUEUE'].get('QUEUE_NAME')
+standard_queue = config['QUEUE'].get('STANDARD_QUEUE_NAME')
+priority_queue = config['QUEUE'].get('PRIORITY_QUEUE_NAME')
 
 #TODO: add function to set whether the user wants to use slurm or not
 
@@ -96,16 +97,16 @@ def waitUntilFinishes(project, prot, sleepTime=10, timeOut=432000):
 
 #TODO: allow the user to add parameters (e.g. prot.gpuList.set(7))
 
-def sendToSlurm(prot, memory=8192, hours=48, GPU=False, nGPUs=1):
+def sendToSlurm(prot, memory=8192, hours=48, GPU=False, nGPUs=1, priority=False):
     prot._useQueue.set(Boolean(True))
-    QUEUE_PARAMS = (queue, {'JOB_MEMORY': memory, 'JOB_TIME': hours, 'GPU_COUNT': nGPUs if GPU else 0})
+    QUEUE_PARAMS = (priority_queue if priority else standard_queue, {'JOB_MEMORY': memory, 'JOB_TIME': hours, 'GPU_COUNT': nGPUs if GPU else 0})
     prot._queueParams.set(json.dumps(QUEUE_PARAMS))
 
 def skipSlurm(prot, GPUId):
     prot._useQueue.set(Boolean(False))
     prot.gpuList.set(GPUId)
 
-def createScriptForSlurm(jobname, path, command, nTasks=1, cpusPerTask=1, memory=8192, nGPUs=0, hours=48):
+def createScriptForSlurm(jobname, path, command, nTasks=1, cpusPerTask=1, memory=8192, nGPUs=0, hours=48, priority=False):
   script = """#!/bin/bash
 #SBATCH --export=ALL
 #SBATCH -J %s
@@ -115,13 +116,13 @@ def createScriptForSlurm(jobname, path, command, nTasks=1, cpusPerTask=1, memory
 #SBATCH -p %s
 #SBATCH --time=%d:00:00 --ntasks=%d --cpus-per-task=%d --mem=%d --gres=gpu:%d
   
-%s""" % (jobname, os.path.join(path, jobname + '.job.out'), os.path.join(path, jobname + '.job.err'), queue, hours, nTasks, cpusPerTask, memory, nGPUs, command)
+%s""" % (jobname, os.path.join(path, jobname + '.job.out'), os.path.join(path, jobname + '.job.err'), priority_queue if priority else standard_queue, hours, nTasks, cpusPerTask, memory, nGPUs, command)
   with open(os.path.join(path, jobname + '.sh'), 'w') as archivo:
     archivo.write(script)
   return os.path.join(path, jobname + '.sh')
 
 def checkIfJobFinished(jobname):
-  command = 'squeue -o "%.200j"'
+  command = 'squeue -o "%.500j"'
   process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
   output, _ = process.communicate()
   output = output.decode('utf-8')
