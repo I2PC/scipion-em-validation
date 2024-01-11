@@ -36,6 +36,7 @@ from time import sleep
 
 from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
+from pwem import emlib
 from validationReport import readMap, readGuinier, latexEnumerate, calculateSha256, reportPlot, reportMultiplePlots,\
     reportHistogram
 
@@ -1279,6 +1280,11 @@ Resolution estimated by user: %f \\\\
 
 def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis = False, priority=False):
     # Import map
+    imgh = emlib.image.ImageHandler()
+    x, y, z, n = imgh.getDimensions(fnMap)
+    if n > 1:  # If it is a stack of images, pick the first one
+        volume = xmipp3.Image("1@" + fnMap)
+        volume.write(fnMap)
     protImportMap = importMap(project, report, "import map", fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=priority)
     if protImportMap.isFailed():
         raise Exception("Import map did not work")
