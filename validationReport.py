@@ -470,7 +470,7 @@ class ValidationReport:
             color = 'mygreen'
             icon_msg = 'Public Data-based Report'
             msg = 'data publicly available at \\href{https://www.ebi.ac.uk/emdb/}{EMDB}.'
-            resolution_str = str(MAPRESOLUTION) + ' \AA'
+            resolution_str = str(MAPRESOLUTION) + ' \AA' if MAPRESOLUTION else None
 
             title = None
             authors = None
@@ -625,12 +625,12 @@ This Validation Report Service is explained in more detail in the paper \\cite{S
 
     def abstractResolution(self, resolution):
         if len(self.resolutionEstimates)>0:
-            msg="\n\n\\vspace{0.5cm}The average resolution of the map estimated by various methods goes from %4.1f\\AA~to %4.1f\\AA~ with an "\
-                "average of %4.1f\\AA. The resolution provided by the user was %4.1f\\AA."%\
-                (np.min(self.resolutionEstimates), np.max(self.resolutionEstimates), np.mean(self.resolutionEstimates),
-                 resolution)
-            if resolution<0.8*np.mean(self.resolutionEstimates):
-                msg+=" The resolution reported by the user may be overestimated."
+            msg = "\n\n\\vspace{0.5cm}The average resolution of the map estimated by various methods goes from %4.1f\\AA~to %4.1f\\AA~ with an " \
+                  "average of %4.1f\\AA." % (np.min(self.resolutionEstimates), np.max(self.resolutionEstimates), np.mean(self.resolutionEstimates))
+            if resolution:
+                msg+=" The resolution provided by the user was %4.1f\\AA." % resolution
+                if resolution<0.8*np.mean(self.resolutionEstimates):
+                    msg+=" The resolution reported by the user may be overestimated."
             msg+="\n\n\\vspace{0.5cm}"
             self.writeAbstract(msg)
 

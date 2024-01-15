@@ -136,19 +136,25 @@ def resizeProject(project, protMap, protHardMask, protSoftMask, resolution, prio
     Ts = protMap.outputVolume.getSamplingRate()
     AMap = Xdim * Ts
 
-    TsTarget = resolution/2
-    Xdimp = AMap/TsTarget
-    Xdimp = int(2*math.floor(Xdimp/2))
-
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtCropResizeVolumes', doRaise=True)
-    protResizeMap = project.newProtocol(Prot,
-                                        objLabel="Resize Volume Ts=%2.1f"%TsTarget,
-                                        doResize=True,
-                                        resizeSamplingRate=TsTarget,
-                                        doWindow=True,
-                                        windowOperation=1,
-                                        windowSize=Xdimp)
+    if resolution:
+        TsTarget = resolution / 2
+        Xdimp = AMap / TsTarget
+        Xdimp = int(2 * math.floor(Xdimp / 2))
+        protResizeMap = project.newProtocol(Prot,
+                                            objLabel="Resize Volume Ts=%2.1f"%TsTarget,
+                                            doResize=True,
+                                            resizeSamplingRate=TsTarget,
+                                            doWindow=True,
+                                            windowOperation=1,
+                                            windowSize=Xdimp)
+    else:
+        protResizeMap = project.newProtocol(Prot,
+                                            objLabel="Resize Volume Factor=1",
+                                            doResize=True,
+                                            resizeOption=2,
+                                            resizeFactor=1)
     protResizeMap.inputVolumes.set(protMap.outputVolume)
     if useSlurm:
         sendToSlurm(protResizeMap, priority=True if priority else False)
@@ -160,13 +166,20 @@ def resizeProject(project, protMap, protHardMask, protSoftMask, resolution, prio
     subprocess.call(['chmod', '-R', 'o+r', projectPath])
 
     # hard mask
-    protResizeHardMask = project.newProtocol(Prot,
-                                         objLabel="Resize Hard Mask Ts=%2.1f"%TsTarget,
-                                         doResize=True,
-                                         resizeSamplingRate=TsTarget,
-                                         doWindow=True,
-                                         windowOperation=1,
-                                         windowSize=Xdimp)
+    if resolution:
+        protResizeHardMask = project.newProtocol(Prot,
+                                             objLabel="Resize Hard Mask Ts=%2.1f"%TsTarget,
+                                             doResize=True,
+                                             resizeSamplingRate=TsTarget,
+                                             doWindow=True,
+                                             windowOperation=1,
+                                             windowSize=Xdimp)
+    else:
+        protResizeHardMask = project.newProtocol(Prot,
+                                                 objLabel="Resize Hard Mask Factor=1",
+                                                 doResize=True,
+                                                 resizeOption=2,
+                                                 resizeFactor=1)
     protResizeHardMask.inputVolumes.set(protHardMask.outputMask)
     if useSlurm:
         sendToSlurm(protResizeHardMask, priority=True if priority else False)
@@ -192,13 +205,20 @@ def resizeProject(project, protMap, protHardMask, protSoftMask, resolution, prio
     # soft mask
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtCropResizeVolumes', doRaise=True)
-    protResizeSoftMask = project.newProtocol(Prot,
-                                         objLabel="Resize Soft Mask Ts=%2.1f"%TsTarget,
-                                         doResize=True,
-                                         resizeSamplingRate=TsTarget,
-                                         doWindow=True,
-                                         windowOperation=1,
-                                         windowSize=Xdimp)
+    if resolution:
+        protResizeSoftMask = project.newProtocol(Prot,
+                                             objLabel="Resize Soft Mask Ts=%2.1f"%TsTarget,
+                                             doResize=True,
+                                             resizeSamplingRate=TsTarget,
+                                             doWindow=True,
+                                             windowOperation=1,
+                                             windowSize=Xdimp)
+    else:
+        protResizeSoftMask = project.newProtocol(Prot,
+                                                 objLabel="Resize Soft Mask Factor=1",
+                                                 doResize=True,
+                                                 resizeOption=2,
+                                                 resizeFactor=1)
     protResizeSoftMask.inputVolumes.set(protSoftMask.outputMask)
     if useSlurm:
         sendToSlurm(protResizeSoftMask, priority=True if priority else False)
@@ -654,7 +674,7 @@ def bFactorAnalysis(project, report, map, resolution, priority=False):
         fnIn+=":mrc"
     fnOut = os.path.join(report.getReportDir(), "sharpenedMap.mrc")
     Ts = map.getSamplingRate()
-    args = "-i %s -o %s --sampling %f --maxres %s --auto"%(fnIn, fnOut, Ts, resolution)
+    args = "-i %s -o %s --sampling %f --maxres %s --auto"%(fnIn, fnOut, Ts, resolution if resolution else -1)
 
     scipionHome = getScipionHome()
     scipion3 = os.path.join(scipionHome,'scipion3')
@@ -776,11 +796,14 @@ input map to the appearance of the atomic structures a local resolution label ca
 """%secLabel
     report.write(msg)
 
+    if not resolution:
+        report.writeSummary("0.e DeepRes", secLabel, "{\\color{brown} Does not apply}")
+        report.write("This method cannot be applied to maps with no resolution reported.\\\\ \n")
+        return None
     if resolution<2:
         report.writeSummary("0.e DeepRes", secLabel, "{\\color{brown} Does not apply}")
         report.write("This method cannot be applied to maps with a resolution better than 2\\AA.\\\\ \n")
         return None
-
     if resolution>13:
         report.writeSummary("0.e DeepRes", secLabel, "{\\color{brown} Does not apply}")
         report.write("This method cannot be applied to maps with a resolution worse than 13\\AA.\\\\ \n")
@@ -926,7 +949,7 @@ local magnitude and phase term using the spiral transform.\\\\
                                objLabel=label,
                                vol=map,
                                mask_in_molecule=mask,
-                               max_res=resolution,
+                               max_res=resolution if resolution else -1,
                                numberOfThreads=1)
     if useSlurm:
         sendToSlurm(prot, priority=True if priority else False)
@@ -1049,7 +1072,7 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
                                objLabel=label,
                                vol=map,
                                mask_in_molecule=mask,
-                               max_res=resolution,
+                               max_res=resolution if resolution else -1,
                                numberOfThreads=1)
     if useSlurm:
         sendToSlurm(prot, priority=True if priority else False)
@@ -1162,6 +1185,12 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
 """ % secLabel
     report.write(msg)
 
+    if not resolution:
+        toWrite="This method cannot be applied to maps with no resolution reported.\\\\"\
+                "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
+        report.write(toWrite)
+        report.writeSummary("0.h Deep hand", secLabel, "{\\color{blue} OK}")
+        return
     if resolution>5:
         toWrite="This method cannot be applied to maps whose resolution is worse than 5\AA.\\\\"\
                 "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
@@ -1223,9 +1252,9 @@ Input map: %s \\\\
 SHA256 hash: %s \\\\ 
 Voxel size: %f (\AA) \\\\
 Visualization threshold: %f \\\\
-Resolution estimated by user: %f \\\\
+Resolution estimated by user: %s \\\\
 
-"""%(basenameFnMap.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap), Ts, threshold, resolution)
+"""%(basenameFnMap.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap), Ts, threshold, resolution if resolution else 'No resolution provided')
     report.write(toWrite)
 
     fnImportMap = os.path.join(project.getPath(),protImportMap.outputVolume.getFileName())
