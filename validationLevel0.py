@@ -669,12 +669,38 @@ amount expected for a Gaussian with the same standard deviation whose mean is 0.
 
 
 def bFactorAnalysis(project, report, map, resolution, priority=False):
+    bblCitation = \
+        """\\bibitem[Rosenthal and Henderson, 2003]{Rosenthal2003}
+        Rosenthal, P.~B. and Henderson, R. (2003).
+        \\newblock Optimal determination of particle orientation, absolute hand, and
+          contrast loss in single particle electron-cryomicroscopy.
+        \\newblock {\em J. {M}olecular {B}iology}, 333:721--745."""
+    report.addCitation("Rosenthal2003", bblCitation)
+
+    secLabel = "sec:bfactor"
+    msg = \
+"""\\subsection{Level 0.d B-factor analysis}
+\\label{%s}
+\\textbf{Explanation:}\\\\
+The B-factor line \\cite{Rosenthal2003} fitted between 15\AA and the resolution reported should have a slope that 
+is between 0 and 300 \AA$^2$.
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+
+    if not resolution:
+        report.writeSummary("0.d B-factor analysis", secLabel, "{\\color{brown} Does not apply}")
+        report.write("This method cannot be applied to maps with no resolution reported.\\\\ \n")
+        return None
+
     fnIn = os.path.join(project.getPath(), map.getFileName())
     if fnIn.endswith(".mrc"):
         fnIn+=":mrc"
     fnOut = os.path.join(report.getReportDir(), "sharpenedMap.mrc")
     Ts = map.getSamplingRate()
-    args = "-i %s -o %s --sampling %f --maxres %s --auto"%(fnIn, fnOut, Ts, resolution if resolution else -1)
+    args = "-i %s -o %s --sampling %f --maxres %s --auto"%(fnIn, fnOut, Ts, resolution)
 
     scipionHome = getScipionHome()
     scipion3 = os.path.join(scipionHome,'scipion3')
@@ -709,24 +735,8 @@ def bFactorAnalysis(project, report, map, resolution, priority=False):
     reportMultiplePlots(dinv2, [lnF, fitted, lnFc], '1/Resolution^2 (1/A^2)', 'log Structure factor', fnPlot,
                         ['Experimental', 'Fitted', 'Corrected'])
 
-    bblCitation = \
-        """\\bibitem[Rosenthal and Henderson, 2003]{Rosenthal2003}
-        Rosenthal, P.~B. and Henderson, R. (2003).
-        \\newblock Optimal determination of particle orientation, absolute hand, and
-          contrast loss in single particle electron-cryomicroscopy.
-        \\newblock {\em J. {M}olecular {B}iology}, 333:721--745."""
-    report.addCitation("Rosenthal2003", bblCitation)
-
-    secLabel = "sec:bfactor"
     msg=\
-"""\\subsection{Level 0.d B-factor analysis}
-\\label{%s}
-\\textbf{Explanation:}\\\\
-The B-factor line \\cite{Rosenthal2003} fitted between 15\AA and the resolution reported should have a slope that 
-is between 0 and 300 \AA$^2$.
-\\\\
-\\\\
-\\textbf{Results:}\\\\
+"""
 Fig. \\ref{fig:Bfactor} shows the logarithm (in natural units) of the structure factor (the module squared of the
 Fourier transform) of the experimental map, its fitted line, and the corrected map. The estimated B-factor was
 %5.1f. The fitted line was $\\log(|F|^2)=%4.1f/R^2 + (%4.1f)$. 
@@ -738,7 +748,7 @@ Fourier transform) of the experimental map, its fitted line, and the corrected m
     \\label{fig:Bfactor}
 \\end{figure}
 
-"""%(secLabel, bfactor, a, b, fnPlot)
+"""%(bfactor, a, b, fnPlot)
     report.write(msg)
 
     saveIntermediateData(report.fnReportDir, "bFactorAnalysis", False, "bfactor", bfactor, ['\u212B\u207B\u00B2', 'The estimated B-factor'])
