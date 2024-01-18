@@ -1209,13 +1209,13 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
         toWrite="This method cannot be applied to maps with no resolution reported.\\\\"\
                 "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
         report.write(toWrite)
-        report.writeSummary("0.h Deep hand", secLabel, "{\\color{blue} OK}")
+        report.writeSummary("0.h Deep hand", secLabel, "{\\color{brown} Does not apply}")
         return
     if resolution>5:
         toWrite="This method cannot be applied to maps whose resolution is worse than 5\AA.\\\\"\
                 "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
         report.write(toWrite)
-        report.writeSummary("0.h Deep hand", secLabel, "{\\color{blue} OK}")
+        report.writeSummary("0.h Deep hand", secLabel, "{\\color{brown} Does not apply}")
         return
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
