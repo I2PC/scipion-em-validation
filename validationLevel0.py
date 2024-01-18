@@ -943,13 +943,18 @@ local magnitude and phase term using the spiral transform.\\\\
 """ % secLabel
     report.write(msg)
 
+    if not resolution:
+        report.writeSummary("0.e Local B-factor", secLabel, "{\\color{brown} Does not apply}")
+        report.write("This method cannot be applied to maps with no resolution reported.\\\\ \n")
+        return None
+
     Prot = pwplugin.Domain.importFromPlugin('ucm.protocols',
                                             'ProtLocBFactor', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel=label,
                                vol=map,
                                mask_in_molecule=mask,
-                               max_res=resolution if resolution else -1,
+                               max_res=resolution,
                                numberOfThreads=1)
     if useSlurm:
         sendToSlurm(prot, priority=True if priority else False)
@@ -1066,13 +1071,18 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
 """ % secLabel
     report.write(msg)
 
+    if not resolution:
+        report.writeSummary("0.g Local Occupancy", secLabel, "{\\color{brown} Does not apply}")
+        report.write("This method cannot be applied to maps with no resolution reported.\\\\ \n")
+        return None
+
     Prot = pwplugin.Domain.importFromPlugin('ucm.protocols',
                                             'ProtLocOccupancy', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel=label,
                                vol=map,
                                mask_in_molecule=mask,
-                               max_res=resolution if resolution else -1,
+                               max_res=resolution,
                                numberOfThreads=1)
     if useSlurm:
         sendToSlurm(prot, priority=True if priority else False)
