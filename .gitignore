@@ -2,5 +2,3 @@
 __pycache__/
 logs/
 *.pyc
-
-tests/level1/data
