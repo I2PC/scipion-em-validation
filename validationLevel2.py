@@ -24,7 +24,6 @@
 # *
 # **************************************************************************
 
-import math
 import numpy as np
 import os
 
@@ -35,6 +34,14 @@ import xmipp3
 
 from validationReport import reportHistogram
 
+from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
+
+import configparser
+
+config = configparser.ConfigParser()
+config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+
 def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportAverages', doRaise=True)
@@ -42,7 +49,11 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                objLabel=label,
                                filesPath=fnAvgs,
                                samplingRate=TsAvg)
-    project.launchProtocol(protImport, wait=True)
+    if useSlurm:
+        sendToSlurm(protImport)
+    project.launchProtocol(protImport)
+    #waitOutput(project, protImport, 'outputAverages')
+    waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import averages did not work")
 
@@ -64,7 +75,11 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                       windowOperation=1,
                                       windowSize=XdimAvgsp)
     protResize1.inputParticles.set(protImport.outputAverages)
-    project.launchProtocol(protResize1, wait=True)
+    if useSlurm:
+        sendToSlurm(protResize1)
+    project.launchProtocol(protResize1)
+    #waitOutput(project, protResize1, 'outputAverages')
+    waitUntilFinishes(project, protResize1)
 
     protResize2 = project.newProtocol(Prot,
                                       objLabel="Resize and resample Avgs",
@@ -74,7 +89,11 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                       windowOperation=1,
                                       windowSize=XdimMap)
     protResize2.inputParticles.set(protResize1.outputAverages)
-    project.launchProtocol(protResize2, wait=True)
+    if useSlurm:
+        sendToSlurm(protResize2)
+    project.launchProtocol(protResize2)
+    waitUntilFinishes(project, protResize2)
+
     return protImport, protResize2
 
 
@@ -88,7 +107,11 @@ def compareReprojections(project, report, protImportMap, protAvgs, symmetry):
                                symmetryGroup=symmetry)
     prot.inputSet.set(protAvgs.outputAverages)
     prot.inputVolume.set(protImportMap.outputVolume)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'reprojections')
+    waitUntilFinishes(project, prot)
 
     secLabel = "sec:fsc3d"
     msg = \
@@ -169,13 +192,17 @@ reported resolution of the map.
 def reportInput(project, report, fnAvgs, protAvgs):
     avgStack = os.path.join(report.getReportDir(),"avgs.xmd")
     writeSetOfParticles(protAvgs.outputAverages, avgStack)
+
+    # Get file basename to write it in the report
+    basenameFnAvgs = os.path.basename(fnAvgs)
+
     toWrite = \
 """
 \\section{2D Classes}
 Set of 2D classes: %s \\\\
 \\\\
 The classes can be seen in Fig. \\ref{fig:classes2D}.\\\\
-""" % (fnAvgs.replace('_','\_').replace('/','/\-'))
+""" % (basenameFnAvgs.replace('_','\_').replace('/','/\-'))
     report.write(toWrite)
 
     report.setOfImages(avgStack, xmipp3.MDL_IMAGE, "Set of 2D classes provided by the user",

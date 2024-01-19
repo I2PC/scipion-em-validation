@@ -33,6 +33,15 @@ import pyworkflow.plugin as pwplugin
 
 from validationReport import calculateSha256, reportMultiplePlots, radialPlot, reportHistogram
 
+from resourceManager import waitOutput, sendToSlurm, waitOutputFile, waitUntilFinishes
+
+import configparser
+
+config = configparser.ConfigParser()
+config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+
+
 def xlmValidation(project, report, protAtom, XLM):
     bblCitation = \
 """\\bibitem[Sinnott et~al., 2020]{Sinnott2020}
@@ -66,7 +75,12 @@ be thought as a measure of the residue surface exposure.\\\\
                                objLabel="O.a XLM",
                                xlList=XLM)
     prot.pdbs.set([protAtom.outputPdb])
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'crosslinkStruct_1')
+    waitUntilFinishes(project, prot)
+
     if prot.isFailed():
         report.writeSummary("O.a XLM", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -143,6 +157,10 @@ Jim\\'enez, A., Jonic, S., Majtner, T., O\\'on, J., Vilas, J.~L., Maluenda, D.,
     report.addCitation("Jimenez2019", bblCitation)
 
     secLabel = "sec:saxs"
+
+    # Get file basename to write it in the report
+    basenameSAXS = os.path.basename(SAXS)
+
     msg = \
 """
 \\subsection{O.b SAXS}
@@ -155,7 +173,7 @@ The method in \\cite{Jimenez2019} compares the expected energy profile from the 
 obtained by a SAXS experiment. \\\\
 \\\\
 \\textbf{Results:}\\\\
-""" % (secLabel, SAXS.replace('_', '\_').replace('/', '/\-'), calculateSha256(SAXS))
+""" % (secLabel, basenameSAXS.replace('_', '\_').replace('/', '/\-'), calculateSha256(SAXS))
     report.write(msg)
 
     Prot = pwplugin.Domain.importFromPlugin('continuousflex.protocols',
@@ -166,7 +184,12 @@ obtained by a SAXS experiment. \\\\
                                      pseudoAtomRadius=1.5)
     protPseudo.inputStructure.set(protMap.outputVolume)
     protPseudo.volumeMask.set(protMask.outputMask)
-    project.launchProtocol(protPseudo, wait=True)
+    if useSlurm:
+        sendToSlurm(protPseudo)
+    project.launchProtocol(protPseudo)
+    #waitOutput(project, protPseudo, 'outputVolume')
+    #waitOutput(project, protPseudo, 'outputPdb')
+    waitUntilFinishes(project, protPseudo)
     if protPseudo.isFailed():
         report.writeSummary("O.b SAXS", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -178,22 +201,26 @@ obtained by a SAXS experiment. \\\\
                                objLabel="O.b SAXS",
                                experimentalSAXS=SAXS)
     prot.inputStructure.set(protPseudo.outputPdb)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutputFile(project, prot, "crysol_summary.txt")
+    waitUntilFinishes(project, prot)
     if prot.isFailed():
         report.writeSummary("O.b SAXS", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return None
 
-    fnSummary = prot._getExtraPath("crysol_summary.txt")
+    fnSummary = prot._getExtraPath("pseudoatoms_experimental_SAXS_curve.fit")
     fh = open(fnSummary)
     for line in fh.readlines():
         tokens = line.strip().split()
-        if len(tokens)>0 and tokens[0]=="Model:":
+        if len(tokens)>0 and tokens[0]=="Dro:":
             Rg = float(tokens[3])
-            chi2 = float(tokens[7])
+            chi2 = float(tokens[6].split(":")[1])
 
             fnSaxs = os.path.join(report.getReportDir(),"saxs.png")
-            fnResults = prot._getPath("pseudoatoms00.fit")
+            fnResults = prot._getExtraPath("pseudoatoms_experimental_SAXS_curve.fit")
             X = np.loadtxt(fnResults, skiprows=1)
             reportMultiplePlots(X[:,0],[np.log10(X[:,1]), np.log10(X[:,3])], 'Frequency (A^-1)', 'log10(SAXS)',
                                 fnSaxs,['Simulated', 'Experimental'])
@@ -252,7 +279,11 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
                                ampContrast=TILTQ0,
                                sphericalAberration=TILTCS,
                                samplingRate=TILTTS)
-    project.launchProtocol(protImport, wait=True)
+    if useSlurm:
+        sendToSlurm(protImport)
+    project.launchProtocol(protImport)
+    #waitOutput(project, protImport, 'outputMicrographsTiltPair')
+    waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -273,7 +304,11 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     if UNTILTEDCOORDS.endswith('.json'):
         protCoords.importFrom.set(1)
     protCoords.inputMicrographsTiltedPair.set(protImport.outputMicrographsTiltPair)
-    project.launchProtocol(protCoords, wait=True)
+    if useSlurm:
+        sendToSlurm(protCoords)
+    project.launchProtocol(protCoords)
+    #waitOutput(project, protCoords, 'outputCoordinatesTiltPair')
+    waitUntilFinishes(project, protCoords)
     if protCoords.isFailed():
         report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -286,7 +321,11 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
                                       boxSize=boxSize,
                                       doInvert=True)
     protExtract.inputCoordinatesTiltedPairs.set(protCoords.outputCoordinatesTiltPair)
-    project.launchProtocol(protExtract, wait=True)
+    if useSlurm:
+        sendToSlurm(protExtract)
+    project.launchProtocol(protExtract)
+    #waitOutput(project, protExtract, 'outputParticlesTiltPair')
+    waitUntilFinishes(project, protExtract)
     if protExtract.isFailed():
         report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
@@ -302,7 +341,11 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
                                       windowOperation=1,
                                       windowSize=boxSize)
     protResize.inputVolumes.set(protMap.outputVolume)
-    project.launchProtocol(protResize, wait=True)
+    if useSlurm:
+        sendToSlurm(protResize)
+    project.launchProtocol(protResize)
+    #waitOutput(project, protResize, 'outputVol')
+    waitUntilFinishes(project, protResize)
 
     Prot = pwplugin.Domain.importFromPlugin('eman2.protocols',
                                             'EmanProtTiltValidate', doRaise=True)
@@ -318,13 +361,16 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
         prot.symmetry.set("icos")
     prot.inputVolume.set(protResize.outputVol)
     prot.inputTiltPair.set(protExtract.outputParticlesTiltPair)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitUntilFinishes(project, prot)
+    waitUntilFinishes(project, prot)
     if prot.isFailed():
         report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
         report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
         return None
-
-    fnAngles = prot._getExtraPath("TiltValidate_01/perparticletilts.json")
+    fnAngles = os.path.join(project.getPath(),prot._getExtraPath("TiltValidate_01/perparticletilts.json"))
     with open(fnAngles) as jsonFile:
         jsonDict = json.load(jsonFile)
     tiltpairs = jsonDict["particletilt_list"]
@@ -385,7 +431,7 @@ def levelO(project, report, protMap, protMask, protAtom, XLM, SAXS,
         msg = "\\section{Other experimental techniques}\n\n"
         report.write(msg)
 
-        if checkXlm:
+        if checkXlm: 
             xlmValidation(project, report, protAtom, XLM)
         if checkSaxs:
             saxsValidation(project, report, protMap, protMask, SAXS)

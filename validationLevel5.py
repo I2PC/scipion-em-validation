@@ -24,19 +24,18 @@
 # *
 # **************************************************************************
 
-import glob
-import math
-import numpy as np
 import os
-import scipy
 
-from pwem.emlib.metadata import iterRows
 import pyworkflow.plugin as pwplugin
-from pyworkflow.utils.path import cleanPath
-from xmipp3.convert import writeSetOfParticles
-import xmipp3
 
 from validationReport import plotMicrograph
+from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
+
+import configparser
+
+config = configparser.ConfigParser()
+config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 
 def importMicrographs(project, label, fnMics, TsMics, kV, Cs, Q0):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -52,7 +51,11 @@ def importMicrographs(project, label, fnMics, TsMics, kV, Cs, Q0):
         protImport.sqliteFile.set(fnMics)
     else:
         protImport.filesPattern.set(fnMics)
-    project.launchProtocol(protImport, wait=True)
+    if useSlurm:
+        sendToSlurm(protImport)
+    project.launchProtocol(protImport)
+    #waitOutput(project, protImport, 'outputMicrographs')
+    waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import micrographs did not work")
 
@@ -65,7 +68,11 @@ def extractCoords(project, label, protImportParticles, protMics):
                                objLabel=label)
     prot.inputParticles.set(protImportParticles.outputParticles)
     prot.inputMicrographs.set(protMics.outputMicrographs)
-    project.launchProtocol(prot, wait=True)
+    if useSlurm:
+        sendToSlurm(prot)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputCoordinates')
+    waitUntilFinishes(project, prot)
     if prot.isFailed():
         raise Exception("Extract coordinates did not work")
 
@@ -78,6 +85,9 @@ def reportInput(project, report, MICPATTERN, protCoords, protMics):
     boxSize = setOfCoords.getBoxSize()
     Ts = protMics.outputMicrographs.getSamplingRate()
 
+    # Get file basename to write it in the report
+    basenameMICPATTERN = os.path.basename(MICPATTERN)
+
     msg = \
 """
 \\section{Micrographs}
@@ -87,7 +97,7 @@ Set of Micrographs: %s \\\\
 
 \\begin{figure}[H]
     \centering
-"""%(MICPATTERN.replace('_','\_').replace('/','/\-'), len(fnMics))
+"""%(basenameMICPATTERN.replace('_','\_').replace('/','/\-'), len(fnMics))
 
     for i in range(min(2,len(fnMics))):
         micId, fnMic = fnMics[i]
@@ -110,7 +120,12 @@ def micCleaner(project, report, label, protCoords):
                                objLabel=label,
                                threshold=0.9)
     prot.inputCoordinates.set(protCoords.outputCoordinates)
-    project.launchProtocol(prot, wait=True)
+
+    if useSlurm:
+        sendToSlurm(prot, GPU=True)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputCoordinates_Auto_090')
+    waitUntilFinishes(project, prot)
 
     bblCitation = \
 """\\bibitem[Sanchez-Garcia et~al., 2020]{Sanchez2020}

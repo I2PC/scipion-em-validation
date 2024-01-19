@@ -1,0 +1,19 @@
+# RUN
+# Read runJob_<ID>.log form last job
+nice -n 19 ls -Art logs/*.log | tail -n 1 | xargs -I {} tail -f {}
+
+# LOGS
+# Read stdout/stderr from last protocol
+nice -n 19 watch -t -n 15 'ls -Art projects/*/Runs/*/logs/run.stdout | tail -n 1'
+nice -n 19 watch -n 15 'ls -Art projects/*/Runs/*/logs/run.stdout | tail -n 1 | xargs -I {} tail {}'
+nice -n 19 watch -t -n 15 'ls -Art projects/*/Runs/*/logs/run.stderr | tail -n 1'
+nice -n 19 watch -n 15 'ls -Art projects/*/Runs/*/logs/run.stderr | tail -n 1 | xargs -I {} tail {}'
+
+# DATA
+# Get last 30 files in the report dir from last job
+nice -n 19 watch -n 15 "ls -lArt  projects/*/validationReport | tail -n 30"
+
+# TOPS
+nice nice -n 19 htop
+nice nice -n 19 nvtop
+nice -n 19 watch -n 30 df -H /data/

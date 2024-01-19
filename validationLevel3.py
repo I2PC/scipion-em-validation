@@ -25,17 +25,23 @@
 # **************************************************************************
 
 import glob
-import math
 import numpy as np
 import os
 
-from pwem.emlib.metadata import iterRows
 import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPath
 from xmipp3.convert import writeSetOfParticles
 import xmipp3
 
 from validationReport import reportHistogram, reportPlot, reportMultiplePlots, readStack
+from resourceManager import waitOutput, sendToSlurm, skipSlurm, waitUntilFinishes
+
+import configparser
+
+config = configparser.ConfigParser()
+config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+gpuIdSkipSlurm = config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
 
 def importParticles(project, label, protImportMap, protImportClasses, fnParticles, TsParticles, kV, Cs, Q0):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -56,7 +62,11 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
     elif fnParticles.endswith(".star"):
         protImport.importFrom.set(protImport.IMPORT_FROM_RELION)
         protImport.starFile.set(fnParticles)
-    project.launchProtocol(protImport, wait=True)
+    if useSlurm:
+        sendToSlurm(protImport)
+    project.launchProtocol(protImport)
+    #waitOutput(project, protImport, 'outputParticles')
+    waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import averages did not work")
 
@@ -78,7 +88,10 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
                                           windowOperation=1,
                                           windowSize=XdimPtclsp)
         protResize1.inputParticles.set(protImport.outputParticles)
-        project.launchProtocol(protResize1, wait=True)
+        if useSlurm:
+            sendToSlurm(protResize1)
+        project.launchProtocol(protResize1)
+        waitUntilFinishes(project, protResize1)
 
         protResize2 = project.newProtocol(Prot,
                                           objLabel="Resize and resample Ptcls 2",
@@ -88,7 +101,10 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
                                           windowOperation=1,
                                           windowSize=XdimMap)
         protResize2.inputParticles.set(protResize1.outputParticles)
-        project.launchProtocol(protResize2, wait=True)
+        if useSlurm:
+            sendToSlurm(protResize2)
+        project.launchProtocol(protResize2)
+        waitUntilFinishes(project, protResize2)
         protResizeMap = protResize2
 
     XdimClasses = protImportClasses.outputAverages.getDim()[0]
@@ -108,7 +124,11 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
                                           windowOperation=1,
                                           windowSize=XdimPtclsp)
         protResize1.inputParticles.set(protImport.outputParticles)
-        project.launchProtocol(protResize1, wait=True)
+        if useSlurm:
+            sendToSlurm(protResize1)
+        project.launchProtocol(protResize1)
+        #waitOutput(project, protResize1, 'outputParticles')
+        waitUntilFinishes(project, protResize1)
 
         protResize2 = project.newProtocol(Prot,
                                           objLabel="Resize and resample Ptcls 4",
@@ -118,7 +138,11 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
                                           windowOperation=1,
                                           windowSize=XdimClasses)
         protResize2.inputParticles.set(protResize1.outputParticles)
-        project.launchProtocol(protResize2, wait=True)
+        if useSlurm:
+            sendToSlurm(protResize2)
+        project.launchProtocol(protResize2)
+        #waitOutput(project, protResize2, 'outputParticles')
+        waitUntilFinishes(project, protResize2)
         protResizeAvgs = protResize2
 
     return protImport, protResizeMap, protResizeAvgs
@@ -130,7 +154,12 @@ def classAnalysis(project, report, protParticles, protClasses):
                                    objLabel="3.ab GL2D")
     protGL2D.inputRefs.set(protClasses.outputAverages)
     protGL2D.inputParticles.set(protParticles.outputParticles)
-    project.launchProtocol(protGL2D, wait=True)
+
+    if useSlurm:
+        sendToSlurm(protGL2D, GPU=True)
+    project.launchProtocol(protGL2D)
+    #waitOutput(project, protGL2D, 'outputClasses')
+    waitUntilFinishes(project, protGL2D)
 
     bblCitation = \
 """\\bibitem[Sorzano et~al., 2014]{Sorzano2014}
@@ -168,7 +197,11 @@ the images assigned to that class.\\\\
     protCore = project.newProtocol(Prot,
                                    objLabel="3.ab Core analysis")
     protCore.inputClasses.set(protGL2D.outputClasses)
-    project.launchProtocol(protCore, wait=True)
+    if useSlurm:
+        sendToSlurm(protCore)
+    project.launchProtocol(protCore)
+    #waitOutput(project, protCore, 'outputClasses_core')
+    waitUntilFinishes(project, protCore)
 
     originalSize = {}
     for item in protGL2D.outputClasses:
@@ -324,7 +357,12 @@ def newClassification(project, report, protParticles, protClasses):
                                         objLabel="3.c CryoSparc 2D",
                                         numberOfClasses=protClasses.outputAverages.getSize())
     protClassif2D.inputParticles.set(protParticles.outputParticles)
-    project.launchProtocol(protClassif2D, wait=True)
+    if useSlurm:
+        skipSlurm(protClassif2D, gpuIdSkipSlurm)
+
+    project.launchProtocol(protClassif2D)
+    #waitOutput(project, protClassif2D, 'outputClasses')
+    waitUntilFinishes(project, protClassif2D)
 
     bblCitation = \
 """\\bibitem[Punjani et~al., 2017]{Punjani2017b}
@@ -498,13 +536,17 @@ be rejected with a threshold for the p-value of 0.001.
 def reportInput(project, report, fnParticles, protParticles):
     particlesStack = os.path.join(report.getReportDir(),"particles.xmd")
     writeSetOfParticles(protParticles.outputParticles, particlesStack)
+
+    # Get file basename to write it in the report
+    basenameFnParticles = os.path.basename(fnParticles)
+
     toWrite = \
 """
 \\section{Particles}
 Set of Particles: %s \\\\
 \\\\
 %d images were provided by the user. The first 32 can be seen in Fig. \\ref{fig:particles}.\\\\
-""" % (fnParticles.replace('_','\_').replace('/','/\-'), protParticles.outputParticles.getSize())
+""" % (basenameFnParticles.replace('_','\_').replace('/','/\-'), protParticles.outputParticles.getSize())
     report.write(toWrite)
 
     report.setOfImages(particlesStack, xmipp3.MDL_IMAGE, "First particles of the set of particles provided by the user",
