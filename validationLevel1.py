@@ -1072,7 +1072,8 @@ def resizeMapToTargetResolution(project, map, TsTarget, priority=False):
     protResizeMap.inputVolumes.set(map)
     if useSlurm:
         sendToSlurm(protResizeMap, priority=True if priority else False)
-    project.launchProtocol(protResizeMap, wait=True)
+    project.launchProtocol(protResizeMap)
+    waitUntilFinishes(project, protResizeMap)
 
     if protResizeMap.isFailed():
         return None
