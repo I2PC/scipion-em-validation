@@ -369,7 +369,10 @@ def storeIntermediateData(fnReportDir, destPath):
                                 cmd = 'rsync -rltv --progress %s %s' % (intermediateProtocolPath, os.path.join(destPath, parentFolder))
                                 subprocess.run(cmd, shell=True)
                         else:
-                            parentFolder = intermediateProtocolInfo['value'].split('projects/')[1].rsplit('/', 1)[0]
+                            if 'uploads' in intermediateProtocolInfo['value']:
+                                parentFolder = intermediateProtocolInfo['value'].split('uploads/')[1].rsplit('/', 1)[0]
+                            else:
+                                parentFolder = intermediateProtocolInfo['value'].split('projects/')[1].rsplit('/', 1)[0]
                             os.makedirs(os.path.join(destPath, parentFolder), exist_ok=True)
                             cmd = 'rsync -rltv --progress %s %s' % (
                             intermediateProtocolInfo['value'], os.path.join(destPath, parentFolder))
