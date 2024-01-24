@@ -796,7 +796,7 @@ else: # go ahead
     # Check if there are warnings
     with open(os.path.join(fnProjectDir, "validationReport", "report.tex")) as summaryWarnings:
         content = summaryWarnings.read()
-        if "Cannot be automatically evaluated" not in content and "WARNINGS" not in content:
+        if "WARNINGS" not in content:
             report.fhSummaryWarnings.write("No warnings.")
 
     # Save workflow json with protocols versions

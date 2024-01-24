@@ -432,8 +432,13 @@ class ValidationReport:
 
     def writeWarningsAndSummary(self, warnings, section, secLabel):
         if warnings is None:
-            toWrite = "\\textbf{STATUS}: {\\color{brown} Cannot be automatically evaluated}\\\\ \n"
-            self.writeSummary(section, secLabel, "{\\color{brown} Cannot be automated}")
+            toWrite = \
+"""\\textbf{Automatic criteria}: The program ran properly but there are no automatic criteria defined to evaluate the results. 
+Manual interpretation is needed.\\\\
+
+\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n
+"""
+            self.writeSummary(section, secLabel, "{\\color{blue} OK}")
         else:
             self.scoreN+=1
             if len(warnings) > 0:
