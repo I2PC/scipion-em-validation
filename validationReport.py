@@ -19,6 +19,8 @@ from tools.utils import storeIntermediateData
 import xmipp3
 
 import configparser
+from resources.constants import SUMMARY_WARNINGS_TITLE
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 maxMemToUse = config['CHIMERA'].getint('MAX_MEM_TO_USE')
@@ -338,7 +340,7 @@ class ValidationReport:
         self.fnReportDir = os.path.join(fnDir,"validationReport")
         makePath(self.fnReportDir)
         self.fnReport = os.path.join(self.fnReportDir,"report.tex")
-        self.fh = open(self.fnReport,"w")
+        self.fh = open(self.fnReport,"w+")
         self.fnFrontpage = os.path.join(self.fnReportDir,"frontpage.tex")
         self.fnFrontpage = open(self.fnFrontpage,"w") 
         self.writeFrontpage(levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION)
@@ -353,7 +355,7 @@ class ValidationReport:
         self.fhSummary = open(self.fnSummary,"w")
         self.fnSummaryWarnings = os.path.join(self.fnReportDir,"summaryWarnings.tex")
         self.fhSummaryWarnings = open(self.fnSummaryWarnings,"w")
-        self.fhSummaryWarnings.write("\\textbf{\\underline{Summary of the warnings across sections.}}\\\\ \n\n\n")
+        self.fhSummaryWarnings.write(SUMMARY_WARNINGS_TITLE)
         self.writePreamble()
         self.resolutionEstimates = []
         self.score = 0
@@ -920,6 +922,9 @@ This Validation Report Service is explained in more detail in the paper \\cite{S
         toWrite += "\\end{thebibliography}\n\n"
         toWrite += "\\end{document}\n"
         self.fh.write(toWrite)
+        # Check if there are warnings in the report
+        if "WARNINGS" not in self.fh:
+            self.fhSummaryWarnings.write("No warnings.")
         self.fh.close()
 
         self.fhAbstract.write('\n\n')
