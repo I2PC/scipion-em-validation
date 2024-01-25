@@ -52,7 +52,8 @@ import configparser
 from tools.utils import saveIntermediateData, getFilename, getScoresFromWS, getFileFromWS
 from tools.emv_utils import convert_2_json
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_EMPTY_VOL
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_EMPTY_VOL, STATUS_ERROR_MESSAGE, \
+    ERROR_CONVERT_MESSAGE, STATUS_ERROR_CONVERT_MESSAGE
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -170,7 +171,7 @@ have a Gaussian shape.\\\\
         waitUntilFinishes(project, prot)
         if prot.isFailed():
             report.writeSummary("A.a MapQ", secLabel, ERROR_MESSAGE)
-            report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+            report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
             return
 
         saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*.cif')))[0], 'cif file')
@@ -421,15 +422,16 @@ def convertPDB(project, report, protImportMap, protAtom, priority=False):
     \\\\
     """ % secLabel
     if protConvert.isFailed():     #TODO: check texts for ConverToPdb when fails
-        report.writeSummary("A. Conversion PDB to map", secLabel, "{\\color{red} Could not be converted}")
+        report.writeSummary("A. Conversion PDB to map", secLabel, ERROR_CONVERT_MESSAGE)
         report.write(msg)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_CONVERT_MESSAGE)
         return None
     # Check if volume is not empty
     volumeData = xmipp3.Image(protConvert.outputVolume.getFileName()).getData()
     if not np.sum(volumeData) > 0:
+        report.writeSummary("A. Conversion PDB to map", secLabel, ERROR_CONVERT_MESSAGE)
         report.write(msg)
-        report.write(ERROR_MESSAGE_EMPTY_VOL)
+        report.write(ERROR_MESSAGE_EMPTY_VOL + STATUS_ERROR_MESSAGE)
         return None
     return protConvert
 
@@ -478,7 +480,7 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
 
     if prot.isFailed():
         report.writeSummary("A.b FSC-Q", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return
 
     V = xmipp3.Image(prot._getExtraPath("pdb_volume.map"))
@@ -582,7 +584,7 @@ the different local resolutions or local heterogeneity.\\\\
 
     if prot1.isFailed() or not hasattr(prot1,"outputAtomStructs"):
         report.writeSummary("A.c Multimodel", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return
 
     Prot = pwplugin.Domain.importFromPlugin('atomstructutils.protocols',
@@ -597,13 +599,13 @@ the different local resolutions or local heterogeneity.\\\\
     waitUntilFinishes(project, prot2)
     if prot2.isFailed():
         report.writeSummary("A.c Multimodel", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return
 
     fnCifs = glob.glob(prot2._getPath('*.cif'))
     if len(fnCifs)==0:
         report.writeSummary("A.c Multimodel", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return
 
     fnCif = fnCifs[0]
@@ -802,6 +804,7 @@ quality of the map.
         for error in controlledErrors:
             if error in phenixStdout:
                 report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % error)
+        report.write(STATUS_ERROR_MESSAGE)
         return prot
 
     fnPkl = os.path.join(project.getPath(),prot._getExtraPath("validation_cryoem.pkl"))
@@ -1112,6 +1115,7 @@ that may need improvement.
         for error in controlledErrors:
             if error in emringerStdout:
                 report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % error)
+        report.write(STATUS_ERROR_MESSAGE)
         return prot
 
     dataDict=json.loads(str(prot.stringDataDict), object_pairs_hook=collections.OrderedDict)
@@ -1276,7 +1280,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
 
         if prot.isFailed():
             report.writeSummary("A.f DAQ", secLabel, ERROR_MESSAGE)
-            report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+            report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
             return prot
         
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQcif', os.path.join(project.getPath(), prot._getPath('outputStructure.cif')), 'cif file containing DAQ scores')
@@ -1349,7 +1353,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
 
     except:
         report.writeSummary("A.f DAQ", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
     warnings = []

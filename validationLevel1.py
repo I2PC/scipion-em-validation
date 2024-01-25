@@ -49,7 +49,7 @@ import configparser
 
 from tools.utils import saveIntermediateData
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NOT_BINARY, ERROR_MESSAGE_NOT_RESIZED
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NOT_BINARY, ERROR_MESSAGE_NOT_RESIZED, STATUS_ERROR_MESSAGE
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -146,7 +146,7 @@ behavior. If they have, this is typically due to the presence of a mask in real 
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("1.a Global resolution", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
     saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'fsc', os.path.join(project.getPath(), prot._getPath('fsc.xmd')), 'fsc xmd file containing data to create plots')
@@ -354,7 +354,7 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
 
     if prot.isFailed():
         report.writeSummary("1.b FSC permutation", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
     fh = open(prot._getPath("logs/run.stdout"))
@@ -371,7 +371,7 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
 
     if FDRResolution is None or Bfactor is None:
         report.writeSummary("1.b FSC permutation", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
     fscFile = np.loadtxt(prot._getExtraPath("FSC.txt"))
@@ -454,7 +454,7 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
 
     if prot.isFailed():
         report.writeSummary("1.c Blocres", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
     fnBlocres = os.path.join(project.getPath(), prot._getExtraPath("resolutionMap.map"))
@@ -576,7 +576,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
             break
     if resmap is None:
         report.writeSummary("1.d Resmap", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_NOT_BINARY)
+        report.write(ERROR_MESSAGE_NOT_BINARY + STATUS_ERROR_MESSAGE)
         return
 
     fnMask = os.path.join(project.getPath(),protMask.outputMask.getFileName())
@@ -601,7 +601,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
     fnResMap = os.path.join(report.getReportDir() if not useSlurm else os.path.dirname(slurmScriptPath), "half1_ori_resmap.mrc")
     if not os.path.exists(fnResMap):
         report.writeSummary("1.d Resmap", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return
     
     saveIntermediateData(report.getReportDir(), 'resMap', True, 'half1_ori_resmap.mrc', fnResMap, 'Resmap output volume map')
@@ -740,7 +740,7 @@ if its energy is signficantly above the level of noise.\\\\
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("1.e MonoRes", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
     fnMonoRes = os.path.join(project.getPath(), prot._getExtraPath("monoresResolutionMap.mrc"))
@@ -878,7 +878,7 @@ protein. As the shells approach the outside of the protein, these radial average
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("1.f MonoDir", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
     # Radial averages
@@ -965,7 +965,7 @@ respectively. This region is shaded in the plot.
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("1.g FSO", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
     md = xmipp3.MetaData(prot._getExtraPath("fso.xmd"))
@@ -1123,7 +1123,7 @@ This method analyzes the FSC in different directions and evaluates its homogenei
 
         if prot.isFailed():
             report.writeSummary("1.h FSC3D", secLabel, ERROR_MESSAGE)
-            report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+            report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
             return prot
 
         Ts = protImportMapResize.outputVol.getSamplingRate()
@@ -1224,7 +1224,7 @@ This method analyzes the FSC in different directions and evaluates its homogenei
     else:
         report.writeSummary("1.h FSC3D", secLabel, ERROR_MESSAGE)
         if not protResizeHalf1 or not protResizeHalf2:
-            report.write(ERROR_MESSAGE_NOT_RESIZED)
+            report.write(ERROR_MESSAGE_NOT_RESIZED + STATUS_ERROR_MESSAGE)
 
 
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):

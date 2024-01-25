@@ -38,7 +38,7 @@ from resourceManager import waitOutput, sendToSlurm, skipSlurm, waitUntilFinishe
 
 import configparser
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NOT_CLASSES
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NOT_CLASSES, STATUS_ERROR_MESSAGE
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -191,7 +191,7 @@ the images assigned to that class.\\\\
     report.write(msg)
     if protGL2D.isFailed():
         report.writeSummary("3.a Outlier detection", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return protGL2D
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -391,13 +391,13 @@ and the number of particles available to the server, the new classes should rese
 
     if protClassif2D.isFailed():
         report.writeSummary("3.c Classification external consistency", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return protClassif2D
 
     fileList = glob.glob(protClassif2D._getExtraPath("cryosparc_*_class_averages_scaled.mrcs"))
     if len(fileList)==0:
         report.writeSummary("3.c Classification external consistency", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_NOT_CLASSES)
+        report.write(ERROR_MESSAGE_NOT_CLASSES + STATUS_ERROR_MESSAGE)
         return protClassif2D
 
     fnDensity = os.path.join(report.getReportDir(),"corrDensity.png")

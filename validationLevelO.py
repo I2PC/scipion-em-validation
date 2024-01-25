@@ -37,7 +37,8 @@ from resourceManager import waitOutput, sendToSlurm, waitOutputFile, waitUntilFi
 
 import configparser
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NO_RESULTS
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NO_RESULTS, \
+    STATUS_ERROR_MESSAGE
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -85,13 +86,13 @@ be thought as a measure of the residue surface exposure.\\\\
 
     if prot.isFailed():
         report.writeSummary("O.a XLM", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
 
     fileList = glob.glob(prot._getExtraPath("Jwalk_results/*.txt"))
     if len(fileList)==0:
         report.writeSummary("O.a XLM", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_NO_RESULTS)
+        report.write(ERROR_MESSAGE_NO_RESULTS + STATUS_ERROR_MESSAGE)
         return None
 
     msg=\
@@ -194,7 +195,7 @@ obtained by a SAXS experiment. \\\\
     waitUntilFinishes(project, protPseudo)
     if protPseudo.isFailed():
         report.writeSummary("O.b SAXS", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('atsas.protocols',
@@ -210,7 +211,7 @@ obtained by a SAXS experiment. \\\\
     waitUntilFinishes(project, prot)
     if prot.isFailed():
         report.writeSummary("O.b SAXS", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
 
     fnSummary = prot._getExtraPath("pseudoatoms_experimental_SAXS_curve.fit")
@@ -288,7 +289,7 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         report.writeSummary("O.c Tilt pair", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -313,7 +314,7 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     waitUntilFinishes(project, protCoords)
     if protCoords.isFailed():
         report.writeSummary("O.c Tilt pair", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -330,7 +331,7 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     waitUntilFinishes(project, protExtract)
     if protExtract.isFailed():
         report.writeSummary("O.c Tilt pair", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -370,7 +371,7 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     waitUntilFinishes(project, prot)
     if prot.isFailed():
         report.writeSummary("O.c Tilt pair", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
     fnAngles = os.path.join(project.getPath(),prot._getExtraPath("TiltValidate_01/perparticletilts.json"))
     with open(fnAngles) as jsonFile:

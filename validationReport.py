@@ -19,7 +19,7 @@ from tools.utils import storeIntermediateData
 import xmipp3
 
 import configparser
-from resources.constants import SUMMARY_WARNINGS_TITLE
+from resources.constants import SUMMARY_WARNINGS_TITLE, STATUS_OK, OK_MESSAGE, STATUS_OK, WARNINGS_MESSAGE
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -436,17 +436,16 @@ class ValidationReport:
         if warnings is None:
             toWrite = \
 """\\textbf{Automatic criteria}: The program ran properly but there are no automatic criteria defined to evaluate the results. 
-Manual interpretation is needed.\\\\
+Manual interpretation is needed. Not included as evaluable item in 'Summarized overall quality' section.\\\\
 
-\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n
-"""
-            self.writeSummary(section, secLabel, "{\\color{blue} OK}")
+""" + STATUS_OK
+            self.writeSummary(section, secLabel, OK_MESSAGE)
         else:
             self.scoreN+=1
             if len(warnings) > 0:
                 countWarnings = len(warnings)
                 toWrite = "\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n" % (countWarnings, latexEnumerate(warnings))
-                self.writeSummary(section, secLabel, "{\\color{red} %d warnings}" % countWarnings)
+                self.writeSummary(section, secLabel, WARNINGS_MESSAGE % countWarnings)
 
                 self.fhSummaryWarnings.write("\\underline{Section \\ref{%s} (%s)}\n" % (secLabel, section))
                 self.fhSummaryWarnings.write("\\begin{enumerate}\n")
@@ -454,8 +453,8 @@ Manual interpretation is needed.\\\\
                     self.fhSummaryWarnings.write("\\item %s\n"%warning)
                 self.fhSummaryWarnings.write("\\end{enumerate}\n\n\n")
             else:
-                toWrite = "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
-                self.writeSummary(section, secLabel, "{\\color{blue} OK}")
+                toWrite = STATUS_OK
+                self.writeSummary(section, secLabel, OK_MESSAGE)
                 self.score += 1
         self.write(toWrite)
 

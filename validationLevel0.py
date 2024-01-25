@@ -48,7 +48,7 @@ import configparser
 
 from tools.utils import saveIntermediateData
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, NOT_APPLY_MESSAGE, STATUS_NOT_APPLY, STATUS_ERROR_MESSAGE
 
 # used by the ProtImportVolumes protocol, volumes will be downloaded from EMDB
 IMPORT_FROM_EMDB = 1
@@ -809,16 +809,19 @@ input map to the appearance of the atomic structures a local resolution label ca
     report.write(msg)
 
     if not resolution:
-        report.writeSummary("0.e DeepRes", secLabel, "{\\color{brown} Does not apply}")
-        report.write("This method cannot be applied to maps with no resolution reported.\\\\ \n")
+        report.writeSummary("0.e DeepRes", secLabel, NOT_APPLY_MESSAGE)
+        report.write("{\\color{brown} This method cannot be applied to maps with no resolution reported.}\\\\ \n" \
+                     + STATUS_NOT_APPLY)
         return None
     if resolution<2:
-        report.writeSummary("0.e DeepRes", secLabel, "{\\color{brown} Does not apply}")
-        report.write("This method cannot be applied to maps with a resolution better than 2\\AA.\\\\ \n")
+        report.writeSummary("0.e DeepRes", secLabel, NOT_APPLY_MESSAGE)
+        report.write("{\\color{brown} This method cannot be applied to maps with a resolution better than 2\\AA.}\\\\ \n" \
+                     + STATUS_NOT_APPLY)
         return None
     if resolution>13:
-        report.writeSummary("0.e DeepRes", secLabel, "{\\color{brown} Does not apply}")
-        report.write("This method cannot be applied to maps with a resolution worse than 13\\AA.\\\\ \n")
+        report.writeSummary("0.e DeepRes", secLabel, NOT_APPLY_MESSAGE)
+        report.write("{\\color{brown} This method cannot be applied to maps with a resolution worse than 13\\AA.}\\\\ \n" \
+                     + STATUS_NOT_APPLY)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -839,12 +842,13 @@ input map to the appearance of the atomic structures a local resolution label ca
         deepresStderr = open(os.path.join(project.getPath(), prot.getStderrLog()), "r").read()
         if "ran out of memory trying to allocate" in deepresStderr:
             report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % "System ran out of memory. Try to launch it again.")
+        report.write(STATUS_ERROR_MESSAGE)
         return prot
 
     fnRes = os.path.join(project.getPath(), prot._getExtraPath("deepRes_resolution.vol"))
     if not os.path.exists(fnRes):
         report.writeSummary("0.e DeepRes", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return
     
     fnResOriginal = os.path.join(project.getPath(), prot._getExtraPath("deepRes_resolution_originalSize.vol"))
@@ -956,8 +960,9 @@ local magnitude and phase term using the spiral transform.\\\\
     report.write(msg)
 
     if not resolution:
-        report.writeSummary("0.e Local B-factor", secLabel, "{\\color{brown} Does not apply}")
-        report.write("This method cannot be applied to maps with no resolution reported.\\\\ \n")
+        report.writeSummary("0.e Local B-factor", secLabel, NOT_APPLY_MESSAGE)
+        report.write("{\\color{brown} This method cannot be applied to maps with no resolution reported.}\\\\ \n" \
+                     + STATUS_NOT_APPLY)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('ucm.protocols',
@@ -978,7 +983,7 @@ local magnitude and phase term using the spiral transform.\\\\
     fnBfactor = prot._getExtraPath("bmap.mrc")
     if prot.isFailed() or not os.path.exists(fnBfactor):
         report.writeSummary("0.f LocBfactor", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
     
     fnBfactorAbs = os.path.join(project.getPath(), fnBfactor)
@@ -1084,8 +1089,9 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
     report.write(msg)
 
     if not resolution:
-        report.writeSummary("0.g Local Occupancy", secLabel, "{\\color{brown} Does not apply}")
-        report.write("This method cannot be applied to maps with no resolution reported.\\\\ \n")
+        report.writeSummary("0.g Local Occupancy", secLabel, NOT_APPLY_MESSAGE)
+        report.write("{\\color{brown} This method cannot be applied to maps with no resolution reported.}\\\\ \n" \
+                     + STATUS_NOT_APPLY)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('ucm.protocols',
@@ -1105,7 +1111,7 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
     fnOccupancy = prot._getExtraPath("omap.mrc")
     if prot.isFailed() or not os.path.exists(fnOccupancy):
         report.writeSummary("0.g LocOccupancy", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
     
     fnOccupancyAbs = os.path.join(project.getPath(), fnOccupancy)
@@ -1208,16 +1214,16 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
     report.write(msg)
 
     if not resolution:
-        toWrite="This method cannot be applied to maps with no resolution reported.\\\\"\
-                "\\textbf{STATUS}: {\\color{brown} Does not apply}\\\\ \n"
+        toWrite="{\\color{brown} This method cannot be applied to maps with no resolution reported.}\\\\ \n" \
+                + STATUS_NOT_APPLY
         report.write(toWrite)
-        report.writeSummary("0.h Deep hand", secLabel, "{\\color{brown} Does not apply}")
+        report.writeSummary("0.h Deep hand", secLabel, NOT_APPLY_MESSAGE)
         return
     if resolution>5:
-        toWrite="This method cannot be applied to maps whose resolution is worse than 5\AA.\\\\"\
-                "\\textbf{STATUS}: {\\color{brown} Does not apply}\\\\ \n"
+        toWrite="{\\color{brown} This method cannot be applied to maps whose resolution is worse than 5\AA.}\\\\ \n" \
+                + STATUS_NOT_APPLY
         report.write(toWrite)
-        report.writeSummary("0.h Deep hand", secLabel, "{\\color{brown} Does not apply}")
+        report.writeSummary("0.h Deep hand", secLabel, NOT_APPLY_MESSAGE)
         return
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -1235,7 +1241,7 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
 
     if prot.isFailed():
         report.writeSummary("0.h DeepHand", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
     hand = prot.outputHand.get()

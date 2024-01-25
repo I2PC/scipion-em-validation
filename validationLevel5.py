@@ -33,7 +33,7 @@ from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
 import configparser
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, STATUS_ERROR_MESSAGE
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -153,7 +153,7 @@ coordinate is outside a region with aggregations, ice crystals, carbon edges, et
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("5.a Micrograph cleaner", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
     Ninput = protCoords.outputCoordinates.getSize()
