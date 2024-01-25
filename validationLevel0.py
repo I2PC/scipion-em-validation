@@ -235,11 +235,11 @@ def massAnalysis(report, volume, mask, Ts):
     V = readMap(volume.getFileName()).getData()
     M = readMap(mask.getFileName()).getData()
 
-    X,Y,Z = M.shape
+    Z,Y,X = M.shape
 
-    ix = np.where(np.sum(M,axis=(1,2))>0)[0]
+    ix = np.where(np.sum(M,axis=(0,1))>0)[0]
     iy = np.where(np.sum(M,axis=(0,2))>0)[0]
-    iz = np.where(np.sum(M,axis=(0,1))>0)[0]
+    iz = np.where(np.sum(M,axis=(1,2))>0)[0]
 
     x0 = Ts*(ix[0]) # Left space
     xF = Ts*(X-ix[-1]) # Right space
@@ -268,9 +268,9 @@ depends on the CTF) on each side to make sure that the CTF can be appropriately 
     totalMass = np.sum(M)
 
     if totalMass > 0:
-        ix = np.where(np.sum(M,axis=(1,2))>0)[0]
+        ix = np.where(np.sum(M,axis=(0,1))>0)[0]
         iy = np.where(np.sum(M,axis=(0,2))>0)[0]
-        iz = np.where(np.sum(M,axis=(0,1))>0)[0]
+        iz = np.where(np.sum(M,axis=(1,2))>0)[0]
 
         x0 = Ts*(ix[0]) # Left space
         xF = Ts*(X-ix[-1]) # Right space
@@ -311,7 +311,7 @@ depends on the CTF) on each side to make sure that the CTF can be appropriately 
         saveIntermediateData(report.fnReportDir, "massAnalysis", False, "decenteringRatioZ", dz, ['%', '(abs(Right-Left)/Size) %'])
 
         # Analysis of Center of mass
-        cx, cy, cz = scipy.ndimage.measurements.center_of_mass(V)
+        cz, cy, cx = scipy.ndimage.measurements.center_of_mass(V)
         dcx = abs(cx-X/2)/X*100
         dcy = abs(cy-Y/2)/Y*100
         dcz = abs(cz-Z/2)/Z*100
