@@ -37,6 +37,8 @@ from resourceManager import waitOutput, sendToSlurm, waitOutputFile, waitUntilFi
 
 import configparser
 
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NO_RESULTS
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
@@ -82,14 +84,14 @@ be thought as a measure of the residue surface exposure.\\\\
     waitUntilFinishes(project, prot)
 
     if prot.isFailed():
-        report.writeSummary("O.a XLM", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("O.a XLM", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return None
 
     fileList = glob.glob(prot._getExtraPath("Jwalk_results/*.txt"))
     if len(fileList)==0:
-        report.writeSummary("O.a XLM", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol did not produce any result.}}\\\\ \n")
+        report.writeSummary("O.a XLM", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_NO_RESULTS)
         return None
 
     msg=\
@@ -191,8 +193,8 @@ obtained by a SAXS experiment. \\\\
     #waitOutput(project, protPseudo, 'outputPdb')
     waitUntilFinishes(project, protPseudo)
     if protPseudo.isFailed():
-        report.writeSummary("O.b SAXS", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("O.b SAXS", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('atsas.protocols',
@@ -207,8 +209,8 @@ obtained by a SAXS experiment. \\\\
     #waitOutputFile(project, prot, "crysol_summary.txt")
     waitUntilFinishes(project, prot)
     if prot.isFailed():
-        report.writeSummary("O.b SAXS", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("O.b SAXS", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return None
 
     fnSummary = prot._getExtraPath("pseudoatoms_experimental_SAXS_curve.fit")
@@ -285,8 +287,8 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     #waitOutput(project, protImport, 'outputMicrographsTiltPair')
     waitUntilFinishes(project, protImport)
     if protImport.isFailed():
-        report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("O.c Tilt pair", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -310,8 +312,8 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     #waitOutput(project, protCoords, 'outputCoordinatesTiltPair')
     waitUntilFinishes(project, protCoords)
     if protCoords.isFailed():
-        report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("O.c Tilt pair", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -327,8 +329,8 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     #waitOutput(project, protExtract, 'outputParticlesTiltPair')
     waitUntilFinishes(project, protExtract)
     if protExtract.isFailed():
-        report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("O.c Tilt pair", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -367,8 +369,8 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
     #waitUntilFinishes(project, prot)
     waitUntilFinishes(project, prot)
     if prot.isFailed():
-        report.writeSummary("O.c Tilt pair", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("O.c Tilt pair", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return None
     fnAngles = os.path.join(project.getPath(),prot._getExtraPath("TiltValidate_01/perparticletilts.json"))
     with open(fnAngles) as jsonFile:

@@ -37,6 +37,8 @@ from resourceManager import waitOutput, sendToSlurm, skipSlurm, waitUntilFinishe
 
 import configparser
 
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
@@ -127,8 +129,8 @@ seen in the similarity measures are not caused by defocus groups.\\\\
 """ % secLabel
     report.write(msg)
     if prot.isFailed():
-        report.writeSummary("4.a Similarity criteria", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("4.a Similarity criteria", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return prot
 
     md=xmipp3.MetaData(prot._getExtraPath(os.path.join('Iter001','angles.xmd')))
@@ -233,8 +235,8 @@ of the smoothed cross-correlation landscape.\\\\
     waitUntilFinishes(project, prot)
 
     if prot.isFailed():
-        report.writeSummary("4.b Alignability smoothness", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("4.b Alignability smoothness", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return prot
 
     md = xmipp3.MetaData(prot._getExtraPath("Iter1/anglesDisc.xmd"))
@@ -333,8 +335,8 @@ assignment. The similarity between both is again encoded between -1 and 1.\\\\
 """ % secLabel
     report.write(msg)
     if prot.isFailed():
-        report.writeSummary("4.c Alignability", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("4.c Alignability", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return prot
 
     md=xmipp3.MetaData(prot._getExtraPath("vol001_pruned_particles_alignability.xmd"))
@@ -534,8 +536,8 @@ particles given by the user and the one done by Relion.\\\\
 """ % secLabel
     report.write(msg)
     if prot.isFailed():
-        report.writeSummary("4.d1 Relion alignment", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("4.d1 Relion alignment", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return prot
 
     shiftOutliers, angleOutliers = compareAlignment(project, report, protResizeMap.outputVol,
@@ -613,8 +615,8 @@ of the particles given by the user and the one done by CryoSparc.\\\\
 """ % secLabel
     report.write(msg)
     if prot.isFailed():
-        report.writeSummary("4.d2 CryoSparc alignment", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("4.d2 CryoSparc alignment", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return prot
 
     shiftOutliers, angleOutliers = compareAlignment(project, report, protMap.outputVol, protParticles, prot, symmetry,
@@ -657,8 +659,8 @@ alignability of the input images.\\\\
 """ % secLabel
     report.write(msg)
     if protRelion.isFailed() or protCryoSparc.isFailed():
-        report.writeSummary("4.d3 Relion/CryoSparc alignments", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: One of the previous protocols failed.}}\\\\ \n")
+        report.writeSummary("4.d3 Relion/CryoSparc alignments", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
 
     shiftOutliers, angleOutliers = compareAlignment(project, report, protRelion.outputVolume, protRelion, protCryoSparc,
                                                     symmetry, "3. Relion/Cryosparc", "Relion", "CryoSparc",
@@ -728,8 +730,8 @@ arbitrary number of images in each one, but without any significant structural d
 """ % secLabel
     report.write(msg)
     if prot.isFailed():
-        report.writeSummary("4.e Classification without alignment", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("4.e Classification without alignment", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return prot
 
     totalImgs = protParticles.outputParticles.getSize()
@@ -822,8 +824,8 @@ the reconstructions with experimental particles should always be better than tho
 """ % secLabel
     report.write(msg)
     if prot.isFailed():
-        report.writeSummary("4.f Overfitting detection", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("4.f Overfitting detection", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return prot
 
     def readResults(fn):
@@ -930,8 +932,8 @@ number between 0 (inefficient) and 1 (total efficiency).\\\\
 """ % secLabel
     report.write(msg)
     if prot.isFailed():
-        report.writeSummary("4.g Angular distribution efficiency", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("4.g Angular distribution efficiency", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return prot
 
     fh=open(prot._getExtraPath("input_angles_PSFres.dat"))
@@ -1119,8 +1121,8 @@ the differences in defoci cannot be larger than the ice thickness. We also estim
 """ % secLabel
     report.write(msg)
     if protPostprocess.isFailed():
-        report.writeSummary("4.i CTF stability", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("4.i CTF stability", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return protPostprocess
 
     Prot = pwplugin.Domain.importFromPlugin('relion.protocols',

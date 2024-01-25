@@ -52,6 +52,8 @@ import configparser
 from tools.utils import saveIntermediateData, getFilename, getScoresFromWS, getFileFromWS
 from tools.emv_utils import convert_2_json
 
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_EMPTY_VOL
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
@@ -167,8 +169,8 @@ have a Gaussian shape.\\\\
         #waitOutput(project, prot, 'scoredStructures')
         waitUntilFinishes(project, prot)
         if prot.isFailed():
-            report.writeSummary("A.a MapQ", secLabel, "{\\color{red} Could not be measured}")
-            report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+            report.writeSummary("A.a MapQ", secLabel, ERROR_MESSAGE)
+            report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
             return
 
         saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*.cif')))[0], 'cif file')
@@ -421,14 +423,13 @@ def convertPDB(project, report, protImportMap, protAtom, priority=False):
     if protConvert.isFailed():     #TODO: check texts for ConverToPdb when fails
         report.writeSummary("A. Conversion PDB to map", secLabel, "{\\color{red} Could not be converted}")
         report.write(msg)
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return None
     # Check if volume is not empty
     volumeData = xmipp3.Image(protConvert.outputVolume.getFileName()).getData()
     if not np.sum(volumeData) > 0:
         report.write(msg)
-        report.write("{\\color{red} \\textbf{ERROR: The volume is empty.}}\\\\ \
-    warnings=[]n")
+        report.write(ERROR_MESSAGE_EMPTY_VOL)
         return None
     return protConvert
 
@@ -476,8 +477,8 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
     waitUntilFinishes(project, prot)
 
     if prot.isFailed():
-        report.writeSummary("A.b FSC-Q", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("A.b FSC-Q", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return
 
     V = xmipp3.Image(prot._getExtraPath("pdb_volume.map"))
@@ -580,8 +581,8 @@ the different local resolutions or local heterogeneity.\\\\
 
 
     if prot1.isFailed() or not hasattr(prot1,"outputAtomStructs"):
-        report.writeSummary("A.c Multimodel", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("A.c Multimodel", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return
 
     Prot = pwplugin.Domain.importFromPlugin('atomstructutils.protocols',
@@ -595,14 +596,14 @@ the different local resolutions or local heterogeneity.\\\\
     #waitOutput(project, prot2, 'outputAtomStructs')
     waitUntilFinishes(project, prot2)
     if prot2.isFailed():
-        report.writeSummary("A.c Multimodel", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("A.c Multimodel", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return
 
     fnCifs = glob.glob(prot2._getPath('*.cif'))
     if len(fnCifs)==0:
-        report.writeSummary("A.c Multimodel", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("A.c Multimodel", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return
 
     fnCif = fnCifs[0]
@@ -794,8 +795,8 @@ quality of the map.
     waitUntilFinishes(project, prot)
 
     if prot.isFailed():
-        report.writeSummary("A.e Phenix", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("A.e Phenix", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         phenixStdout = open(os.path.join(project.getPath(), prot.getStdoutLog()), "r").read()
         controlledErrors = ["Sorry: Input map is all zero after boxing", "Sorry: Map and model are not aligned", "Sorry: Fatal problems interpreting model file"]
         for error in controlledErrors:
@@ -1104,8 +1105,8 @@ that may need improvement.
     waitUntilFinishes(project, prot)
 
     if prot.isFailed():
-        report.writeSummary("A.f EMRinger", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("A.f EMRinger", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         emringerStdout = open(os.path.join(project.getPath(), prot.getStdoutLog()), "r").read()
         controlledErrors = ["Sorry: No residues could be scanned by EMRinger, so scores cannot be generated"]
         for error in controlledErrors:
@@ -1274,8 +1275,8 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         waitUntilFinishes(project, prot)
 
         if prot.isFailed():
-            report.writeSummary("A.f DAQ", secLabel, "{\\color{red} Could not be measured}")
-            report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+            report.writeSummary("A.f DAQ", secLabel, ERROR_MESSAGE)
+            report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
             return prot
         
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQcif', os.path.join(project.getPath(), prot._getPath('outputStructure.cif')), 'cif file containing DAQ scores')
@@ -1347,8 +1348,8 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
                             os.path.join(report.getReportDir(), 'daqView3.jpg')], 'DAQ views')
 
     except:
-        report.writeSummary("A.f DAQ", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("A.f DAQ", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return prot
 
     warnings = []

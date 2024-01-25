@@ -48,6 +48,8 @@ import configparser
 
 from tools.utils import saveIntermediateData
 
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED
+
 # used by the ProtImportVolumes protocol, volumes will be downloaded from EMDB
 IMPORT_FROM_EMDB = 1
 
@@ -832,8 +834,8 @@ input map to the appearance of the atomic structures a local resolution label ca
     waitUntilFinishes(project, prot)
 
     if prot.isFailed():
-        report.writeSummary("0.e DeepRes", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("0.e DeepRes", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         deepresStderr = open(os.path.join(project.getPath(), prot.getStderrLog()), "r").read()
         if "ran out of memory trying to allocate" in deepresStderr:
             report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % "System ran out of memory. Try to launch it again.")
@@ -841,8 +843,8 @@ input map to the appearance of the atomic structures a local resolution label ca
 
     fnRes = os.path.join(project.getPath(), prot._getExtraPath("deepRes_resolution.vol"))
     if not os.path.exists(fnRes):
-        report.writeSummary("0.e DeepRes", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("0.e DeepRes", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return
     
     fnResOriginal = os.path.join(project.getPath(), prot._getExtraPath("deepRes_resolution_originalSize.vol"))
@@ -975,8 +977,8 @@ local magnitude and phase term using the spiral transform.\\\\
 
     fnBfactor = prot._getExtraPath("bmap.mrc")
     if prot.isFailed() or not os.path.exists(fnBfactor):
-        report.writeSummary("0.f LocBfactor", secLabel, "{\\color{brown} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("0.f LocBfactor", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return prot
     
     fnBfactorAbs = os.path.join(project.getPath(), fnBfactor)
@@ -1102,8 +1104,8 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
 
     fnOccupancy = prot._getExtraPath("omap.mrc")
     if prot.isFailed() or not os.path.exists(fnOccupancy):
-        report.writeSummary("0.g LocOccupancy", secLabel, "{\\color{brown} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("0.g LocOccupancy", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return prot
     
     fnOccupancyAbs = os.path.join(project.getPath(), fnOccupancy)
@@ -1232,8 +1234,8 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
     waitUntilFinishes(project, prot)
 
     if prot.isFailed():
-        report.writeSummary("0.h DeepHand", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("0.h DeepHand", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
         return prot
 
     hand = prot.outputHand.get()
