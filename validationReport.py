@@ -382,6 +382,14 @@ class ValidationReport:
 \\usepackage{tikz}
 \\usepackage{fancyhdr}
 \\setlist{nosep}
+\\usepackage[most]{tcolorbox}
+
+% Define a new tcolorbox
+\\newtcolorbox{mycolorbox}{
+  colback=red!40!white, % Color de fondo
+  colframe=red!75!black, % Color del borde
+  arc=0mm,
+}
 
 % Define own colors
 \\definecolor{mygreen}{RGB}{116,183,46}
@@ -476,7 +484,10 @@ Manual interpretation is needed. Not included as evaluable item in 'Summarized o
             color = 'mygreen'
             icon_msg = 'Public Data-based Report'
             msg = 'data publicly available at \\href{https://www.ebi.ac.uk/emdb/}{EMDB}.'
-            resolution_str = str(MAPRESOLUTION) + ' \AA' if MAPRESOLUTION else None
+            if MAPRESOLUTION:
+                resolution_str = str(MAPRESOLUTION) + ' \AA'
+            else:
+                resolution_str = "{\\color{red} (not reported)}"
 
             title = None
             authors = None
@@ -503,7 +514,10 @@ Manual interpretation is needed. Not included as evaluable item in 'Summarized o
             color = 'myblue'
             icon_msg = 'User Data-based Report'
             msg = 'user data provided through the \\href{https://biocomp.cnb.csic.es/EMValidationService/}{VRS website}.'
-            resolution_str = str(MAPRESOLUTION) + ' \AA'
+            if MAPRESOLUTION:
+                resolution_str = str(MAPRESOLUTION) + ' \AA'
+            else:
+                resolution_str = "{\\color{red} (not reported)}"
 
             MAP_NAME = os.path.basename(FNMAP).replace('_','\_') if FNMAP else None
             MODEL_NAME = os.path.basename(FNMODEL).replace('_','\_') if FNMODEL else None
@@ -631,12 +645,15 @@ This Validation Report Service is explained in more detail in the paper \\cite{S
 
     def abstractResolution(self, resolution):
         if len(self.resolutionEstimates)>0:
-            msg = "\n\n\\vspace{0.5cm}The average resolution of the map estimated by various methods goes from %4.1f\\AA~to %4.1f\\AA~ with an " \
-                  "average of %4.1f\\AA." % (np.min(self.resolutionEstimates), np.max(self.resolutionEstimates), np.mean(self.resolutionEstimates))
-            if resolution:
-                msg+=" The resolution provided by the user was %4.1f\\AA." % resolution
+            msg="\n\n\\vspace{0.5cm}The average resolution of the map estimated by various methods goes from %4.1f\\AA~to %4.1f\\AA~ with an "\
+                "average of %4.1f\\AA."%\
+                (np.min(self.resolutionEstimates), np.max(self.resolutionEstimates), np.mean(self.resolutionEstimates))
+            if not resolution:
+                msg+=" The resolution was not reported by the user."
+            else:
+                msg+=" The resolution reported by the user was %4.1f\\AA." % (resolution)
                 if resolution<0.8*np.mean(self.resolutionEstimates):
-                    msg+=" The resolution reported by the user may be overestimated."
+                    msg+=" The resolution reported may be overestimated."
             msg+="\n\n\\vspace{0.5cm}"
             self.writeAbstract(msg)
 
@@ -914,7 +931,7 @@ This Validation Report Service is explained in more detail in the paper \\cite{S
 """
         self.write(toWrite)
 
-    def closeReport(self):
+    def closeReport(self, resolution):
         toWrite = "\n\n\\begin{thebibliography}{}\n\n"
         for key in self.citations:
             toWrite +="%s\n\n"%self.citations[key]
@@ -929,6 +946,15 @@ This Validation Report Service is explained in more detail in the paper \\cite{S
         self.fhAbstract.write('\n\n')
         self.fhAbstract.write('\\textbf{The overall score (passing tests) of this report is %d out of %d evaluable '\
                               'items.}\n\n'%(self.score,self.scoreN))
+        if not resolution:
+            self.fhAbstract.write(
+"""
+\\vfill
+\\begin{mycolorbox}
+  Some programs may not work properly since resolution parameter has not been reported.
+\\end{mycolorbox}
+"""
+            )
         self.fhAbstract.close()
 
         self.fhSummaryWarnings.write('\n\n')

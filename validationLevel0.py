@@ -1282,7 +1282,7 @@ Voxel size: %f (\AA) \\\\
 Visualization threshold: %f \\\\
 Resolution estimated by user: %s \\\\
 
-"""%(basenameFnMap.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap), Ts, threshold, resolution if resolution else '(not reported)')
+"""%(basenameFnMap.replace('_','\_').replace('/','/\-'), calculateSha256(fnMap), Ts, threshold, resolution if resolution else '{\\color{red} (not reported)}')
     report.write(toWrite)
 
     fnImportMap = os.path.join(project.getPath(),protImportMap.outputVolume.getFileName())
