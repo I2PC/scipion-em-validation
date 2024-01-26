@@ -810,4 +810,4 @@ else: # go ahead
         with open(os.path.join(fnProjectDir, 'validationReport', 'workflow.json'), 'w') as f:
             f.write(json.dumps(list(protDicts.values()), indent=4, separators=(',', ': ')))
 
-    report.closeReport()
+    report.closeReport(MAPRESOLUTION)
