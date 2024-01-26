@@ -48,7 +48,8 @@ import configparser
 
 from tools.utils import saveIntermediateData
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, NOT_APPLY_MESSAGE, STATUS_NOT_APPLY, STATUS_ERROR_MESSAGE
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, NOT_APPLY_MESSAGE, STATUS_NOT_APPLY, STATUS_ERROR_MESSAGE, \
+    NOT_APPY_NO_RESOLUTION, NOT_APPLY_BETTER_RESOLUTION, NOT_APPLY_WORSE_RESOLUTION
 
 # used by the ProtImportVolumes protocol, volumes will be downloaded from EMDB
 IMPORT_FROM_EMDB = 1
@@ -810,18 +811,15 @@ input map to the appearance of the atomic structures a local resolution label ca
 
     if not resolution:
         report.writeSummary("0.e DeepRes", secLabel, NOT_APPLY_MESSAGE)
-        report.write("{\\color{brown} This method cannot be applied to maps with no resolution reported.}\\\\ \n" \
-                     + STATUS_NOT_APPLY)
+        report.write(NOT_APPY_NO_RESOLUTION + STATUS_NOT_APPLY)
         return None
     if resolution<2:
         report.writeSummary("0.e DeepRes", secLabel, NOT_APPLY_MESSAGE)
-        report.write("{\\color{brown} This method cannot be applied to maps with a resolution better than 2\\AA.}\\\\ \n" \
-                     + STATUS_NOT_APPLY)
+        report.write(NOT_APPLY_BETTER_RESOLUTION % 2 + STATUS_NOT_APPLY)
         return None
     if resolution>13:
         report.writeSummary("0.e DeepRes", secLabel, NOT_APPLY_MESSAGE)
-        report.write("{\\color{brown} This method cannot be applied to maps with a resolution worse than 13\\AA.}\\\\ \n" \
-                     + STATUS_NOT_APPLY)
+        report.write(NOT_APPLY_WORSE_RESOLUTION % 13 + STATUS_NOT_APPLY)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -961,8 +959,7 @@ local magnitude and phase term using the spiral transform.\\\\
 
     if not resolution:
         report.writeSummary("0.e Local B-factor", secLabel, NOT_APPLY_MESSAGE)
-        report.write("{\\color{brown} This method cannot be applied to maps with no resolution reported.}\\\\ \n" \
-                     + STATUS_NOT_APPLY)
+        report.write(NOT_APPY_NO_RESOLUTION + STATUS_NOT_APPLY)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('ucm.protocols',
@@ -1090,8 +1087,7 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
 
     if not resolution:
         report.writeSummary("0.g Local Occupancy", secLabel, NOT_APPLY_MESSAGE)
-        report.write("{\\color{brown} This method cannot be applied to maps with no resolution reported.}\\\\ \n" \
-                     + STATUS_NOT_APPLY)
+        report.write(NOT_APPY_NO_RESOLUTION + STATUS_NOT_APPLY)
         return None
 
     Prot = pwplugin.Domain.importFromPlugin('ucm.protocols',
@@ -1214,14 +1210,12 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
     report.write(msg)
 
     if not resolution:
-        toWrite="{\\color{brown} This method cannot be applied to maps with no resolution reported.}\\\\ \n" \
-                + STATUS_NOT_APPLY
+        toWrite = NOT_APPY_NO_RESOLUTION + STATUS_NOT_APPLY
         report.write(toWrite)
         report.writeSummary("0.h Deep hand", secLabel, NOT_APPLY_MESSAGE)
         return
     if resolution>5:
-        toWrite="{\\color{brown} This method cannot be applied to maps whose resolution is worse than 5\AA.}\\\\ \n" \
-                + STATUS_NOT_APPLY
+        toWrite= NOT_APPLY_WORSE_RESOLUTION % 5 + STATUS_NOT_APPLY
         report.write(toWrite)
         report.writeSummary("0.h Deep hand", secLabel, NOT_APPLY_MESSAGE)
         return

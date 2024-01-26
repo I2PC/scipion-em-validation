@@ -443,7 +443,8 @@ class ValidationReport:
     def writeWarningsAndSummary(self, warnings, section, secLabel):
         if warnings is None:
             toWrite = \
-"""\\textbf{Automatic criteria}: The program ran properly but there are no automatic criteria defined to evaluate the results. 
+"""
+\\textbf{Automatic criteria}: The program ran properly but there are no automatic criteria defined to evaluate the results. 
 Manual interpretation is needed. Not included as evaluable item in 'Summarized overall quality' section.\\\\
 
 """ + STATUS_OK
