@@ -589,7 +589,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
         p.wait()
     else:
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
-        slurmScriptPath = createScriptForSlurm('resmap_' + str(randomInt), report.getReportDir(), cmd, nTasks=20, priority=priority)
+        slurmScriptPath = createScriptForSlurm('resmap_' + str(randomInt), report.getReportDir(), cmd, nTasks=10, priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished

@@ -794,6 +794,12 @@ else: # go ahead
     saveIntermediateData(report.getReportDir(), 'outputData', False, 'score', report.score, ['', 'The overall score (passing tests; STATUS OK) of the map'])
     saveIntermediateData(report.getReportDir(), 'outputData', False, 'scoreN', report.scoreN, ['', 'The total number of evaluable items (tests) to assess the map'])
 
+    # Check if there are warnings
+    with open(os.path.join(fnProjectDir, "validationReport", "report.tex")) as summaryWarnings:
+        content = summaryWarnings.read()
+        if "WARNINGS" not in content:
+            report.fhSummaryWarnings.write("No warnings.")
+
     # Save workflow json with protocols versions
     workflowProts = [p for p in project.getRuns()]
     protDicts = project.getProtocolsDict(workflowProts)

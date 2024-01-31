@@ -439,6 +439,7 @@ class ValidationReport:
 
     def write(self,msg):
         self.fh.write(msg)
+        self.fh.flush()
 
     def writeWarningsAndSummary(self, warnings, section, secLabel):
         if warnings is None:
