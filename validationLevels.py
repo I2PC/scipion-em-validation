@@ -793,6 +793,7 @@ else: # go ahead
     saveIntermediateData(report.getReportDir(), 'outputData', False, 'resolutionEstimates', [resolutionEstimate.tolist() if type(resolutionEstimate) is np.ndarray else resolutionEstimate for resolutionEstimate in report.resolutionEstimates], ['\u212B', 'List of the resolutions of the map estimated by various methods to get the estimated range and average in abstract'])
     saveIntermediateData(report.getReportDir(), 'outputData', False, 'score', report.score, ['', 'The overall score (passing tests; STATUS OK) of the map'])
     saveIntermediateData(report.getReportDir(), 'outputData', False, 'scoreN', report.scoreN, ['', 'The total number of evaluable items (tests) to assess the map'])
+
     # Check if there are warnings
     with open(os.path.join(fnProjectDir, "validationReport", "report.tex")) as summaryWarnings:
         content = summaryWarnings.read()
@@ -815,4 +816,4 @@ else: # go ahead
         with open(os.path.join(fnProjectDir, 'validationReport', 'workflow.json'), 'w') as f:
             f.write(json.dumps(list(protDicts.values()), indent=4, separators=(',', ': ')))
 
-    report.closeReport()
+    report.closeReport(MAPRESOLUTION)

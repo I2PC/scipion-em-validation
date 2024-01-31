@@ -33,6 +33,8 @@ from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
 import configparser
 
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, STATUS_ERROR_MESSAGE
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
@@ -150,8 +152,8 @@ coordinate is outside a region with aggregations, ice crystals, carbon edges, et
 """ % secLabel
     report.write(msg)
     if prot.isFailed():
-        report.writeSummary("5.a Micrograph cleaner", secLabel, "{\\color{red} Could not be measured}")
-        report.write("{\\color{red} \\textbf{ERROR: The protocol failed.}}\\\\ \n")
+        report.writeSummary("5.a Micrograph cleaner", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
     Ninput = protCoords.outputCoordinates.getSize()

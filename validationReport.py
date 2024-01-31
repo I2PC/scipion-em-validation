@@ -19,6 +19,8 @@ from tools.utils import storeIntermediateData
 import xmipp3
 
 import configparser
+from resources.constants import SUMMARY_WARNINGS_TITLE, STATUS_OK, OK_MESSAGE, STATUS_OK, WARNINGS_MESSAGE
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 maxMemToUse = config['CHIMERA'].getint('MAX_MEM_TO_USE')
@@ -338,7 +340,7 @@ class ValidationReport:
         self.fnReportDir = os.path.join(fnDir,"validationReport")
         makePath(self.fnReportDir)
         self.fnReport = os.path.join(self.fnReportDir,"report.tex")
-        self.fh = open(self.fnReport,"w")
+        self.fh = open(self.fnReport,"w+")
         self.fnFrontpage = os.path.join(self.fnReportDir,"frontpage.tex")
         self.fnFrontpage = open(self.fnFrontpage,"w") 
         self.writeFrontpage(levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION)
@@ -353,7 +355,7 @@ class ValidationReport:
         self.fhSummary = open(self.fnSummary,"w")
         self.fnSummaryWarnings = os.path.join(self.fnReportDir,"summaryWarnings.tex")
         self.fhSummaryWarnings = open(self.fnSummaryWarnings,"w")
-        self.fhSummaryWarnings.write("\\textbf{\\underline{Summary of the warnings across sections.}}\\\\ \n\n\n")
+        self.fhSummaryWarnings.write(SUMMARY_WARNINGS_TITLE)
         self.writePreamble()
         self.resolutionEstimates = []
         self.score = 0
@@ -380,6 +382,14 @@ class ValidationReport:
 \\usepackage{tikz}
 \\usepackage{fancyhdr}
 \\setlist{nosep}
+\\usepackage[most]{tcolorbox}
+
+% Define a new tcolorbox
+\\newtcolorbox{mycolorbox}{
+  colback=red!40!white, % Color de fondo
+  colframe=red!75!black, % Color del borde
+  arc=0mm,
+}
 
 % Define own colors
 \\definecolor{mygreen}{RGB}{116,183,46}
@@ -433,14 +443,19 @@ class ValidationReport:
 
     def writeWarningsAndSummary(self, warnings, section, secLabel):
         if warnings is None:
-            toWrite = "\\textbf{STATUS}: {\\color{brown} Cannot be automatically evaluated}\\\\ \n"
-            self.writeSummary(section, secLabel, "{\\color{brown} Cannot be automated}")
+            toWrite = \
+"""
+\\textbf{Automatic criteria}: The program ran properly but there are no automatic criteria defined to evaluate the results. 
+Manual interpretation is needed. Not included as evaluable item in 'Summarized overall quality' section.\\\\
+
+""" + STATUS_OK
+            self.writeSummary(section, secLabel, OK_MESSAGE)
         else:
             self.scoreN+=1
             if len(warnings) > 0:
                 countWarnings = len(warnings)
                 toWrite = "\\textbf{WARNINGS}: %d warnings\\\\ \n%s\n" % (countWarnings, latexEnumerate(warnings))
-                self.writeSummary(section, secLabel, "{\\color{red} %d warnings}" % countWarnings)
+                self.writeSummary(section, secLabel, WARNINGS_MESSAGE % countWarnings)
 
                 self.fhSummaryWarnings.write("\\underline{Section \\ref{%s} (%s)}\n" % (secLabel, section))
                 self.fhSummaryWarnings.write("\\begin{enumerate}\n")
@@ -448,8 +463,8 @@ class ValidationReport:
                     self.fhSummaryWarnings.write("\\item %s\n"%warning)
                 self.fhSummaryWarnings.write("\\end{enumerate}\n\n\n")
             else:
-                toWrite = "\\textbf{STATUS}: {\\color{blue} OK}\\\\ \n"
-                self.writeSummary(section, secLabel, "{\\color{blue} OK}")
+                toWrite = STATUS_OK
+                self.writeSummary(section, secLabel, OK_MESSAGE)
                 self.score += 1
         self.write(toWrite)
 
@@ -471,7 +486,10 @@ class ValidationReport:
             color = 'mygreen'
             icon_msg = 'Public Data-based Report'
             msg = 'data publicly available at \\href{https://www.ebi.ac.uk/emdb/}{EMDB}.'
-            resolution_str = str(MAPRESOLUTION) + ' \AA'
+            if MAPRESOLUTION:
+                resolution_str = str(MAPRESOLUTION) + ' \AA'
+            else:
+                resolution_str = "{\\color{red} (not reported)}"
 
             title = None
             authors = None
@@ -498,7 +516,10 @@ class ValidationReport:
             color = 'myblue'
             icon_msg = 'User Data-based Report'
             msg = 'user data provided through the \\href{https://biocomp.cnb.csic.es/EMValidationService/}{VRS website}.'
-            resolution_str = str(MAPRESOLUTION) + ' \AA'
+            if MAPRESOLUTION:
+                resolution_str = str(MAPRESOLUTION) + ' \AA'
+            else:
+                resolution_str = "{\\color{red} (not reported)}"
 
             MAP_NAME = os.path.basename(FNMAP).replace('_','\_') if FNMAP else None
             MODEL_NAME = os.path.basename(FNMODEL).replace('_','\_') if FNMODEL else None
@@ -627,11 +648,14 @@ This Validation Report Service is explained in more detail in the paper \\cite{S
     def abstractResolution(self, resolution):
         if len(self.resolutionEstimates)>0:
             msg="\n\n\\vspace{0.5cm}The average resolution of the map estimated by various methods goes from %4.1f\\AA~to %4.1f\\AA~ with an "\
-                "average of %4.1f\\AA. The resolution provided by the user was %4.1f\\AA."%\
-                (np.min(self.resolutionEstimates), np.max(self.resolutionEstimates), np.mean(self.resolutionEstimates),
-                 resolution)
-            if resolution<0.8*np.mean(self.resolutionEstimates):
-                msg+=" The resolution reported by the user may be overestimated."
+                "average of %4.1f\\AA."%\
+                (np.min(self.resolutionEstimates), np.max(self.resolutionEstimates), np.mean(self.resolutionEstimates))
+            if not resolution:
+                msg+=" The resolution was not reported by the user."
+            else:
+                msg+=" The resolution reported by the user was %4.1f\\AA." % (resolution)
+                if resolution<0.8*np.mean(self.resolutionEstimates):
+                    msg+=" The resolution reported may be overestimated."
             msg+="\n\n\\vspace{0.5cm}"
             self.writeAbstract(msg)
 
@@ -909,18 +933,30 @@ This Validation Report Service is explained in more detail in the paper \\cite{S
 """
         self.write(toWrite)
 
-    def closeReport(self):
+    def closeReport(self, resolution):
         toWrite = "\n\n\\begin{thebibliography}{}\n\n"
         for key in self.citations:
             toWrite +="%s\n\n"%self.citations[key]
         toWrite += "\\end{thebibliography}\n\n"
         toWrite += "\\end{document}\n"
         self.fh.write(toWrite)
+        # Check if there are warnings in the report
+        if "WARNINGS" not in self.fh:
+            self.fhSummaryWarnings.write("No warnings.")
         self.fh.close()
 
         self.fhAbstract.write('\n\n')
         self.fhAbstract.write('\\textbf{The overall score (passing tests) of this report is %d out of %d evaluable '\
                               'items.}\n\n'%(self.score,self.scoreN))
+        if not resolution:
+            self.fhAbstract.write(
+"""
+\\vfill
+\\begin{mycolorbox}
+  Some programs may not work properly since resolution parameter has not been reported.
+\\end{mycolorbox}
+"""
+            )
         self.fhAbstract.close()
 
         self.fhSummaryWarnings.write('\n\n')
