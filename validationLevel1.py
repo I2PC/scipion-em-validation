@@ -218,7 +218,7 @@ behavior. If they have, this is typically due to the presence of a mask in real 
     def radial_profile(V):
         z, y, x = np.indices((V.shape))
         center = [int(x/2) for x in V.shape]
-        r = np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2 + (z - center[2]) ** 2)
+        r = np.sqrt((x - center[2]) ** 2 + (y - center[1]) ** 2 + (z - center[0]) ** 2)
         r = r.astype(np.int)
 
         tbin = np.bincount(r.ravel(), V.ravel())
