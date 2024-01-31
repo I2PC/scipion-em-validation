@@ -39,6 +39,7 @@ from pwem.convert.atom_struct import AtomicStructHandler
 from validationReport import readMap
 import json
 from tools import EMDButils
+import xmipp3
 
 import configparser
 
@@ -417,36 +418,42 @@ if protImportMapChecker.isFailed():
     wrongInputs['errors'].append({'param': 'map', 'value': error_value, 'cause': 'There is a problem reading the volume map file'})
 
 else:
-    if IS_EMDB_ENTRY:
-        FNMAP = os.path.join(project.getPath(), protImportMapChecker.outputVolume.getFileName())
-        MAPCOORDX, MAPCOORDY, MAPCOORDZ = protImportMapChecker.outputVolume.getShiftsFromOrigin()
-        if '1' in levels:
-            half_maps = EMDButils.download_emdb_halfmaps(EMDB_ID_NUM, protImportMapChecker._getExtraPath())
-            fnMap1 = half_maps[0].replace('.gz', '')
-            fnMap2 = half_maps[1].replace('.gz', '')
-            if os.path.exists(os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1)) and os.path.exists(os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)):
-                protImportMapChecker.outputVolume.setHalfMaps([os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1), os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)])
-                protImportMapChecker._store()
-                FNMAP1 = os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1)
-                FNMAP2 = os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)
+    # temporal solution: check if is a non cubic volume
+    V = xmipp3.Image(os.path.join(project.getPath(), protImportMapChecker.outputVolume.getFileName())).getData()
+    Zdim, Ydim, Xdim = V.shape
+    if not (Zdim == Ydim == Xdim):
+        raise ValueError('Its not a cubic volume. This validation will not be executed')
+    else:
+        if IS_EMDB_ENTRY:
+            FNMAP = os.path.join(project.getPath(), protImportMapChecker.outputVolume.getFileName())
+            MAPCOORDX, MAPCOORDY, MAPCOORDZ = protImportMapChecker.outputVolume.getShiftsFromOrigin()
+            if '1' in levels:
+                half_maps = EMDButils.download_emdb_halfmaps(EMDB_ID_NUM, protImportMapChecker._getExtraPath())
+                fnMap1 = half_maps[0].replace('.gz', '')
+                fnMap2 = half_maps[1].replace('.gz', '')
+                if os.path.exists(os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1)) and os.path.exists(os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)):
+                    protImportMapChecker.outputVolume.setHalfMaps([os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1), os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)])
+                    protImportMapChecker._store()
+                    FNMAP1 = os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1)
+                    FNMAP2 = os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)
 
-    # check if we can have a proper mask with the threshold specified
-    protCreateMaskChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
-                                                objLabel='check proper mask',
-                                                inputVolume=protImportMapChecker.outputVolume,
-                                                threshold=MAPTHRESHOLD,
-                                                doBig=True,
-                                                doMorphological=True,
-                                                elementSize=math.ceil(2/TS)) # Dilation by 2A
-    if useSlurm:
-        sendToSlurm(protCreateMaskChecker, priority=False if IS_EMDB_ENTRY else True)
-    project.launchProtocol(protCreateMaskChecker)
-    waitUntilFinishes(project, protCreateMaskChecker)
+        # check if we can have a proper mask with the threshold specified
+        protCreateMaskChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
+                                                    objLabel='check proper mask',
+                                                    inputVolume=protImportMapChecker.outputVolume,
+                                                    threshold=MAPTHRESHOLD,
+                                                    doBig=True,
+                                                    doMorphological=True,
+                                                    elementSize=math.ceil(2/TS)) # Dilation by 2A
+        if useSlurm:
+            sendToSlurm(protCreateMaskChecker, priority=False if IS_EMDB_ENTRY else True)
+        project.launchProtocol(protCreateMaskChecker)
+        waitUntilFinishes(project, protCreateMaskChecker)
 
-    M = readMap(protCreateMaskChecker.outputMask.getFileName()).getData()
-    totalMass = np.sum(M)
-    if not totalMass > 0:
-        wrongInputs['errors'].append({'param': 'threshold', 'value': MAPTHRESHOLD, 'cause': 'The mask obtained from the volume map is empty, try to lower the threshold value'})
+        M = readMap(protCreateMaskChecker.outputMask.getFileName()).getData()
+        totalMass = np.sum(M)
+        if not totalMass > 0:
+            wrongInputs['errors'].append({'param': 'threshold', 'value': MAPTHRESHOLD, 'cause': 'The mask obtained from the volume map is empty, try to lower the threshold value'})
 
 if "1" in levels:
     # check 'map1' and 'map2' arg
