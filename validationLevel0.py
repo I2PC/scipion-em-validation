@@ -694,8 +694,8 @@ is between 0 and 300 \AA$^2$.
     report.write(msg)
 
     if not resolution:
-        report.writeSummary("0.d B-factor analysis", secLabel, "{\\color{brown} Does not apply}")
-        report.write("This method cannot be applied to maps with no resolution reported.\\\\ \n")
+        report.writeSummary("0.d B-factor analysis", secLabel, NOT_APPLY_MESSAGE)
+        report.write(NOT_APPY_NO_RESOLUTION + STATUS_NOT_APPLY)
         return None
 
     fnIn = os.path.join(project.getPath(), map.getFileName())
