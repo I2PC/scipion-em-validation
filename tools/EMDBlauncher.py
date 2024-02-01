@@ -19,6 +19,7 @@ log_folder = config['EMDB'].get('LOG_PATH')
 scipionProjects_path = config['SCIPION'].get('SCIPIONPROJECTS_PATH')
 scipion_launcher = config['SCIPION'].get('SCIPION_LAUNCHER')
 validation_server_launcher = config['EM-VALIDATION'].get('VALIDATION_SERVER_LAUNCHER')
+cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 
 def create_ddbb_data():
     print("Creating database...")
@@ -71,6 +72,10 @@ def launcher(entry, cmd, log_file, levels):
         data)
     connection.commit()
     connection.close()
+    # remove scipion project
+    if cleanOriginalData:
+        cmd = 'rm -rf %s' % os.path.join(scipionProjects_path, entry)
+        subprocess.run(cmd, shell=True)
 
 def get_EMDB_entry_subsets():
     print('Getting EMDB entries...')
