@@ -986,6 +986,3 @@ This Validation Report Service is explained in more detail in the paper \\cite{S
         os.chdir(self.fnProjectDir)
         if doStoreIntermediateData:
             storeIntermediateData(self.fnReportDir, intermediateDataFinalPath)
-        if cleanOriginalData:
-            cmd = 'rm -rf %s' % self.fnProjectDir
-            subprocess.run(cmd, shell=True)
