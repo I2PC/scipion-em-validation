@@ -3,7 +3,7 @@ import os
 import configparser
 import subprocess
 import concurrent.futures
-import sqlite3
+import mysql.connector
 from datetime import datetime
 from random import sample
 from time import sleep
@@ -21,13 +21,17 @@ scipion_launcher = config['SCIPION'].get('SCIPION_LAUNCHER')
 validation_server_launcher = config['EM-VALIDATION'].get('VALIDATION_SERVER_LAUNCHER')
 cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 
+def connect_to_ddbb():
+    connection = mysql.connector.connect(host='localhost', user='vrs', password='', database='vrs')
+    return connection
+
 def create_ddbb_data():
     print("Creating database...")
-    connection = sqlite3.connect(ddbb_path)
+    connection = connect_to_ddbb()
     cursor = connection.cursor()
     print("Creating table...")
     cursor.execute('''CREATE TABLE IF NOT EXISTS launch (
-                        entry_id TEXT NOT NULL,
+                        entry_id VARCHAR(11) NOT NULL,
                         version INT NOT NULL,
                         levels TEXT NOT NULL, 
                         started INT NOT NULL CHECK(started IN (0, 1)),
@@ -38,13 +42,13 @@ def create_ddbb_data():
                         report_path TEXT DEFAULT NULL,
                         fail_reason TEXT DEFAULT NULL,
                         PRIMARY KEY(entry_id, version)
-                    )''')
+                    );''')
     connection.commit()
     connection.close()
 
 def launcher(entry, cmd, log_file, levels):
     print("Launching", entry)
-    connection = sqlite3.connect(ddbb_path)
+    connection = connect_to_ddbb()
     cursor = connection.cursor()
 
     cursor.execute("SELECT COUNT(*) FROM launch WHERE entry_id = '%s'" % entry)
@@ -52,9 +56,10 @@ def launcher(entry, cmd, log_file, levels):
 
     data = (entry, n_launchs+1, levels, 1, int(datetime.now().timestamp()), 0, None, 0, None, None)
     cursor.execute(
-        'INSERT INTO launch (entry_id, version, levels, started, start_date, finished, finish_date, failed, report_path, fail_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO launch (entry_id, version, levels, started, start_date, finished, finish_date, failed, report_path, fail_reason) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
         data)
     connection.commit()
+    connection.close()
 
     log_file = log_file + '_' + str(n_launchs+1) + '.log'
     with open(log_file, 'w') as log_file:
@@ -67,13 +72,15 @@ def launcher(entry, cmd, log_file, levels):
     data = (1, int(datetime.now().timestamp()), 0 if process.returncode == 0 and os.path.exists(reportPath) else 1,
             reportPath if process.returncode == 0 and os.path.exists(reportPath) else None,
             stderr if process.returncode != 0 else None, entry, n_launchs+1)
+    connection = connect_to_ddbb()
+    cursor = connection.cursor()
     cursor.execute(
-        'UPDATE launch SET finished = ?, finish_date = ?, failed = ?, report_path = ?, fail_reason = ? WHERE entry_id = ? AND version = ?',
+        'UPDATE launch SET finished = %s, finish_date = %s, failed = %s, report_path = %s, fail_reason = %s WHERE entry_id = %s AND version = %s',
         data)
     connection.commit()
     connection.close()
     # remove scipion project
-    if cleanOriginalData:
+    if cleanOriginalData and process.returncode == 0:
         cmd = 'rm -rf %s' % os.path.join(scipionProjects_path, entry)
         subprocess.run(cmd, shell=True)
 
@@ -110,11 +117,12 @@ def get_EMDB_entry_subsets():
                 os.path.join(EMDB_entries_path, 'EMDB_all_spa_entries_level01A.txt'))
 
 def get_fails():
-    connection = sqlite3.connect(ddbb_path)
+    connection = connect_to_ddbb()
     cursor = connection.cursor()
     # get entries whose last launch failed
     cursor.execute("SELECT entry_id, levels FROM (SELECT entry_id, MAX(version) as last_version, levels, failed FROM launch GROUP BY entry_id) as last_launchs WHERE failed=1;")
     failed_entries = cursor.fetchall()
+    connection.close()
     return failed_entries
 
 def launch(levels, n_entries, start_entry=1, random=False):
