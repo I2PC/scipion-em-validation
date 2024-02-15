@@ -14,7 +14,6 @@ import re
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.yaml'))
 EMDB_entries_path = config['EMDB'].get('ENTRIES_PATH')
-ddbb_path = config['EMDB'].get('SQLITE_DDBB_PATH')
 log_folder = config['EMDB'].get('LOG_PATH')
 scipionProjects_path = config['SCIPION'].get('SCIPIONPROJECTS_PATH')
 scipion_launcher = config['SCIPION'].get('SCIPION_LAUNCHER')
@@ -47,42 +46,45 @@ def create_ddbb_data():
     connection.close()
 
 def launcher(entry, cmd, log_file, levels):
-    print("Launching", entry)
-    connection = connect_to_ddbb()
-    cursor = connection.cursor()
+    try:
+        print("Launching", entry)
+        connection = connect_to_ddbb()
+        cursor = connection.cursor()
 
-    cursor.execute("SELECT COUNT(*) FROM launch WHERE entry_id = '%s'" % entry)
-    n_launchs = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM launch WHERE entry_id = '%s'" % entry)
+        n_launchs = cursor.fetchone()[0]
 
-    data = (entry, n_launchs+1, levels, 1, int(datetime.now().timestamp()), 0, None, 0, None, None)
-    cursor.execute(
-        'INSERT INTO launch (entry_id, version, levels, started, start_date, finished, finish_date, failed, report_path, fail_reason) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
-        data)
-    connection.commit()
-    connection.close()
+        data = (entry, n_launchs+1, levels, 1, int(datetime.now().timestamp()), 0, None, 0, None, None)
+        cursor.execute(
+            'INSERT INTO launch (entry_id, version, levels, started, start_date, finished, finish_date, failed, report_path, fail_reason) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+            data)
+        connection.commit()
+        connection.close()
 
-    log_file = log_file + '_' + str(n_launchs+1) + '.log'
-    with open(log_file, 'w') as log_file:
-        process = subprocess.Popen(cmd.split(), stdout=log_file, stderr=subprocess.PIPE, text=True)
-        stderr = process.communicate()[1]
-        if stderr:
-            log_file.write(stderr)
+        log_file = log_file + '_' + str(n_launchs+1) + '.log'
+        with open(log_file, 'w') as log_file:
+            process = subprocess.Popen(cmd.split(), stdout=log_file, stderr=subprocess.PIPE, text=True)
+            stderr = process.communicate()[1]
+            if stderr:
+                log_file.write(stderr)
 
-    reportPath = os.path.join(scipionProjects_path, entry, 'validationReport', 'report.pdf')
-    data = (1, int(datetime.now().timestamp()), 0 if process.returncode == 0 and os.path.exists(reportPath) else 1,
-            reportPath if process.returncode == 0 and os.path.exists(reportPath) else None,
-            stderr if process.returncode != 0 else None, entry, n_launchs+1)
-    connection = connect_to_ddbb()
-    cursor = connection.cursor()
-    cursor.execute(
-        'UPDATE launch SET finished = %s, finish_date = %s, failed = %s, report_path = %s, fail_reason = %s WHERE entry_id = %s AND version = %s',
-        data)
-    connection.commit()
-    connection.close()
-    # remove scipion project
-    if cleanOriginalData and process.returncode == 0:
-        cmd = 'rm -rf %s' % os.path.join(scipionProjects_path, entry)
-        subprocess.run(cmd, shell=True)
+        reportPath = os.path.join(scipionProjects_path, entry, 'validationReport', 'report.pdf')
+        data = (1, int(datetime.now().timestamp()), 0 if process.returncode == 0 and os.path.exists(reportPath) else 1,
+                reportPath if process.returncode == 0 and os.path.exists(reportPath) else None,
+                stderr if process.returncode != 0 else None, entry, n_launchs+1)
+        connection = connect_to_ddbb()
+        cursor = connection.cursor()
+        cursor.execute(
+            'UPDATE launch SET finished = %s, finish_date = %s, failed = %s, report_path = %s, fail_reason = %s WHERE entry_id = %s AND version = %s',
+            data)
+        connection.commit()
+        connection.close()
+        # remove scipion project
+        if cleanOriginalData and process.returncode == 0:
+            cmd = 'rm -rf %s' % os.path.join(scipionProjects_path, entry)
+            subprocess.run(cmd, shell=True)
+    except Exception as e:
+        print("Exception:", e)
 
 def get_EMDB_entry_subsets():
     print('Getting EMDB entries...')

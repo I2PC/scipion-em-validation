@@ -26,7 +26,6 @@ VALIDATION_SERVER_LAUNCHER = /home/vrs/scipion3/scipion-em-validation/validation
 
 [EMDB]
 ENTRIES_PATH = /home/vrs/EMDB/entries
-SQLITE_DDBB_PATH = /home/vrs/EMDB/database/vrs.db
 LOG_PATH = /home/vrs/EMDB/logs
 
 [SCIPION]
