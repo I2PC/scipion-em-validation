@@ -122,7 +122,7 @@ def get_fails():
     connection = connect_to_ddbb()
     cursor = connection.cursor()
     # get entries whose last launch failed
-    cursor.execute("SELECT launch.entry_id FROM launch as launch INNER JOIN (SELECT entry_id, MAX(version) AS last_version FROM launch GROUP BY entry_id) AS last_launchs ON launch.entry_id = last_launchs.entry_id AND launch.version = last_launchs.last_version WHERE launch.finished = 1 AND launch.failed = 1;")
+    cursor.execute("SELECT launch.entry_id, launch.levels FROM launch as launch INNER JOIN (SELECT entry_id, MAX(version) AS last_version FROM launch GROUP BY entry_id) AS last_launchs ON launch.entry_id = last_launchs.entry_id AND launch.version = last_launchs.last_version WHERE launch.finished = 1 AND launch.failed = 1;")
     failed_entries = cursor.fetchall()
     connection.close()
     return failed_entries
