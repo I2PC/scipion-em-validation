@@ -447,7 +447,7 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
     prot.mask.set(protMask.outputMask)
 
     if useSlurm:
-        sendToSlurm(prot, priority=True if priority else False)
+        sendToSlurm(prot, nMPIs=10, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'resolution_Volume')
     waitUntilFinishes(project, prot)
@@ -833,7 +833,8 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
 
 def monodir(project, report, label, protImportMap, protCreateMask, resolution, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
-                                            'XmippProtMonoDir', doRaise=True)
+                                            'XmippProtMonoDir', doRaise=True,
+                                            numberOfThreads=10)
     prot = project.newProtocol(Prot,
                                objLabel=label,
                                fast=True,

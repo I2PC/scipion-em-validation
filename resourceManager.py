@@ -97,9 +97,9 @@ def waitUntilFinishes(project, prot, sleepTime=10, timeOut=432000):
 
 #TODO: allow the user to add parameters (e.g. prot.gpuList.set(7))
 
-def sendToSlurm(prot, memory=8192, hours=48, GPU=False, nGPUs=1, priority=False):
+def sendToSlurm(prot, memory=8192, hours=48, GPU=False, nGPUs=1, nMPIs=None, nThreads=None, priority=False):
     prot._useQueue.set(Boolean(True))
-    QUEUE_PARAMS = (priority_queue if priority else standard_queue, {'JOB_MEMORY': memory, 'JOB_TIME': hours, 'GPU_COUNT': nGPUs if GPU else 0})
+    QUEUE_PARAMS = (priority_queue if priority else standard_queue, {'JOB_MEMORY': memory, 'JOB_TIME': hours, 'GPU_COUNT': nGPUs if GPU else 0, 'JOB_NODES': nMPIs if nMPIs else int(prot.numberOfMpi), 'JOB_THREADS': nThreads if nThreads else int(prot.numberOfThreads)})
     prot._queueParams.set(json.dumps(QUEUE_PARAMS))
 
 def skipSlurm(prot, GPUId):
