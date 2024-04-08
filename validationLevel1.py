@@ -833,12 +833,12 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
 
 def monodir(project, report, label, protImportMap, protCreateMask, resolution, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
-                                            'XmippProtMonoDir', doRaise=True,
-                                            numberOfThreads=10)
+                                            'XmippProtMonoDir', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel=label,
                                fast=True,
-                               resstep=resolution/3)
+                               resstep=resolution/3,
+                               numberOfThreads=10)
     prot.inputVolumes.set(protImportMap.outputVolume)
     prot.Mask.set(protCreateMask.outputMask)
     if useSlurm:
