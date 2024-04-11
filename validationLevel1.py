@@ -292,15 +292,18 @@ Fig. \\ref{fig:SSNR} shows the SSNR and the SSNR=1 threshold. %s\\\\
     # Warnings
     warnings=[]
     testWarnings = False
-    if resolution<0.8/fFSC or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
-                        "to the resolution calculated by the FSC, %5.2f \\AA}}"%(resolution,1.0/fFSC))
-    if resolution<0.8/fDPR or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
-                        "to the resolution calculated by the DPR, %5.2f\\AA.}}"%(resolution,1.0/fDPR))
-    if resolution<0.8/fSSNR or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
-                        "to the resolution calculated by the SSNR, %5.2f\\AA.}}"%(resolution,1.0/fSSNR))
+    if fFSC is not None:
+        if resolution<0.8/fFSC or testWarnings:
+            warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
+                            "to the resolution calculated by the FSC, %5.2f \\AA}}"%(resolution,1.0/fFSC))
+    if fDPR is not None:
+        if resolution<0.8/fDPR or testWarnings:
+            warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
+                            "to the resolution calculated by the DPR, %5.2f\\AA.}}"%(resolution,1.0/fDPR))
+    if fSSNR is not None:
+        if resolution<0.8/fSSNR or testWarnings:
+            warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
+                            "to the resolution calculated by the SSNR, %5.2f\\AA.}}"%(resolution,1.0/fSSNR))
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the user provided resolution is larger than 0.8 times the
 resolution estimated by 1) FSC, 2) DPR, and 3) SSNR.
