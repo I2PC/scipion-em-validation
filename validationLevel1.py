@@ -312,9 +312,12 @@ resolution estimated by 1) FSC, 2) DPR, and 3) SSNR.
 """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "1.a Global resolution", secLabel)
-    report.addResolutionEstimate(1 / fFSC)
-    report.addResolutionEstimate(1 / fDPR)
-    report.addResolutionEstimate(1 / fSSNR)
+    if fFSC is not None:
+        report.addResolutionEstimate(1 / fFSC)
+    if fDPR is not None:
+        report.addResolutionEstimate(1 / fDPR)
+    if fSSNR is not None:
+        report.addResolutionEstimate(1 / fSSNR)
 
     return prot
 
