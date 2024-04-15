@@ -725,11 +725,11 @@ is between 0 and 300 \AA$^2$.
         with open(slurmScriptPath.replace('.sh', '.job.err'), 'r') as slurmOutputFile:
             outputLines = slurmOutputFile.read().split('\n')
 
-    tokens = outputLines[0].split()
+    tokens = outputLines[1].split()
     a = float(tokens[2])
     b = float(tokens[4])
 
-    tokens = outputLines[1].split()
+    tokens = outputLines[2].split()
     bfactor = float(tokens[3])
 
     dinv2, lnF, lnFc = readGuinier(fnOut+".guinier")
