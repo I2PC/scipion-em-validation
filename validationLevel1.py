@@ -1288,7 +1288,7 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY
         fscPermutation(project, report, "1.b FSC permutation", protImportMap1, protImportMap2, protCreateSoftMask,
                        resolution, priority=priority)
         blocres(project, report, "1.c Blocres", protImportMap, protImportMap1, protImportMap2, protCreateHardMask, resolution, fnMaskedMapDict['fnHardMaskedMap'], priority=priority)
-        resmap(project, report, "1.d Resmap", protImportMap, protImportMap1, protImportMap2, protCreateSoftMask, resolution, fnMaskedMapDict['fnSoftMaskedMap'], priority=priority)
+        resmap(project, report, "1.d Resmap", protImportMap, protImportMap1, protImportMap2, protCreateHardMask, resolution, fnMaskedMapDict['fnHardMaskedMap'], priority=priority)
         monores(project, report, "1.e MonoRes", protImportMap, protCreateHardMask, resolution, fnMaskedMapDict['fnHardMaskedMap'], priority=priority)
         monodir(project, report, "1.f MonoDir", protImportMap, protCreateHardMask, resolution, priority=priority)
         fso(project, report, "1.g FSO", protImportMap, protCreateSoftMask, resolution, priority=priority)
