@@ -1131,6 +1131,9 @@ This method analyzes the FSC in different directions and evaluates its homogenei
         if prot.isFailed():
             report.writeSummary("1.h FSC3D", secLabel, ERROR_MESSAGE)
             report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+            fsc3dStdout = open(os.path.join(project.getPath(), prot.getStderrLog()), "r").read()
+            if "ValueError: could not broadcast input array from shape" in fsc3dStdout:
+                report.write("{\\color{red} \\textbf{REASON: FSC3D software experienced an internal error.}}\\\\ \n")
             return prot
 
         Ts = protImportMapResize.outputVol.getSamplingRate()
