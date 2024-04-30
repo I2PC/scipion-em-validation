@@ -375,7 +375,7 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
             Bfactor = float(tokens[4])
     fh.close()
 
-    if FDRResolution is None or Bfactor is None:
+    if FDRResolution is None:
         report.writeSummary("1.b FSC permutation", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
@@ -388,7 +388,7 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
     saveIntermediateData(report.getReportDir(), 'FSCPermutation', True, 'FSC.png', os.path.join(project.getPath(), prot._getExtraPath("FSC.png")), 'fsc plot file')
 
     msg=\
-"""The resolution at 1\\%% of FDR was %4.1f. The estimated B-factor was %5.1f. Fig. \\ref{fig:fdrfsc} shows the
+"""The resolution at 1\\%% of FDR was %4.1f. %sFig. \\ref{fig:fdrfsc} shows the
 estimated FSC and resolution.
 
 \\begin{figure}[H]
@@ -398,7 +398,7 @@ estimated FSC and resolution.
     \\label{fig:fdrfsc}
 \\end{figure}
 
-"""%(FDRResolution, Bfactor, os.path.join(project.getPath(),prot._getExtraPath("FSC.png")))
+"""%(FDRResolution, f'The estimated B-factor was {Bfactor} ' if Bfactor else ' ', os.path.join(project.getPath(),prot._getExtraPath("FSC.png")))
     report.write(msg)
 
     saveIntermediateData(report.getReportDir(), 'FSCPermutation', False, 'FDRResolution', FDRResolution, ['\u212B', 'The resolution at 1% of FDR'])
