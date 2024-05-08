@@ -969,7 +969,7 @@ local magnitude and phase term using the spiral transform.\\\\
                                vol=map,
                                mask_in_molecule=mask,
                                max_res=resolution,
-                               numberOfThreads=1)
+                               numberOfThreads=10)
     if useSlurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
@@ -1096,8 +1096,7 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
                                objLabel=label,
                                vol=map,
                                mask_in_molecule=mask,
-                               max_res=resolution,
-                               numberOfThreads=1)
+                               max_res=resolution)
     if useSlurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)

@@ -708,7 +708,8 @@ def monores(project, report, label, protImportMap, protCreateMask, resolution, f
                                objLabel=label,
                                useHalfVolumes=True,
                                minRes=2*Ts,
-                               maxRes=max(10,5*resolution))
+                               maxRes=max(10,5*resolution),
+                               numberOfThreads=10)
     prot.associatedHalves.set(protImportMap.outputVolume)
     prot.mask.set(protCreateMask.outputMask)
     if useSlurm:
