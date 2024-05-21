@@ -49,7 +49,7 @@ import configparser
 
 from tools.utils import saveIntermediateData
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NOT_BINARY, ERROR_MESSAGE_NOT_RESIZED, STATUS_ERROR_MESSAGE
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NOT_BINARY, ERROR_MESSAGE_NOT_RESIZED, STATUS_ERROR_MESSAGE, ERROR_MESSAGE_NO_RESULTS
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -617,87 +617,92 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
     Vres[np.logical_not(idx)]=np.mean(Vres[idx])
     Vres = gaussian_filter(Vres,sigma=1.5)
     R = Vres[idx]
-    fnHist = os.path.join(report.getReportDir(),"resmapHist.png")
+    if not R: # resmap output is empty
+        report.writeSummary("1.d Resmap", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_NO_RESULTS + STATUS_ERROR_MESSAGE)
+        return
+    else:
+        fnHist = os.path.join(report.getReportDir(),"resmapHist.png")
 
-    reportHistogram(R, "Local resolution (A)", fnHist)
-    Rpercentiles = np.percentile(R, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
-    resolutionP = np.sum(R<resolution)/R.size*100
-    report.addResolutionEstimate(Rpercentiles[2])
+        reportHistogram(R, "Local resolution (A)", fnHist)
+        Rpercentiles = np.percentile(R, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
+        resolutionP = np.sum(R<resolution)/R.size*100
+        report.addResolutionEstimate(Rpercentiles[2])
 
-    toWrite = \
-"""
-Fig. \\ref{fig:histResmap} shows the histogram of the local resolution according to Resmap. Some representative
-percentiles are:
+        toWrite = \
+    """
+    Fig. \\ref{fig:histResmap} shows the histogram of the local resolution according to Resmap. Some representative
+    percentiles are:
+    
+    \\begin{center}
+        \\begin{tabular}{|c|c|}
+            \\hline
+            \\textbf{Percentile} & \\textbf{Resolution(\AA)} \\\\
+            \\hline
+            2.5\\%% & %5.2f \\\\
+            \\hline
+            25\\%% & %5.2f \\\\
+            \\hline
+            50\\%% & %5.2f \\\\
+            \\hline
+            75\\%% & %5.2f \\\\
+            \\hline
+            97.5\\%% & %5.2f \\\\
+            \\hline
+        \\end{tabular}
+    \\end{center}
+    
+    The reported resolution, %5.2f \AA, is at the percentile %4.0f. 
+    Fig. \\ref{fig:resmapColor} shows some representative views of the local resolution.
+    
+    \\begin{figure}[H]
+        \centering
+        \includegraphics[width=10cm]{%s}
+        \\caption{Histogram of the local resolution according to Resmap.}
+        \\label{fig:histResmap}
+    \\end{figure}
+    
+    """ % (Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution,
+           resolutionP, fnHist)
+        report.write(toWrite)
 
-\\begin{center}
-    \\begin{tabular}{|c|c|}
-        \\hline
-        \\textbf{Percentile} & \\textbf{Resolution(\AA)} \\\\
-        \\hline
-        2.5\\%% & %5.2f \\\\
-        \\hline
-        25\\%% & %5.2f \\\\
-        \\hline
-        50\\%% & %5.2f \\\\
-        \\hline
-        75\\%% & %5.2f \\\\
-        \\hline
-        97.5\\%% & %5.2f \\\\
-        \\hline
-    \\end{tabular}
-\\end{center}
+        saveIntermediateData(report.getReportDir(), 'resMap', False, 'resolutionPercentiles', Rpercentiles.tolist(), ['\u212B', 'List of local resolution in Angstroms at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
+        saveIntermediateData(report.getReportDir(), 'resMap', False, 'resolutionPercentile', resolutionP, ['%', 'The percentile at which the reported resolution is'])
+        saveIntermediateData(report.getReportDir(), 'resMap', False, 'resolutionList', R.tolist(), ['\u212B', 'List of local resolution in Angstroms obtained from Resmap to create the histogram'])
+        saveIntermediateData(report.getReportDir(), 'resMap', False, 'estimatedResolution', Rpercentiles[2], ['\u212B', 'The estimated resolution (median) in Angstroms obtained from Resmap'])
 
-The reported resolution, %5.2f \AA, is at the percentile %4.0f. 
-Fig. \\ref{fig:resmapColor} shows some representative views of the local resolution.
-
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=10cm]{%s}
-    \\caption{Histogram of the local resolution according to Resmap.}
-    \\label{fig:histResmap}
-\\end{figure}
-
-""" % (Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution,
-       resolutionP, fnHist)
-    report.write(toWrite)
-
-    saveIntermediateData(report.getReportDir(), 'resMap', False, 'resolutionPercentiles', Rpercentiles.tolist(), ['\u212B', 'List of local resolution in Angstroms at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
-    saveIntermediateData(report.getReportDir(), 'resMap', False, 'resolutionPercentile', resolutionP, ['%', 'The percentile at which the reported resolution is'])
-    saveIntermediateData(report.getReportDir(), 'resMap', False, 'resolutionList', R.tolist(), ['\u212B', 'List of local resolution in Angstroms obtained from Resmap to create the histogram'])
-    saveIntermediateData(report.getReportDir(), 'resMap', False, 'estimatedResolution', Rpercentiles[2], ['\u212B', 'The estimated resolution (median) in Angstroms obtained from Resmap'])
-
-    saveIntermediateData(report.getReportDir(), 'resMap', True, 'resMapHist', fnHist, 'Resmap histogram')
+        saveIntermediateData(report.getReportDir(), 'resMap', True, 'resMapHist', fnHist, 'Resmap histogram')
 
 
-    Ts = protImportMap.outputVolume.getSamplingRate()
-    report.colorIsoSurfaces("", "Local resolution according to Resmap.", "fig:resmapColor",
-                            project, "resmapViewer",
-                            fnMaskedMap, Ts,
-                            fnResMap, Rpercentiles[0], Rpercentiles[-1])
-    saveIntermediateData(report.getReportDir(), 'resMap', True, 'resMapViewer',
-                         [os.path.join(report.getReportDir(), 'resmapViewer1.jpg'),
-                          os.path.join(report.getReportDir(), 'resmapViewer2.jpg'),
-                          os.path.join(report.getReportDir(), 'resmapViewer3.jpg')], 'resMap views')
+        Ts = protImportMap.outputVolume.getSamplingRate()
+        report.colorIsoSurfaces("", "Local resolution according to Resmap.", "fig:resmapColor",
+                                project, "resmapViewer",
+                                fnMaskedMap, Ts,
+                                fnResMap, Rpercentiles[0], Rpercentiles[-1])
+        saveIntermediateData(report.getReportDir(), 'resMap', True, 'resMapViewer',
+                             [os.path.join(report.getReportDir(), 'resmapViewer1.jpg'),
+                              os.path.join(report.getReportDir(), 'resmapViewer2.jpg'),
+                              os.path.join(report.getReportDir(), 'resmapViewer3.jpg')], 'resMap views')
 
-    # Warnings
-    warnings = []
-    testWarnings = False
-    if resolutionP < 0.1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect " \
-                        "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
-                        (resolution, resolutionP))
-    msg = \
-"""\\textbf{Automatic criteria}: The validation is OK if the percentile of the user provided resolution is larger than
-0.1\\% of the percentile of the local resolution as estimated by Resmap.
-\\\\
+        # Warnings
+        warnings = []
+        testWarnings = False
+        if resolutionP < 0.1 or testWarnings:
+            warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect " \
+                            "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
+                            (resolution, resolutionP))
+        msg = \
+    """\\textbf{Automatic criteria}: The validation is OK if the percentile of the user provided resolution is larger than
+    0.1\\% of the percentile of the local resolution as estimated by Resmap.
+    \\\\
+    
+    """
+        report.write(msg)
+        report.writeWarningsAndSummary(warnings, "1.d Resmap", secLabel)
 
-"""
-    report.write(msg)
-    report.writeWarningsAndSummary(warnings, "1.d Resmap", secLabel)
-
-    #cleanPath(fnResMap)
-    cleanPath(fnVol1)
-    cleanPath(fnVol2)
+        #cleanPath(fnResMap)
+        cleanPath(fnVol1)
+        cleanPath(fnVol2)
 
 def monores(project, report, label, protImportMap, protCreateMask, resolution, fnMaskedMap, priority=False):
     Ts = protImportMap.outputVolume.getSamplingRate()
