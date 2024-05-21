@@ -906,11 +906,13 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
 
     saveIntermediateData(report.getReportDir(), 'deepRes', True, 'deepResHist', fnHist, 'deepRes histogram')
 
-    Ts = map.getSamplingRate()
+    Ts = 1 # Res volume and original volume are at different scales
     report.colorIsoSurfaces("", "Local resolution according to DeepRes.", "fig:deepresColor",
                             project, "deepresViewer",
-                            fnMaskedMap, Ts,
-                            fnRes, Rpercentiles[0], Rpercentiles[-1])
+                            os.path.join(project.getPath(), prot._getExtraPath("originalVolume.vol")),
+                            Ts,
+                            os.path.join(project.getPath(), prot._getExtraPath("chimera_resolution.vol")),
+                            Rpercentiles[0], Rpercentiles[-1])
     saveIntermediateData(report.getReportDir(), 'deepRes', True, 'deepResViewer',
                          [os.path.join(report.getReportDir(), 'deepresViewer1.jpg'),
                           os.path.join(report.getReportDir(), 'deepresViewer2.jpg'),
