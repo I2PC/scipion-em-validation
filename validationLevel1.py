@@ -617,7 +617,7 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
     Vres[np.logical_not(idx)]=np.mean(Vres[idx])
     Vres = gaussian_filter(Vres,sigma=1.5)
     R = Vres[idx]
-    if not R: # resmap output is empty
+    if len(R) == 0: # resmap output is empty
         report.writeSummary("1.d Resmap", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_NO_RESULTS + STATUS_ERROR_MESSAGE)
         return
