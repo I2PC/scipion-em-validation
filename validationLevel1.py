@@ -49,7 +49,8 @@ import configparser
 
 from tools.utils import saveIntermediateData
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NOT_BINARY, ERROR_MESSAGE_NOT_RESIZED, STATUS_ERROR_MESSAGE, ERROR_MESSAGE_NO_RESULTS
+from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NOT_BINARY, ERROR_MESSAGE_NOT_RESIZED, STATUS_ERROR_MESSAGE, ERROR_MESSAGE_NO_RESULTS, \
+    NOT_APPLY_MESSAGE, STATUS_NOT_APPLY, NOT_APPLY_WORSE_RESOLUTION
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -844,22 +845,6 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
     return prot
 
 def monodir(project, report, label, protImportMap, protCreateMask, resolution, priority=False):
-    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
-                                            'XmippProtMonoDir', doRaise=True)
-    prot = project.newProtocol(Prot,
-                               objLabel=label,
-                               fast=True,
-                               resstep=resolution/3,
-                               numberOfThreads=10)
-    prot.inputVolumes.set(protImportMap.outputVolume)
-    prot.Mask.set(protCreateMask.outputMask)
-    if useSlurm:
-        sendToSlurm(prot, priority=True if priority else False)
-    project.launchProtocol(prot)
-    #waitOutput(project, prot, 'outputVolume_doa')
-    #waitOutput(project, prot, 'azimuthalVolume')
-    #waitOutput(project, prot, 'radialVolume')
-    waitUntilFinishes(project, prot)
 
     bblCitation = \
 """\\bibitem[Vilas et~al., 2020]{Vilas2020}
@@ -878,7 +863,7 @@ Vilas, J.~L., Tagare, H.~D., Vargas, J., Carazo, J.~M., and Sorzano, C. O.~S.
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 MonoDir \\cite{Vilas2020} extends the concept of local resolution to local and directional resolution by changing 
-the shape of the filter applied to the input map. The directional analysis can reveal image alignment problems.
+the shape of the filter applied to the input map. The directional analysis can reveal image alignment problems.\\n
 
 Ideally, the radial average of the minimum, maximum, and average resolution at each voxel (note that these are spatial
 radial averages) should be flat and as low as possible. If they show some slope, this is associated with
@@ -889,6 +874,29 @@ protein. As the shells approach the outside of the protein, these radial average
 \\\\
 """ % secLabel
     report.write(msg)
+
+    if resolution>10:
+        report.writeSummary("1.f MonoDir", secLabel, NOT_APPLY_MESSAGE)
+        report.write(NOT_APPLY_WORSE_RESOLUTION % 10 + STATUS_NOT_APPLY)
+        return None
+
+    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
+                                            'XmippProtMonoDir', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel=label,
+                               fast=True,
+                               resstep=resolution/3,
+                               numberOfThreads=10)
+    prot.inputVolumes.set(protImportMap.outputVolume)
+    prot.Mask.set(protCreateMask.outputMask)
+    if useSlurm:
+        sendToSlurm(prot, priority=True if priority else False)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputVolume_doa')
+    #waitOutput(project, prot, 'azimuthalVolume')
+    #waitOutput(project, prot, 'radialVolume')
+    waitUntilFinishes(project, prot)
+
     if prot.isFailed():
         report.writeSummary("1.f MonoDir", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
