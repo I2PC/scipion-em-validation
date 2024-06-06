@@ -84,7 +84,7 @@ def waitUntilFinishes(project, prot, sleepTime=10, timeOut=432000):
 
   numberOfSleeps = timeOut / sleepTime
 
-  while not prot2.isFinished() and not prot2.isFailed():
+  while not prot2.isFinished() and not prot2.isFailed() and not prot2.isAborted():
     time.sleep(sleepTime)
     prot2 = _loadProt()
     if counter > numberOfSleeps:
