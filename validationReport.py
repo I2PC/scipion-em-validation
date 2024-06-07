@@ -29,6 +29,20 @@ doStoreIntermediateData = config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMED
 intermediateDataFinalPath = config['INTERMEDIATE_DATA'].get('DEST_PATH')
 cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 
+def writeAfterReferenceLine(fn, newLines, referenceLine):
+    with open(fn, 'r') as file:
+        content = file.readlines()
+
+    updated_content = []
+    for line in content:
+        updated_content.append(line)
+        if referenceLine in line:
+            updated_content.extend(newLines)
+
+    with open(fn, 'w') as file:
+        file.writelines(updated_content)
+
+
 def readMap(fnMap):
     return xmipp3.Image(fnMap)
 
@@ -163,11 +177,19 @@ def generateChimeraColorView(fnWorkingDir, project, fnRoot, fnMap, Ts, fnColor, 
     fn1 = os.path.join(fnWorkingDir, fnRoot + "1.jpg")
     fn2 = os.path.join(fnWorkingDir, fnRoot + "2.jpg")
     fn3 = os.path.join(fnWorkingDir, fnRoot + "3.jpg")
+
+    newLines = [
+        "run(session, 'volume dataCacheSize %d')\n" % maxMemToUse,
+        "run(session, 'volume voxelLimitForOpen %d')\n" % maxVoxelsToOpen,
+        "run(session, 'volume showPlane false')\n"
+    ]
+    referenceLine = "run(session, 'set bgColor white')"
+
+    writeAfterReferenceLine(cmdFile, newLines, referenceLine)
+
     fhCmd = open(cmdFile, "a")
     toWrite = \
 """
-run(session, 'volume voxelLimitForOpen %d')
-run(session, 'volume showPlane false')
 run(session, 'windowsize 1300 700')
 run(session, 'view all')
 run(session, 'turn y -90')
@@ -184,7 +206,7 @@ run(session, 'turn x 90')
 run(session, 'view all')
 run(session, 'save %s')
 run(session, 'exit')
-""" % (maxVoxelsToOpen, fn1, fn2, fn3)
+""" % (fn1, fn2, fn3)
     fhCmd.write(toWrite)
     fhCmd.close()
 
