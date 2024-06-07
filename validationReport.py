@@ -969,9 +969,6 @@ This Validation Report Service is explained in more detail in the paper \\cite{S
         toWrite += "\\end{thebibliography}\n\n"
         toWrite += "\\end{document}\n"
         self.fh.write(toWrite)
-        # Check if there are warnings in the report
-        if "WARNINGS" not in self.fh:
-            self.fhSummaryWarnings.write("No warnings.")
         self.fh.close()
 
         self.fhAbstract.write('\n\n')
