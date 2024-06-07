@@ -162,7 +162,7 @@ exit
     from chimera import Plugin
     args = "--nogui --offscreen chimeraScript.cxc"
     Plugin.runChimeraProgram(Plugin.getProgram(), args, cwd=fnWorkingDir)
-    cleanPath(fnTmp)
+    #cleanPath(fnTmp)
 
 def generateChimeraColorView(fnWorkingDir, project, fnRoot, fnMap, Ts, fnColor, minVal, maxVal):
     viewer = LocalResolutionViewer(project=project)
