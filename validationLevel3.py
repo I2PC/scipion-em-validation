@@ -213,6 +213,11 @@ the images assigned to that class.\\\\
     #waitOutput(project, protCore, 'outputClasses_core')
     waitUntilFinishes(project, protCore)
 
+    if protCore.isFailed():
+        report.writeSummary("3.a Outlier detection", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_X_FAILED % "Core analysis" + STATUS_ERROR_MESSAGE)
+        return protCore
+
     if protCore.isAborted():
         print(PRINT_PROTOCOL_ABORTED + ": " + NAME_CORE_ANALYSIS)
         report.writeSummary("3.a Outlier detection", secLabel, ERROR_ABORTED_MESSAGE)
