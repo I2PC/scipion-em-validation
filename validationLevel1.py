@@ -49,8 +49,7 @@ import configparser
 
 from tools.utils import saveIntermediateData
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NOT_BINARY, ERROR_MESSAGE_NOT_RESIZED, STATUS_ERROR_MESSAGE, ERROR_MESSAGE_NO_RESULTS, \
-    NOT_APPLY_MESSAGE, STATUS_NOT_APPLY, NOT_APPLY_WORSE_RESOLUTION
+from resources.constants import *
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -148,6 +147,12 @@ behavior. If they have, this is typically due to the presence of a mask in real 
     if prot.isFailed():
         report.writeSummary("1.a Global resolution", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return prot
+
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_GLOBAL_RES)
+        report.writeSummary("1.a Global resolution", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
     saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'fsc', os.path.join(project.getPath(), prot._getPath('fsc.xmd')), 'fsc xmd file containing data to create plots')
@@ -363,6 +368,12 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
         report.writeSummary("1.b FSC permutation", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
+    
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_FSC_PERMU)
+        report.writeSummary("1.b FSC permutation", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
 
     fh = open(prot._getPath("logs/run.stdout"))
     FDRResolution = None
@@ -462,6 +473,12 @@ This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC)
     if prot.isFailed():
         report.writeSummary("1.c Blocres", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return prot
+    
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_BLOCRES)
+        report.writeSummary("1.c Blocres", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
     fnBlocres = os.path.join(project.getPath(), prot._getExtraPath("resolutionMap.map"))
@@ -756,6 +773,12 @@ if its energy is signficantly above the level of noise.\\\\
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_MONORES)
+        report.writeSummary("1.e MonoRes", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
+
     fnMonoRes = os.path.join(project.getPath(), prot._getExtraPath("monoresResolutionMap.mrc"))
     saveIntermediateData(report.getReportDir(), 'monoRes', True, 'monoresResolutionMap.mrc', fnMonoRes, 'Monores output volume map')
 
@@ -902,6 +925,12 @@ protein. As the shells approach the outside of the protein, these radial average
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_MONODIR)
+        report.writeSummary("1.f MonoDir", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
+
     # Radial averages
     fnMonodirRadial = os.path.join(report.getReportDir(), "monoDirRadial.png")
     md = xmipp3.MetaData()
@@ -987,6 +1016,12 @@ respectively. This region is shaded in the plot.
     if prot.isFailed():
         report.writeSummary("1.g FSO", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return prot
+    
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_FSO)
+        report.writeSummary("1.g FSO", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
     md = xmipp3.MetaData(prot._getExtraPath("fso.xmd"))
@@ -1149,6 +1184,12 @@ This method analyzes the FSC in different directions and evaluates its homogenei
             if "ValueError: could not broadcast input array from shape" in fsc3dStdout:
                 report.write("{\\color{red} \\textbf{REASON: FSC3D software experienced an internal error.}}\\\\ \n")
             return prot
+        
+        if prot.isAborted():
+            print(PRINT_PROTOCOL_ABORTED + ": " + NAME_FSC3D)
+            report.writeSummary("1.h FSC3D", secLabel, ERROR_ABORTED_MESSAGE)
+            report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+            return prot
 
         Ts = protImportMapResize.outputVol.getSamplingRate()
         md=np.genfromtxt(prot._getExtraPath(os.path.join('Results_vol','Plotsvol.csv')), delimiter=' ')
@@ -1293,9 +1334,13 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY
     protImportMap1 = importMap(project, "import half1", fnMap1, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=priority)
     if protImportMap1.isFailed():
         raise Exception("Import map did not work")
+    if protImportMap1.isAborted():
+        raise Exception("Import map was MANUALLY ABORTED")
     protImportMap2 = importMap(project, "import half2", fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=priority)
     if protImportMap2.isFailed():
         raise Exception("Import map did not work")
+    if protImportMap2.isAborted():
+        raise Exception("Import map was MANUALLY ABORTED")
     reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2)
 
     # Quality Measures
