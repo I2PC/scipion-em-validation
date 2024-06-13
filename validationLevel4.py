@@ -608,7 +608,7 @@ def cryosparcAlignment(project, report, protMap, protMask, protParticles, symmet
     elif symmetry=="i2":
         prot.symmetryGroup.set(5)
     if useSlurm:
-        skipSlurm(protClassif2D, gpuIdSkipSlurm)
+        skipSlurm(prot, gpuIdSkipSlurm)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
     #waitOutput(project, prot, 'outputParticles')
