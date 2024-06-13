@@ -1240,7 +1240,7 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
         return prot
 
     hand = prot.outputHand.get()
-    msg="Deep hand assigns a score of %4.3f to the input volume.\\\\ \n"%hand
+    msg="Deep hand assigns a score of %4.3f to the input volume.\\\\ \\n\\n"%hand
     report.write(msg)
 
     saveIntermediateData(report.getReportDir(), 'deepHand', False, 'score', hand, ['', 'Value between 0 and 1 that determines the correction of the hand (0 correct hand, 1 incorrect hand)'])
