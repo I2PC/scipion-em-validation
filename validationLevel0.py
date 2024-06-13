@@ -48,8 +48,7 @@ import configparser
 
 from tools.utils import saveIntermediateData
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, NOT_APPLY_MESSAGE, STATUS_NOT_APPLY, STATUS_ERROR_MESSAGE, \
-    NOT_APPY_NO_RESOLUTION, NOT_APPLY_BETTER_RESOLUTION, NOT_APPLY_WORSE_RESOLUTION
+from resources.constants import *
 
 # used by the ProtImportVolumes protocol, volumes will be downloaded from EMDB
 IMPORT_FROM_EMDB = 1
@@ -842,6 +841,12 @@ input map to the appearance of the atomic structures a local resolution label ca
             report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % "System ran out of memory. Try to launch it again.")
         report.write(STATUS_ERROR_MESSAGE)
         return prot
+    
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_DEEPRES)
+        report.writeSummary("0.e DeepRes", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
 
     fnRes = os.path.join(project.getPath(), prot._getExtraPath("deepRes_resolution.vol"))
     if not os.path.exists(fnRes):
@@ -985,6 +990,12 @@ local magnitude and phase term using the spiral transform.\\\\
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
     
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_LOCBFACTOR)
+        report.writeSummary("0.f LocBfactor", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
+    
     fnBfactorAbs = os.path.join(project.getPath(), fnBfactor)
     saveIntermediateData(report.getReportDir(), 'locBfactor', True, 'bmap.mrc', fnBfactorAbs, 'Local b factor output volume map')
 
@@ -1109,6 +1120,12 @@ LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromol
     if prot.isFailed() or not os.path.exists(fnOccupancy):
         report.writeSummary("0.g LocOccupancy", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return prot
+    
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_LOCOCCUPANCY)
+        report.writeSummary("0.g LocOccupancy", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
     
     fnOccupancyAbs = os.path.join(project.getPath(), fnOccupancy)
@@ -1239,6 +1256,12 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_DEEPHAND)
+        report.writeSummary("0.h DeepHand", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
+
     hand = prot.outputHand.get()
     msg="Deep hand assigns a score of %4.3f to the input volume.\\\\ \\n\\n"%hand
     report.write(msg)
@@ -1340,6 +1363,8 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
     protImportMap = importMap(project, report, "import map", fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=priority)
     if protImportMap.isFailed():
         raise Exception("Import map did not work")
+    elif protImportMap.isAborted():
+        raise Exception("Import map was MANUALLY ABORTED")
     saveIntermediateData(report.fnReportDir, 'inputData', False, 'sampling rate', Ts, ['\u212B', 'Sampling rate from EMDB map in Angstroms'])
     saveIntermediateData(report.fnReportDir, 'inputData', False, 'threshold', threshold, ['', 'Threshold from EMDB map'])
     saveIntermediateData(report.fnReportDir, 'inputData', False, 'resolution', resolution, ['\u212B', 'Resolution from EMDB map'])
@@ -1347,9 +1372,13 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
     protCreateHardMask = createMask(project, "create hard mask", protImportMap.outputVolume, Ts, threshold, smooth=False, priority=priority)
     if protCreateHardMask.isFailed():
         raise Exception("Create hard mask did not work")
+    elif protCreateHardMask.isAborted():
+        raise Exception("Create hard mask was MANUALLY ABORTED")
     protCreateSoftMask = createMask(project, "create soft mask", protImportMap.outputVolume, Ts, threshold, smooth=True, priority=priority)
     if protCreateSoftMask.isFailed():
         raise Exception("Create soft mask did not work")
+    if protCreateSoftMask.isAborted():
+        raise Exception("Create soft mask MANUALLY ABORTED")
     reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateHardMask, protCreateSoftMask)
     # properMask = properMask(protCreateMask.outputMask)
 

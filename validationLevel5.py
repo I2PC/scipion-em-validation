@@ -33,7 +33,7 @@ from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
 import configparser
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, STATUS_ERROR_MESSAGE
+from resources.constants import *
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -60,6 +60,8 @@ def importMicrographs(project, label, fnMics, TsMics, kV, Cs, Q0):
     waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import micrographs did not work")
+    if protImport.isAborted():
+        raise Exception("Import micrographs was MANUALLY ABORTED")
 
     return protImport
 
@@ -77,6 +79,8 @@ def extractCoords(project, label, protImportParticles, protMics):
     waitUntilFinishes(project, prot)
     if prot.isFailed():
         raise Exception("Extract coordinates did not work")
+    if prot.isAborted():
+        raise Exception("Extract coordinates was MANUALLY ABORTED")
 
     return prot
 
@@ -154,6 +158,12 @@ coordinate is outside a region with aggregations, ice crystals, carbon edges, et
     if prot.isFailed():
         report.writeSummary("5.a Micrograph cleaner", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return prot
+
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_MICROGRAPH_CLEANER)
+        report.writeSummary("5.a Micrograph cleaner", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
     Ninput = protCoords.outputCoordinates.getSize()

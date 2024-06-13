@@ -52,8 +52,7 @@ import configparser
 from tools.utils import saveIntermediateData, getFilename, getScoresFromWS, getFileFromWS
 from tools.emv_utils import convert_2_json
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_EMPTY_VOL, STATUS_ERROR_MESSAGE, \
-    ERROR_CONVERT_MESSAGE, STATUS_ERROR_CONVERT_MESSAGE
+from resources.constants import *
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -104,6 +103,8 @@ def importModel(project, report, label, protImportMap, fnPdb, priority=False):
     waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import atomic model did not work")
+    if protImport.isAborted():
+        raise Exception("Import atomic model was MANUALLY ABORTED")
     saveIntermediateData(report.fnReportDir, 'inputData', True, 'atomic model', os.path.join(project.getPath(), fnPdb.split('/')[-1].replace('.pdb', '.cif')), 'atomic model')
 
     return protImport
@@ -173,6 +174,12 @@ have a Gaussian shape.\\\\
             report.writeSummary("A.a MapQ", secLabel, ERROR_MESSAGE)
             report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
             return
+
+        if prot.isAborted():
+            print(PRINT_PROTOCOL_ABORTED + ": " + NAME_MAPQ)
+            report.writeSummary("A.a MapQ", secLabel, ERROR_ABORTED_MESSAGE)
+            report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+            return prot
 
         saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*.cif')))[0], 'cif file')
         saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map_All.txt')))[0], 'Q__map_All txt file')
@@ -426,6 +433,13 @@ def convertPDB(project, report, protImportMap, protAtom, priority=False):
         report.write(msg)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_CONVERT_MESSAGE)
         return None
+
+    if protConvert.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_CONVERSION_PDB_MAP)
+        report.writeSummary("A. Conversion PDB to map", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return protConvert
+
     # Check if volume is not empty
     volumeData = xmipp3.Image(protConvert.outputVolume.getFileName()).getData()
     if not np.sum(volumeData) > 0:
@@ -483,6 +497,12 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
         report.writeSummary("A.b FSC-Q", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return
+
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_FSCQ)
+        report.writeSummary("A.b FSC-Q", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
 
     V = xmipp3.Image(prot._getExtraPath("pdb_volume.map"))
     FSCQr = xmipp3.Image(prot._getExtraPath("diferencia_norm.map"))
@@ -588,6 +608,12 @@ the different local resolutions or local heterogeneity.\\\\
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return
 
+    if prot1.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_MULTIMODEL)
+        report.writeSummary("A.c Multimodel", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot1
+
     Prot = pwplugin.Domain.importFromPlugin('atomstructutils.protocols',
                                             'ProtRMSDAtomStructs', doRaise=True)
     prot2 = project.newProtocol(Prot,
@@ -602,6 +628,12 @@ the different local resolutions or local heterogeneity.\\\\
         report.writeSummary("A.c Multimodel", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return
+
+    if prot2.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_MULTIMODEL)
+        report.writeSummary("A.c Multimodel", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot2
 
     fnCifs = glob.glob(prot2._getPath('*.cif'))
     if len(fnCifs)==0:
@@ -806,6 +838,12 @@ quality of the map.
             if error in phenixStdout:
                 report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % error)
         report.write(STATUS_ERROR_MESSAGE)
+        return prot
+
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_PHENIX)
+        report.writeSummary("A.e Phenix", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
     fnPkl = os.path.join(project.getPath(),prot._getExtraPath("validation_cryoem.pkl"))
@@ -1119,6 +1157,12 @@ that may need improvement.
         report.write(STATUS_ERROR_MESSAGE)
         return prot
 
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_EMRINGER)
+        report.writeSummary("A.f EMRinger", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
+
     dataDict=json.loads(str(prot.stringDataDict), object_pairs_hook=collections.OrderedDict)
 
     maxScoreIndex = dataDict['_maxScoreIndex']
@@ -1282,6 +1326,12 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         if prot.isFailed():
             report.writeSummary("A.f DAQ", secLabel, ERROR_MESSAGE)
             report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+            return prot
+
+        if prot.isAborted():
+            print(PRINT_PROTOCOL_ABORTED + ": " + NAME_DAQ)
+            report.writeSummary("A.f DAQ", secLabel, ERROR_ABORTED_MESSAGE)
+            report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
             return prot
         
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQcif', os.path.join(project.getPath(), prot._getPath('outputStructure.cif')), 'cif file containing DAQ scores')

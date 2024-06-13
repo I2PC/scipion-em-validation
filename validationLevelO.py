@@ -37,8 +37,7 @@ from resourceManager import waitOutput, sendToSlurm, waitOutputFile, waitUntilFi
 
 import configparser
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NO_RESULTS, \
-    STATUS_ERROR_MESSAGE
+from resources.constants import *
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -88,6 +87,12 @@ be thought as a measure of the residue surface exposure.\\\\
         report.writeSummary("O.a XLM", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
+
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_XLM)
+        report.writeSummary("O.a XLM", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
 
     fileList = glob.glob(prot._getExtraPath("Jwalk_results/*.txt"))
     if len(fileList)==0:
@@ -197,6 +202,12 @@ obtained by a SAXS experiment. \\\\
         report.writeSummary("O.b SAXS", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
+    
+    if protPseudo.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_SAXS)
+        report.writeSummary("O.b SAXS", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return protPseudo
 
     Prot = pwplugin.Domain.importFromPlugin('atsas.protocols',
                                             'AtsasProtConvertPdbToSAXS', doRaise=True)
@@ -213,6 +224,12 @@ obtained by a SAXS experiment. \\\\
         report.writeSummary("O.b SAXS", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
+
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_SAXS)
+        report.writeSummary("O.b SAXS", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
 
     fnSummary = prot._getExtraPath("pseudoatoms_experimental_SAXS_curve.fit")
     fh = open(fnSummary)
@@ -292,6 +309,12 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
 
+    if protImport.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_TILT_PAIR)
+        report.writeSummary("O.c Tilt pair", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return protImport
+
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportCoordinatesPairs', doRaise=True)
     x,y,z = protMap.outputVolume.getDimensions()
@@ -317,6 +340,12 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
 
+    if protCoords.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_TILT_PAIR)
+        report.writeSummary("O.c Tilt pair", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return protCoords
+
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtExtractParticlesPairs', doRaise=True)
     protExtract = project.newProtocol(Prot,
@@ -333,6 +362,12 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
         report.writeSummary("O.c Tilt pair", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
+
+    if protExtract.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_TILT_PAIR)
+        report.writeSummary("O.c Tilt pair", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return protExtract
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtCropResizeVolumes', doRaise=True)
@@ -373,6 +408,13 @@ assignment of two sets of particles related by a single-axis tilt \\cite{Henders
         report.writeSummary("O.c Tilt pair", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return None
+
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_TILT_PAIR)
+        report.writeSummary("O.c Tilt pair", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
+
     fnAngles = os.path.join(project.getPath(),prot._getExtraPath("TiltValidate_01/perparticletilts.json"))
     with open(fnAngles) as jsonFile:
         jsonDict = json.load(jsonFile)

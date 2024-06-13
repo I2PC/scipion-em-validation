@@ -38,7 +38,7 @@ from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
 import configparser
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, STATUS_ERROR_MESSAGE
+from resources.constants import *
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -58,6 +58,8 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
     waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import averages did not work")
+    if protImport.isAborted():
+        raise Exception("Import averages was MANUALLY ABORTED")
 
     XdimMap = protImportMap.outputVolume.getDim()[0]
     TsMap = protImportMap.outputVolume.getSamplingRate()
@@ -132,6 +134,12 @@ reveal systematic differences between them.\\\\
     if prot.isFailed():
         report.writeSummary("2.a Compare reprojections", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return prot
+
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_COMPARE_PROJECTIONS)
+        report.writeSummary("2.a Compare reprojections", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
     md = xmipp3.MetaData(prot._getExtraPath("anglesCont.xmd"))

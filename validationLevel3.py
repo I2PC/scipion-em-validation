@@ -38,7 +38,7 @@ from resourceManager import waitOutput, sendToSlurm, skipSlurm, waitUntilFinishe
 
 import configparser
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, ERROR_MESSAGE_NOT_CLASSES, STATUS_ERROR_MESSAGE
+from resources.constants import *
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -71,6 +71,8 @@ def importParticles(project, label, protImportMap, protImportClasses, fnParticle
     waitUntilFinishes(project, protImport)
     if protImport.isFailed():
         raise Exception("Import averages did not work")
+    if protImport.isAborted():
+        raise Exception("Import averages was MANUALLY ABORTED")
 
     XdimMap = protImportMap.outputVolume.getDim()[0]
     TsMap = protImportMap.outputVolume.getSamplingRate()
@@ -194,6 +196,12 @@ the images assigned to that class.\\\\
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return protGL2D
 
+    if protGL2D.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_OUTLIER_DETECTION)
+        report.writeSummary("3.a Outlier detection", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return protGL2D
+
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtCoreAnalysis', doRaise=True)
     protCore = project.newProtocol(Prot,
@@ -204,6 +212,12 @@ the images assigned to that class.\\\\
     project.launchProtocol(protCore)
     #waitOutput(project, protCore, 'outputClasses_core')
     waitUntilFinishes(project, protCore)
+
+    if protCore.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_CORE_ANALYSIS)
+        report.writeSummary("3.a Outlier detection", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return protCore
 
     originalSize = {}
     for item in protGL2D.outputClasses:
@@ -392,6 +406,12 @@ and the number of particles available to the server, the new classes should rese
     if protClassif2D.isFailed():
         report.writeSummary("3.c Classification external consistency", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return protClassif2D
+    
+    if protClassif2D.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_CLASSIFICATION_EXT_CONSISTENCY)
+        report.writeSummary("3.c Classification external consistency", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return protClassif2D
 
     fileList = glob.glob(protClassif2D._getExtraPath("cryosparc_*_class_averages_scaled.mrcs"))

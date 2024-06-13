@@ -37,7 +37,7 @@ from resourceManager import waitOutput, sendToSlurm, skipSlurm, waitUntilFinishe
 
 import configparser
 
-from resources.constants import ERROR_MESSAGE, ERROR_MESSAGE_PROTOCOL_FAILED, STATUS_ERROR_MESSAGE
+from resources.constants import *
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -131,6 +131,12 @@ seen in the similarity measures are not caused by defocus groups.\\\\
     if prot.isFailed():
         report.writeSummary("4.a Similarity criteria", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return prot
+
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_SIMILARITY_CRITERIA)
+        report.writeSummary("4.a Similarity criteria", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
     md=xmipp3.MetaData(prot._getExtraPath(os.path.join('Iter001','angles.xmd')))
@@ -239,6 +245,12 @@ of the smoothed cross-correlation landscape.\\\\
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_ALIGN_SMOOTHNESS)
+        report.writeSummary("4.b Alignability smoothness", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
+
     md = xmipp3.MetaData(prot._getExtraPath("Iter1/anglesDisc.xmd"))
     dist2Max = np.array(md.getColumnValues(xmipp3.MDL_GRAPH_DISTANCE2MAX_PREVIOUS))
 
@@ -337,6 +349,12 @@ assignment. The similarity between both is again encoded between -1 and 1.\\\\
     if prot.isFailed():
         report.writeSummary("4.c Alignability", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return prot
+    
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_ALIGNABILITY)
+        report.writeSummary("4.c Alignability", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
     md=xmipp3.MetaData(prot._getExtraPath("vol001_pruned_particles_alignability.xmd"))
@@ -540,6 +558,12 @@ particles given by the user and the one done by Relion.\\\\
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_RELION_ALIGN)
+        report.writeSummary("4.d1 Relion alignment", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
+
     shiftOutliers, angleOutliers = compareAlignment(project, report, protResizeMap.outputVol,
                                                     protResizeParticles, prot, symmetry,
                                                     "1. Relion", "the user", "Relion", "alignmentRelion")
@@ -619,6 +643,12 @@ of the particles given by the user and the one done by CryoSparc.\\\\
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_CRYOSPARC_ALIGN)
+        report.writeSummary("4.d2 CryoSparc alignment", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
+
     shiftOutliers, angleOutliers = compareAlignment(project, report, protMap.outputVol, protParticles, prot, symmetry,
                                                     "2. Cryosparc", "the user", "CryoSparc", "alignmentCryosparc")
 
@@ -661,6 +691,13 @@ alignability of the input images.\\\\
     if protRelion.isFailed() or protCryoSparc.isFailed():
         report.writeSummary("4.d3 Relion/CryoSparc alignments", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return 
+
+    if protRelion.isAborted() or protCryoSparc.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_RELION_CRYOSPARC_ALIGN)
+        report.writeSummary("4.d3 Relion/CryoSparc alignments", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return
 
     shiftOutliers, angleOutliers = compareAlignment(project, report, protRelion.outputVolume, protRelion, protCryoSparc,
                                                     symmetry, "3. Relion/Cryosparc", "Relion", "CryoSparc",
@@ -732,6 +769,12 @@ arbitrary number of images in each one, but without any significant structural d
     if prot.isFailed():
         report.writeSummary("4.e Classification without alignment", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return prot
+
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_CLASSIFICATION_WITHOUT_ALIGN)
+        report.writeSummary("4.e Classification without alignment", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
     totalImgs = protParticles.outputParticles.getSize()
@@ -826,6 +869,12 @@ the reconstructions with experimental particles should always be better than tho
     if prot.isFailed():
         report.writeSummary("4.f Overfitting detection", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return prot
+    
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_OVERFITTING_DETECT)
+        report.writeSummary("4.f Overfitting detection", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
     def readResults(fn):
@@ -934,6 +983,12 @@ number between 0 (inefficient) and 1 (total efficiency).\\\\
     if prot.isFailed():
         report.writeSummary("4.g Angular distribution efficiency", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return prot
+    
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_ANGULAR_DISTR_EFFICIENCY)
+        report.writeSummary("4.g Angular distribution efficiency", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
     fh=open(prot._getExtraPath("input_angles_PSFres.dat"))
@@ -1123,6 +1178,12 @@ the differences in defoci cannot be larger than the ice thickness. We also estim
     if protPostprocess.isFailed():
         report.writeSummary("4.i CTF stability", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return protPostprocess
+    
+    if protPostprocess.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_CTF_STABILITY)
+        report.writeSummary("4.i CTF stability", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return protPostprocess
 
     Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
