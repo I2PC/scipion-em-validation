@@ -1288,8 +1288,10 @@ This method analyzes the FSC in different directions and evaluates its homogenei
             report.addResolutionEstimate(1/fg)
     else:
         report.writeSummary("1.h FSC3D", secLabel, ERROR_MESSAGE)
-        if not protResizeHalf1 or not protResizeHalf2:
-            report.write(ERROR_MESSAGE_NOT_RESIZED + STATUS_ERROR_MESSAGE)
+        if not protResizeHalf1:
+            report.write(ERROR_MESSAGE_HALF1_NOT_RESIZED + STATUS_ERROR_MESSAGE)
+        if not protResizeHalf2:
+            report.write(ERROR_MESSAGE_HALF2_NOT_RESIZED + STATUS_ERROR_MESSAGE)
 
 
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):
