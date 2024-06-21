@@ -29,6 +29,13 @@ doStoreIntermediateData = config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMED
 intermediateDataFinalPath = config['INTERMEDIATE_DATA'].get('DEST_PATH')
 cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 
+def isHomogeneous(value1, value2, eps=0.01):
+    if abs(value1-value2) < eps:
+        isHomogeneous = True
+    else:
+        isHomogeneous = False
+    return isHomogeneous
+
 def writeAfterReferenceLine(fn, newLines, referenceLine):
     with open(fn, 'r') as file:
         content = file.readlines()

@@ -40,7 +40,7 @@ import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPattern, cleanPath
 from pwem.emlib.image import ImageHandler
 from validationReport import readMap, calculateSha256, CDFFromHistogram, CDFpercentile, reportPlot, \
-    radialPlot, reportMultiplePlots, reportHistogram
+    radialPlot, reportMultiplePlots, reportHistogram, isHomogeneous
 import xmipp3
 
 from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished
@@ -552,6 +552,12 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
     # Warnings
     warnings = []
     testWarnings = False
+
+    RperHomogeneous = isHomogeneous(Rpercentiles[0], Rpercentiles[-1])
+    if RperHomogeneous:
+        warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
+                        "be some program issues analyzing the data.}}")
+
     if resolutionP < 0.1 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
@@ -705,6 +711,12 @@ This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the 
         # Warnings
         warnings = []
         testWarnings = False
+
+        RperHomogeneous = isHomogeneous(Rpercentiles[0], Rpercentiles[-1])
+        if RperHomogeneous:
+            warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
+                            "be some program issues analyzing the data.}}")
+
         if resolutionP < 0.1 or testWarnings:
             warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect " \
                             "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
@@ -853,6 +865,12 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
     # Warnings
     warnings=[]
     testWarnings = False
+
+    RperHomogeneous = isHomogeneous(Rpercentiles[0], Rpercentiles[-1])
+    if RperHomogeneous:
+        warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
+                        "be some program issues analyzing the data.}}")
+
     if resolutionP<0.001 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
                         "to the local resolution distribution. It occupies the %5.2f percentile}}"%\

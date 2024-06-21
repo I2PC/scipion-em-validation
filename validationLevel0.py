@@ -38,7 +38,7 @@ from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
 from pwem import emlib
 from validationReport import readMap, readGuinier, latexEnumerate, calculateSha256, reportPlot, reportMultiplePlots,\
-    reportHistogram
+    reportHistogram, isHomogeneous
 
 import xmipp3
 
@@ -926,6 +926,12 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
     # Warnings
     warnings = []
     testWarnings = False
+
+    RperHomogeneous = isHomogeneous(Rpercentiles[0], Rpercentiles[-1])
+    if RperHomogeneous:
+        warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
+                        "be some program issues analyzing the data.}}")
+
     if resolutionP < 0.1 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
@@ -1062,6 +1068,12 @@ Fig. \\ref{fig:locBfactorColor} shows some representative views of the local B-f
     # Warnings
     warnings=[]
     testWarnings = False
+
+    BperHomogeneous = isHomogeneous(Bpercentiles[0], Bpercentiles[-1])
+    if BperHomogeneous:
+        warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
+                        "be some program issues analyzing the data.}}")
+
     if Bpercentiles[2]<-300 or Bpercentiles[2]>0 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The median B-factor is out of the interval [-300,0]}}")
     msg = \
@@ -1192,6 +1204,12 @@ Fig. \\ref{fig:locOccupancyColor} shows some representative views of the local o
     # Warnings
     warnings=[]
     testWarnings = False
+
+    BperHomogeneous = isHomogeneous(Bpercentiles[0], Bpercentiles[-1], eps=0.1)
+    if BperHomogeneous:
+        warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
+                        "be some program issues analyzing the data.}}")
+
     if Bpercentiles[2]<0.5 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The median occupancy is less than 50\\%}}")
     msg = \

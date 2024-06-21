@@ -44,7 +44,7 @@ from pwem.viewers.viewer_localres import replaceOcuppancyWithAttribute, makeResi
 import pwem.convert.atom_struct
 import xmipp3
 
-from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot
+from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot, isHomogeneous
 from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished
 
 import configparser
@@ -387,6 +387,13 @@ else:
     # Warnings
     warnings=[]
     testWarnings = False
+
+    BperHomogeneous = isHomogeneous(Bpercentiles[0], Bpercentiles[-1], eps=0.1)
+
+    if BperHomogeneous:
+        warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
+                        "be some program issues analyzing the data.}}")
+
     if Bpercentiles[2]<0.1 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The median Q-score is less than 0.1.}}")
     msg = \
@@ -513,6 +520,7 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
 
     fnHist = os.path.join(report.getReportDir(),"fscqrHist.png")
     reportHistogram(np.clip(fscqr, -1.5, 1.5), "FSC-Qr", fnHist)
+    Bpercentiles = np.percentile(np.clip(fscqr, -1.5, 1.5), np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
 
 
     msg =\
@@ -549,6 +557,13 @@ whose FSC-Qr absolute value is beyond 1.5 is %5.1f \\%%.
 
     warnings = []
     testWarnings = False
+
+    BperHomogeneous = isHomogeneous(Bpercentiles[0], Bpercentiles[-1], eps=0.1)
+
+    if BperHomogeneous:
+        warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
+                        "be some program issues analyzing the data.}}")
+
     if f15>10 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The percentage of voxels that have a FSC-Qr larger than 1.5 in "\
                         "absolute value is %5.1f, that is larger than 10\\%%}}"%f15)
@@ -1361,6 +1376,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
 
         fnDAQHist = os.path.join(report.getReportDir(),"daqHist.png")
         reportHistogram(daqValues,"DAQ", fnDAQHist)
+        Dpercentiles = np.percentile(daqValues, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
         saveIntermediateData(report.getReportDir(), 'DAQ', False, 'DAQHistData', daqValues, ['', 'DAQ values to create histogram'])
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQHist', fnDAQHist, 'DAQ histogram')
 
@@ -1409,6 +1425,13 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
 
     warnings = []
     testWarnings = False
+
+    DperHomogeneous = isHomogeneous(Dpercentiles[0], Dpercentiles[-1])
+
+    if DperHomogeneous:
+        warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
+                        "be some program issues analyzing the data.}}")
+
     if stdDaq==0 or testWarnings:
         warnings.append("{\\color{red} \\textbf{Could not be measured.}}")
     if avgDaq<0.5 or testWarnings:
