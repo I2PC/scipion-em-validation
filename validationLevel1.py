@@ -1201,6 +1201,8 @@ This method analyzes the FSC in different directions and evaluates its homogenei
             fsc3dStdout = open(os.path.join(project.getPath(), prot.getStderrLog()), "r").read()
             if "ValueError: could not broadcast input array from shape" in fsc3dStdout:
                 report.write("{\\color{red} \\textbf{REASON: FSC3D software experienced an internal error.}}\\\\ \n")
+            if "UnboundLocalError: cannot access local variable 'highpassfilter_fouriershell' where it is not associated with a value" in fsc3dStdout:
+                report.write("{\\color{red} \\textbf{REASON: FSC3D software experienced an internal error.}}\\\\ \n")
             return prot
         
         if prot.isAborted():
