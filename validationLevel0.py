@@ -405,7 +405,7 @@ def maskAnalysis(report, volume, mask, Ts, threshold):
     rawM = np.where(V>=threshold,1,0)
 
     # Connected components
-    structure = np.ones((3, 3, 3), dtype=np.int)
+    structure = np.ones((3, 3, 3), dtype=np.int64)
     labeled, ncomponents = scipy.ndimage.measurements.label(rawM, structure)
     sumRawM=np.sum(rawM)
     secLabel="sec:maskAnalysis"
@@ -724,12 +724,14 @@ is between 0 and 300 \AA$^2$.
         with open(slurmScriptPath.replace('.sh', '.job.err'), 'r') as slurmOutputFile:
             outputLines = slurmOutputFile.read().split('\n')
 
-    tokens = outputLines[1].split()
-    a = float(tokens[2])
-    b = float(tokens[4])
-
-    tokens = outputLines[2].split()
-    bfactor = float(tokens[3])
+    for line in outputLines:
+        if "Fitted slope=" in line and "intercept=" in line:
+            tokens = line.split()
+            a = float(tokens[2])
+            b = float(tokens[4])
+        if "Applying B-factor of" in line:
+            tokens = line.split()
+            bfactor = float(tokens[3])
 
     dinv2, lnF, lnFc = readGuinier(fnOut+".guinier")
     fitted = a*dinv2 + b

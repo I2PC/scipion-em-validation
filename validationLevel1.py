@@ -225,7 +225,7 @@ behavior. If they have, this is typically due to the presence of a mask in real 
         z, y, x = np.indices((V.shape))
         center = [int(x/2) for x in V.shape]
         r = np.sqrt((x - center[2]) ** 2 + (y - center[1]) ** 2 + (z - center[0]) ** 2)
-        r = r.astype(np.int)
+        r = r.astype(np.int64)
 
         tbin = np.bincount(r.ravel(), V.ravel())
         nr = np.bincount(r.ravel())

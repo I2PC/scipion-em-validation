@@ -84,7 +84,7 @@ def readGuinier(fnGuinier):
 
 def writeImage(I, fnOut, scale=True):
     if scale:
-        I = I.astype(np.float)
+        I = I.astype(np.float64)
         I -= np.min(I)
         I *= 255/np.max(I)
     Iout = PIL.Image.fromarray(I.astype(np.uint8)[::-1])
