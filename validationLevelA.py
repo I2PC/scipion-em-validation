@@ -427,7 +427,7 @@ def convertPDB(project, report, protImportMap, protAtom, priority=False):
     secLabel = "sec:convertPdb2Map"
     msg = \
     """
-    \\subsection{Level A.a Conversion PDB to map}
+    \\subsection{Level A.b Conversion PDB to map}
     \\label{%s}
     \\textbf{Explanation}:\\\\ 
     Convert a PDB file into a volume.\\\\
@@ -1339,13 +1339,13 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         waitUntilFinishes(project, prot)
 
         if prot.isFailed():
-            report.writeSummary("A.f DAQ", secLabel, ERROR_MESSAGE)
+            report.writeSummary("A.g DAQ", secLabel, ERROR_MESSAGE)
             report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
             return prot
 
         if prot.isAborted():
             print(PRINT_PROTOCOL_ABORTED + ": " + NAME_DAQ)
-            report.writeSummary("A.f DAQ", secLabel, ERROR_ABORTED_MESSAGE)
+            report.writeSummary("A.g DAQ", secLabel, ERROR_ABORTED_MESSAGE)
             report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
             return prot
         
@@ -1419,7 +1419,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
                             os.path.join(report.getReportDir(), 'daqView3.jpg')], 'DAQ views')
 
     except:
-        report.writeSummary("A.f DAQ", secLabel, ERROR_MESSAGE)
+        report.writeSummary("A.g DAQ", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
         return prot
 
