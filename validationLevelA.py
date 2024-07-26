@@ -110,302 +110,334 @@ def importModel(project, report, label, protImportMap, fnPdb, priority=False):
     return protImport
 
 
-
-def mapq(project, report, protImportMap, protAtom, resolution, priority=False):
+def phenix(project, report, protImportMap, protAtom, resolution, priority=False):
     bblCitation = \
-"""\\bibitem[Pintilie et~al., 2020]{Pintilie2020}
-Pintilie, G., Zhang, K., Su, Z., Li, S., Schmid, M.~F., and Chiu, W. (2020).
-\\newblock Measurement of atom resolvability in cryo-em maps with q-scores.
-\\newblock {\em Nature methods}, 17(3):328--334.
+"""\\bibitem[Afonine et~al., 2018]{Afonine2018}
+Afonine, P.~V., Klaholz, B.~P., Moriarty, N.~W., Poon, B.~K., Sobolev, O.~V.,
+  Terwilliger, T.~C., Adams, P.~D., and Urzhumtsev, A. (2018).
+\\newblock New tools for the analysis and validation of cryo-{EM} maps and
+  atomic models.
+\\newblock {\em Acta Crystallographica D, Struct. Biol.}, 74:814--840.
 """
-    report.addCitation("Pintilie2020", bblCitation)
+    report.addCitation("Afonine2018", bblCitation)
 
-    secLabel = "sec:mapq"
+    secLabel = "sec:phenix"
     msg = \
 """
-\\subsection{Level A.a MapQ}
+\\subsection{Level A.a Phenix validation}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-MapQ \\cite{Pintilie2020} computes the local correlation between the map and each one of its atoms assumed to
-have a Gaussian shape.\\\\
+Phenix provides a number of tools to assess the agreement between the experimental map and its atomic model
+\\cite{Afonine2018}. There are several cross-correlations to assess the quality of the fitting:\\\\
+\\begin{itemize}
+    \\item CC (mask): Model map vs. experimental map correlation coefficient calculated considering map values inside 
+a mask calculated around the macromolecule. 
+    \\item CC (box): Model map vs. experimental map correlation coefficient calculated considering all grid points of the 
+box.
+    \\item CC (volume) and CC (peaks) compare only map regions with the highest density values and regions below a 
+    certain contouring threshold level are ignored. CC (volume): The map region considered is defined by
+    the N highest points inside the molecular mask. CC (peaks): In this case, calculations consider the union of 
+    regions defined by the N highest peaks in the model-calculated map and the N highest peaks in the experimental map.
+    \\item Local real-space correlation coefficients CC (main chain) and CC (side chain) involve the main skeleton chain 
+and side chains, respectively.
+\\end{itemize}
+There are also multiple ways of measuring the resolution:
+\\begin{itemize}
+    \\item d99: Resolution cutoff beyond which Fourier map coefficients are negligibly small. Calculated from the 
+    full map.
+    \\item d\_model: Resolution cutoff at which the model map is the most similar to the target (experimental)
+ map. For d\_model to be meaningful, the model is expected to fit the map as well as possible. d\_model (B\ factors = 0) 
+ tries to avoid the blurring of the map.
+    \\item d\_FSC\_model; Resolution cutoff up to which the model and map Fourier coefficients are similar at FSC values 
+        of 0, 0.143, 0.5.
+\\end{itemize}
+In addition to these resolution measurements the overall isotropic B factor is another indirect measure of the
+quality of the map.
 \\\\
 \\textbf{Results:}\\\\
 \\\\
 """ % secLabel
     report.write(msg)
 
+    Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
+                                            'PhenixProtRunValidationCryoEM', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               objLabel="A.a Phenix",
+                               resolution=max(resolution,3.0))
+    prot.inputVolume.set(protImportMap.outputVolume)
+    prot.inputStructure.set(protAtom.outputPdb)
+    if useSlurm:
+        sendToSlurm(prot, priority=True if priority else False)
+    project.launchProtocol(prot)
+    waitUntilFinishes(project, prot)
 
-    # check if we have the precomputed data
-    # https://3dbionotes.cnb.csic.es/bws/api/emv/7xzz/mapq/
-    emdb_Id = getFilename(str(protImportMap.filesPath), withExt=False)
-    pdbdb_Id = getFilename(str(protAtom.outputPdb._filename), withExt=False)
-    print("Get MapQ scores from 3DBionotes-WS for %s" % pdbdb_Id)
-    has_precalculated_data = False
-    cif_data = getFileFromWS(pdbdb_Id, 'mapq')
+    if prot.isFailed():
+        report.writeSummary("A.a Phenix", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        phenixStdout = open(os.path.join(project.getPath(), prot.getStdoutLog()), "r").read()
+        controlledErrors = ["Sorry: Input map is all zero after boxing", "Sorry: Map and model are not aligned", "Sorry: Fatal problems interpreting model file"]
+        for error in controlledErrors:
+            if error in phenixStdout:
+                report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % error)
+        report.write(STATUS_ERROR_MESSAGE)
+        return prot
 
-    if cif_data:
-        # save to report
-        results_msg = \
-            """
-            \\Precalculated MapQ scores obtained from DB source via 3DBionotes-WS:
-            \\\\
-            \\url{https://3dbionotes.cnb.csic.es/bws/api/emv/%s/mapq/}
-            \\\\
-            """ % emdb_Id.lower().replace('_','-')
-        report.write(results_msg)
-        has_precalculated_data = True
-    else:
-        # if there is not precalculated data or failed to retrieve it
-        print('- Could not get data for', pdbdb_Id)
-        print('-- Proceed to calculate it localy')
-        Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
-                                                'ProtMapQ', doRaise=True)
-        prot = project.newProtocol(Prot,
-                                objLabel="A.a MapQ",
-                                inputVol=protImportMap.outputVolume,
-                                pdbs=[protAtom.outputPdb],
-                                mapRes=resolution)
-        if useSlurm:
-            sendToSlurm(prot, priority=True if priority else False)
-        project.launchProtocol(prot)
-        #waitOutput(project, prot, 'scoredStructures')
-        waitUntilFinishes(project, prot)
-        if prot.isFailed():
-            report.writeSummary("A.a MapQ", secLabel, ERROR_MESSAGE)
-            report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
-            return
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_PHENIX)
+        report.writeSummary("A.a Phenix", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
 
-        if prot.isAborted():
-            print(PRINT_PROTOCOL_ABORTED + ": " + NAME_MAPQ)
-            report.writeSummary("A.a MapQ", secLabel, ERROR_ABORTED_MESSAGE)
-            report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
-            return prot
+    fnPkl = os.path.join(project.getPath(),prot._getExtraPath("validation_cryoem.pkl"))
+    fnPklOut = os.path.join(report.getReportDir(),"validation_cryoem.pkl")
+    phenixScript=\
+"""import pickle
 
-        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*.cif')))[0], 'cif file')
-        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map_All.txt')))[0], 'Q__map_All txt file')
-        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map.pdb', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.pdb')))[0], 'Q__map pdb file')
+data=pickle.load(open("%s","r"))
+dataOut = {}
 
-        input_file = glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.pdb')))[0]
-        # emd_26162_pdb_7txz_emv_mapq.json
-        output_file = os.path.join(project.getPath(), prot._getExtraPath(), "%s_pdb_%s_emv_mapq.json" % (emdb_Id.lower().replace('-','_'), pdbdb_Id.lower()))
-        json_file = convert_2_json(emdb_Id, pdbdb_Id, method='mapq', input_file=input_file, output_file=output_file)
-        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'EMV json file', json_file, 'MapQ scores in EMV json format')
+# CC ----------------------------------------------------------------
+dataOut["cc_mask"]=data.model_vs_data.cc.cc_mask
+dataOut["cc_box"]=data.model_vs_data.cc.cc_box
+dataOut["cc_peaks"]=data.model_vs_data.cc.cc_peaks
+dataOut["cc_volume"]=data.model_vs_data.cc.cc_volume
+dataOut["cc_main_chain"]=data.model_vs_data.cc.cc_main_chain.cc
+try:
+    dataOut["cc_side_chain"]=data.model_vs_data.cc.cc_side_chain.cc
+except:
+    pass
+
+# CC per chain ------------------------------------------------------
+dataOut['chain_list'] = []
+chain_names = []
+for item in data.model_vs_data.cc.cc_per_chain:
+    if item.chain_id not in chain_names:
+        chain_names.append(item.chain_id)
+        dataOut['chain_list'].append((item.chain_id, item.cc))
+
+dataOut['resseq_list'] = {}
+for chain_name in chain_names:
+    resseq_list = []
+    residue_cc = []
+    for item in data.model_vs_data.cc.cc_per_residue:
+        if item.chain_id == chain_name:
+            resseq_list.append(item.resseq)
+            residue_cc.append(item.cc)
+    dataOut['resseq_list'][chain_name]=(resseq_list,residue_cc)
+
+# Resolutions ------------------------------------------------------
+dataOut['*d99_full_masked']=data.data.masked.d99
+dataOut["overall_b_iso_masked"]=data.data.masked.b_iso_overall
+dataOut['*dmodel_masked']=data.data.masked.d_model
+dataOut['d_model_b0_masked']=data.data.masked.d_model_b0
+dataOut['*dFSCmodel_0_masked']=data.data.masked.d_fsc_model_0
+dataOut['*dFSCmodel_0.143_masked']=data.data.masked.d_fsc_model_0143
+dataOut['*dFSCmodel_0.5_masked']=data.data.masked.d_fsc_model_05
+dataOut['mask_smoothing_radius']=data.data.masked.radius_smooth
+
+dataOut['*d99_full_unmasked']=data.data.unmasked.d99
+dataOut["overall_b_iso_unmasked"]=data.data.unmasked.b_iso_overall
+dataOut['*dmodel_unmasked']=data.data.unmasked.d_model
+dataOut['d_model_b0_unmasked']=data.data.unmasked.d_model_b0
+dataOut['*dFSCmodel_0_unmasked']=data.data.unmasked.d_fsc_model_0
+dataOut['*dFSCmodel_0.143_unmasked']=data.data.unmasked.d_fsc_model_0143
+dataOut['*dFSCmodel_0.5_unmasked']=data.data.unmasked.d_fsc_model_05
+
+# FSCs -------------------------------------------------------------
+if data.data.masked.fsc_curve_model.fsc is not None:
+    fsc_model_map_masked = []
+    d_inv_model_map_masked = []
+    for item in data.data.masked.fsc_curve_model.fsc:
+        fsc_model_map_masked.append(item)
+    dataOut['FSC_Model_Map_Masked'] = fsc_model_map_masked
+    for item in data.data.masked.fsc_curve_model.d_inv:
+        d_inv_model_map_masked.append(item)
+    dataOut['d_inv_Model_Map_Masked'] = d_inv_model_map_masked
+if data.data.unmasked.fsc_curve_model.fsc is not None:
+    fsc_model_map_unmasked = []
+    d_inv_model_map_unmasked = []
+    for item in data.data.unmasked.fsc_curve_model.fsc:
+        fsc_model_map_unmasked.append(item)
+    dataOut['FSC_Model_Map_Unmasked'] = fsc_model_map_unmasked
+    for item in data.data.unmasked.fsc_curve_model.d_inv:
+        d_inv_model_map_unmasked.append(item)
+    dataOut['d_inv_Model_Map_Unmasked'] = d_inv_model_map_unmasked
+        
+fh = open("%s",'wb')
+pickle.dump(dataOut,fh)
+fh.close()
+"""%(fnPkl, fnPklOut)
+    fnPhenixScript = os.path.join(report.getReportDir(),"validation_cryoem.py")
+    fhPhenixScript = open(fnPhenixScript,"w")
+    fhPhenixScript.write(phenixScript)
+    fhPhenixScript.close()
+
+    saveIntermediateData(report.getReportDir(), 'phenix', True, 'validation_cryoem.pkl', fnPkl, 'validation_cryoem.pkl file')
+    saveIntermediateData(report.getReportDir(), 'phenix', True, 'validation_cryoem.py', fnPhenixScript, 'validation_cryoem.py file to get all phenix data from pickle')
+
+    from phenix import Plugin
+    Plugin.runPhenixProgram('',fnPhenixScript)
+
+    data = pickle.load(open(fnPklOut, "rb"))
+    saveIntermediateData(report.getReportDir(), 'phenix', False, 'dataDict', data, ['', 'phenix data dictionary containing all key params'])
 
 
-    # get histogram
-    mapq_scores = []
-    if has_precalculated_data and cif_data:
-        cifWSFilename = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS.cif')
-        pdbFromWS = open(cifWSFilename, 'w')
-        pdbFromWS.write(cif_data)
-        pdbFromWS.close()
-        with open(cifWSFilename) as cif:
-            lines = cif.readlines()
-            for line in lines:
-                if 'ATOM' in line:
-                    line = re.sub(' +', ' ', line)
-                    values = line.split(' ')
-                    mapq_scores.append(float(values[15]))
-    else:
-        ASH = AtomicStructHandler()
-
-        for struct in prot.scoredStructures:
-            fileName = struct.getFileName()
-            fields = ASH.readLowLevel(fileName)
-            attributes = fields["_scipion_attributes.name"]
-            values = fields["_scipion_attributes.value"]
-            mapq_scores += [float(value) for attribute, value in zip(attributes, values) if attribute == "MapQ_Score"]
-
-    fnHist = os.path.join(report.getReportDir(),"mapqHist.png")
-
-    reportHistogram(mapq_scores, "MapQ score", fnHist)
-    Bpercentiles = np.percentile(mapq_scores, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
-
-    toWrite = \
-"""
-Fig. \\ref{fig:histMapQ} shows the histogram of the calculated Q-score. Some representative
-percentiles are:
-
+    # CC
+    msg =\
+"""To avoid ringing in Fourier space a smooth mask with a radius of %5.1f \\AA~has been applied.  \\\\
+\\underline{Overall correlation coefficients}: \\\\
+\\\\
 \\begin{center}
-    \\begin{tabular}{|c|c|}
-        \\hline
-        \\textbf{Percentile} & \\textbf{MapQ score [-1,1]} \\\\
-        \\hline
-        2.5\\%% & %5.2f \\\\
-        \\hline
-        25\\%% & %5.2f \\\\
-        \\hline
-        50\\%% & %5.2f \\\\
-        \\hline
-        75\\%% & %5.2f \\\\
-        \\hline
-        97.5\\%% & %5.2f \\\\
-        \\hline
-    \\end{tabular}
-\\end{center}
+\\begin{tabular}{rc}
+CC (mask) = & %5.3f\\\\
+CC (box) = & %5.3f\\\\
+CC (volume) = & %5.3f\\\\
+CC (peaks) = & %5.3f\\\\
+CC (main chain) = & %5.3f\\\\
+"""%(data['mask_smoothing_radius'], data['cc_mask'],data['cc_box'],data['cc_volume'],data['cc_peaks'],
+     data['cc_main_chain'])
+    if 'cc_side_chain' in data:
+        msg+="CC (side chain) = & %5.3f\\\\ \n"%data['cc_side_chain']
+    msg+="\\end{tabular}\n\\\\\n"
+    msg+="\\end{center}\n\n"
+
+    # CC per chain
+    msg+=\
+"""
+\\underline{Correlation coefficients per chain}:\\\\
+\\begin{center}
+\\begin{tabular}{cc}
+    \\textbf{Chain} & \\textbf{Cross-correlation} \\\\
+"""
+    for chain_id, cc in data['chain_list']:
+        msg+="%s & %f\\\\ \n"%(chain_id, cc)
+    msg+="\\end{tabular}\n\n"
+    msg+="\\end{center}\n\n\n"
+
+    # CC per residues
+    allCCs = []
+    def plotCCResidue(chain_id, reportDir, allCCs):
+        fnPlot = os.path.join(reportDir, "ccresidue_%s.png"%chain_id)
+        resseq_list, residue_cc = data['resseq_list'][chain_id]
+        allCCs+=residue_cc
+        x = [x+1 for x in np.arange(0,len(residue_cc))]
+        reportPlot(x, residue_cc, 'Aminoacid no.', 'Cross-correlation', fnPlot, addMean=True, title="Chain %s"%chain_id)
+        return fnPlot
+
+    msg+="""We now show the correlation profiles of the different chain per residue.\n"""
+    for chain_id in sorted(data['resseq_list']):
+        fnPlot = plotCCResidue(chain_id, report.getReportDir(), allCCs)
+        saveIntermediateData(report.fnReportDir, "phenix", True, "ccresidue_%s.png"%chain_id, fnPlot, 'Plot including the correlation profiles of the chain %s'%chain_id)
+        msg+="""\\includegraphics[width=7cm]{%s}\n"""%fnPlot
+
+    fnCCHist = os.path.join(report.getReportDir(),"ccModelHist.png")
+    reportHistogram(allCCs, "Cross-correlation", fnCCHist)
+    badResidues = np.sum(np.array(allCCs)<0.5)/len(allCCs)*100
+
+    msg += \
+"""
+
+Fig. \\ref{fig:ccResidueHist} shows the histogram of all cross-correlations evaluated at the residues. The percentage
+of residues whose correlation is below 0.5 is %4.1f \\%%.
 
 \\begin{figure}[H]
     \centering
     \includegraphics[width=10cm]{%s}
-    \\caption{Histogram of the per-atom Q-score.}
-    \\label{fig:histMapQ}
+    \\caption{Histogram of the cross-correlation between the map and model evaluated for all residues.}
+    \\label{fig:ccResidueHist}
 \\end{figure}
 
-""" % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist)
-    report.write(toWrite)
+"""%(badResidues, fnCCHist)
 
-    if not has_precalculated_data:
-        files = glob.glob(prot._getExtraPath("*All.txt"))
-    else:
-        cifFilename = os.path.join(report.getReportDir(), pdbdb_Id + '_MAPQFromWS.cif')
-        cifFromWS = open(cifFilename, 'w')
-        cifFromWS.write(getFileFromWS(pdbdb_Id, 'mapq'))
-        cifFromWS.close()
+    saveIntermediateData(report.fnReportDir, "phenix", True, "ccModelHist.png", fnCCHist, 'Histogram of the cross-correlation between the map and model evaluated for all residues')
+    saveIntermediateData(report.fnReportDir, "phenix", False, "percentageResidues05", badResidues, ['%', 'The percentage of residues whose correlation is below 0.5'])
 
-        QStatsScript =\
-"""
-import sys
-import chimera
-
-from chimera import Molecule
-
-mapq_path = "%s"
-sys.path.append(mapq_path)
-
-validation_tools_path = "%s"
-sys.path.append(validation_tools_path)
-
-import mmcif
-import qscores
-from mapq_utils import SaveQStats, ReadMol
-
-print('\\nCreating MapQ Statistics...\\n')
-mol = ReadMol("%s")
-
-chimera.openModels.add([mol])
-
-mols = chimera.openModels.list(modelTypes=[Molecule])
-if len(mols) == 0:
-    print(" - no molecules loaded")
-else:
-    print('\\nMolecules loaded correctly')
-    for mi, mol in enumerate(mols):
-        qscores.SetBBAts(mol)
-        SaveQStats(mol, "All", 0.6, %d)
-
-"""%(mapq_path, validation_tools_path, cifFilename, resolution)        
-        fnQStatsScript = os.path.join(report.getReportDir(),"mapq_stats.py")
-        fhQStatsScript = open(fnQStatsScript,"w")
-        fhQStatsScript.write(QStatsScript)
-        fhQStatsScript.close()
-
-        args = "--nogui --script %s "%(fnQStatsScript)
-        print("Running: %s %s" % (chimeraProgram, args))
-        p = subprocess.Popen('%s %s' % (chimeraProgram, args), shell=True, stderr=subprocess.PIPE)
-        p.wait()
-
-        files = glob.glob(os.path.join(report.getReportDir(), "*All.txt"))
-
-    fh = open(files[0])
-    msg=\
-""" The following table shows the average Q-score and estimated resolution for each chain.
-\\begin{center}
-    \\begin{tabular}{ccc}
-        \\hline
-        \\textbf{Chain} & \\textbf{Average Q-score [-1,-1]} & \\textbf{Estimated Resol. (\\AA)} \\\\
-        \\hline
-"""
-
-    state = 0
-    resolutions = []
-    for line in fh.readlines():
-        if state==0 and line.startswith('Chain'):
-            state=1
-        elif state==1:
-            tokens = line.split()
-            if len(tokens)>0:
-                res = float(tokens[-1])
-                msg+="      %s & %s & %4.1f \\\\ \n"%(tokens[0],tokens[3],res)
-                resolutions.append(res)
-            else:
-                state=2
-                break
+    # Resolutions
     msg+=\
-    """        \\hline
-        \\end{tabular}
-    \\end{center}
+"""
+\\underline{Resolutions estimated from the model}:\\\\
+\\begin{center}
+\\begin{tabular}{rcc}
+    \\textbf{Resolution} (\\AA) & \\textbf{Masked} & \\textbf{Unmasked} \\\\
+    d99 & %4.1f & %4.1f \\\\
+    d\_model & %4.1f & %4.1f \\\\
+    d\_model (B-factor=0) & %4.1f & %4.1f \\\\
+    FSC\_model=0 & %4.1f & %4.1f \\\\
+    FSC\_model=0.143 & %4.1f & %4.1f \\\\
+    FSC\_model=0.5 & %4.1f & %4.1f \\\\
+\\end{tabular}
+\\end{center}
 
-    """
+"""%(data['*d99_full_masked'],data['*d99_full_unmasked'],
+     data['*dmodel_masked'],data['*dmodel_unmasked'],
+     data['d_model_b0_masked'],data['d_model_b0_unmasked'],
+     data['*dFSCmodel_0_masked'],data['*dFSCmodel_0_unmasked'],
+     data['*dFSCmodel_0.143_masked'],data['*dFSCmodel_0.143_unmasked'],
+     data['*dFSCmodel_0.5_masked'],data['*dFSCmodel_0.5_unmasked'])
+
+    msg += \
+"""
+\\underline{Overall isotropic B factor}:\\\\
+\\begin{center}
+\\begin{tabular}{rcc}
+    \\textbf{B factor} & \\textbf{Masked} & \\textbf{Unmasked} \\\\
+    Overall B-iso & %4.1f & %4.1f \\\\
+\\end{tabular}
+\\end{center}
+
+""" % (data["overall_b_iso_masked"], data["overall_b_iso_unmasked"])
+
+    if 'FSC_Model_Map_Masked' in data and 'FSC_Model_Map_Unmasked' in data:
+        fnFSCModel = os.path.join(report.getReportDir(),"fscModel.png")
+        reportMultiplePlots(data['d_inv_Model_Map_Masked'],
+                            [data['FSC_Model_Map_Masked'], data['FSC_Model_Map_Unmasked'],
+                             0.5*np.ones(len(data['FSC_Model_Map_Masked']))],
+                            "Resolution (A)", "FSC", fnFSCModel,
+                            ['Masked','Unmasked','0.5 Threshold'], invertXLabels=True)
+        msg+=\
+"""Fig. \\ref{fig:fscModel} shows the FSC between the input map and the model.
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=12cm]{%s}
+    \\caption{FSC between the input map and model with and without a mask constructed from the model.
+              The X-axis is the square of the inverse of the resolution in \\AA.}
+    \\label{fig:fscModel}
+\\end{figure}
+
+"""%fnFSCModel
     report.write(msg)
-    fh.close()
 
-    report.addResolutionEstimate(np.mean(resolutions))
+    saveIntermediateData(report.fnReportDir, "phenix", True, "fscModel.png", fnFSCModel, 'Plot that shows FSC between the input map and model with and without a mask constructed from the model')
 
-    saveIntermediateData(report.getReportDir(), 'MapQ', False, 'estimatedResolution', np.mean(resolutions), ['\u212B', 'The estimated resolution (mean) in Angstroms obtained from MapQ'])
-
-    # get colored models
-    msg = "The atomic model colored by MapQ can be seen in Fig. \\ref{fig:mapq}.\n\n"
-    if not has_precalculated_data:
-        fnCifMapQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_MapQ_score.cif"))
-        # make sure the output mapq file is correct
-        with open(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id))) as cif:
-            cifData = cif.read()
-        cifData = cifData.replace('residues', 'atoms')
-        with open(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id)), 'w') as cif:
-            cif.write(cifData)
-
-        replaceOcuppancyWithAttribute(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id)), "MapQ_Score",
-                                      fnCifMapQ)
-        report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", fnCifMapQ, "fig:mapq", bfactor=False,
-                           occupancy=True, rainbow=False, legendMin=-1, legendMax=1)
-
-    else:
-        # create .defattr file
-        qscores = {}
-        with open(cifWSFilename) as cif:
-            lines = cif.readlines()
-            for line in lines:
-                if 'ATOM' in line:
-                    line = re.sub(' +', ' ', line)
-                    values = line.split(' ')
-                    qscores[values[1]] = values[15]
-
-        attributeFile = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS.defattr')
-        with open(attributeFile, 'a') as af:
-            af.write('attribute: qscores\nrecipient: atoms\n')
-            for atom in qscores:
-                af.write('\t:%s\t%s\n' % (atom, qscores[atom]))
-
-        report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", cifWSFilename, "fig:mapq", bfactor=False,
-                           occupancy=False, otherAttribute=[attributeFile, 'qscores'], rainbow=False, legendMin=-1, legendMax=1)
-
-    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'MapQView',
-                         [os.path.join(report.getReportDir(), 'mapqView1.jpg'),
-                          os.path.join(report.getReportDir(), 'mapqView1.jpg'),
-                          os.path.join(report.getReportDir(), 'mapqView1.jpg')], 'MapQ views')
-
-    # Warnings
-    warnings=[]
+    warnings = []
     testWarnings = False
+    if badResidues > 10 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The percentage of residues that have a cross-correlation below 0.5 " \
+                        "is %4.1f, that is larger than 10\\%%}}" % badResidues)
+    if resolution<0.8*data['*dFSCmodel_0.5_masked'] or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %4.1f \\AA, is significantly " \
+                        "smaller than the resolution estimated between map and model (FSC=0.5), %4.1f \\AA}}" %\
+                        (resolution,data['*dFSCmodel_0.5_masked']))
+    report.addResolutionEstimate(data['*d99_full_masked'])
+    report.addResolutionEstimate(data['*dmodel_masked'])
+    report.addResolutionEstimate(data['d_model_b0_masked'])
+    report.addResolutionEstimate(data['*dFSCmodel_0_masked'])
+    report.addResolutionEstimate(data['*dFSCmodel_0.143_masked'])
+    report.addResolutionEstimate(data['*dFSCmodel_0.5_masked'])
 
-    BperHomogeneous = isHomogeneous(Bpercentiles[0], Bpercentiles[-1], eps=0.1)
-
-    if BperHomogeneous:
-        warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
-                        "be some program issues analyzing the data.}}")
-
-    if Bpercentiles[2]<0.1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The median Q-score is less than 0.1.}}")
     msg = \
-"""\\textbf{Automatic criteria}: The validation is OK if the median Q-score is larger than 0.1.
+"""\\textbf{Automatic criteria}: The validation is OK if 1) the percentage of residues whose correlation is
+smaller than 0.5 is smaller than 10\\%, and 2) the resolution reported by the user is larger than 0.8 times the
+resolution estimated between the map and model at FSC=0.5.
 \\\\
 
 """
     report.write(msg)
-    report.writeWarningsAndSummary(warnings, "A.a MapQ", secLabel)
+    report.writeWarningsAndSummary(warnings, "A.a Phenix validation", secLabel)
     if len(warnings)>0:
-        report.writeAbstract("There seems to be a problem with its MapQ scores (see Sec. \\ref{%s}). "%secLabel)
-
+        report.writeAbstract("According to phenix, it seems that there might be some mismatch between the map "\
+                             "and its model (see Sec. \\ref{%s}). "%secLabel)
 
 def convertPDB(project, report, protImportMap, protAtom, priority=False):
 
@@ -783,335 +815,300 @@ than 0.5.
     saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'sharpenedModel.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedModel.mrc.guinier'), 'sharpenedModel.mrc.guinier file which contain the data to create the guinier plot')
     saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'guinierPlot', fnPlot, 'guinier plot for Map-Model Guinier Analysis')
 
-def phenix(project, report, protImportMap, protAtom, resolution, priority=False):
+def mapq(project, report, protImportMap, protAtom, resolution, priority=False):
     bblCitation = \
-"""\\bibitem[Afonine et~al., 2018]{Afonine2018}
-Afonine, P.~V., Klaholz, B.~P., Moriarty, N.~W., Poon, B.~K., Sobolev, O.~V.,
-  Terwilliger, T.~C., Adams, P.~D., and Urzhumtsev, A. (2018).
-\\newblock New tools for the analysis and validation of cryo-{EM} maps and
-  atomic models.
-\\newblock {\em Acta Crystallographica D, Struct. Biol.}, 74:814--840.
+"""\\bibitem[Pintilie et~al., 2020]{Pintilie2020}
+Pintilie, G., Zhang, K., Su, Z., Li, S., Schmid, M.~F., and Chiu, W. (2020).
+\\newblock Measurement of atom resolvability in cryo-em maps with q-scores.
+\\newblock {\em Nature methods}, 17(3):328--334.
 """
-    report.addCitation("Afonine2018", bblCitation)
+    report.addCitation("Pintilie2020", bblCitation)
 
-    secLabel = "sec:phenix"
+    secLabel = "sec:mapq"
     msg = \
 """
-\\subsection{Level A.e Phenix validation}
+\\subsection{Level A.e MapQ}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-Phenix provides a number of tools to assess the agreement between the experimental map and its atomic model
-\\cite{Afonine2018}. There are several cross-correlations to assess the quality of the fitting:\\\\
-\\begin{itemize}
-    \\item CC (mask): Model map vs. experimental map correlation coefficient calculated considering map values inside 
-a mask calculated around the macromolecule. 
-    \\item CC (box): Model map vs. experimental map correlation coefficient calculated considering all grid points of the 
-box.
-    \\item CC (volume) and CC (peaks) compare only map regions with the highest density values and regions below a 
-    certain contouring threshold level are ignored. CC (volume): The map region considered is defined by
-    the N highest points inside the molecular mask. CC (peaks): In this case, calculations consider the union of 
-    regions defined by the N highest peaks in the model-calculated map and the N highest peaks in the experimental map.
-    \\item Local real-space correlation coefficients CC (main chain) and CC (side chain) involve the main skeleton chain 
-and side chains, respectively.
-\\end{itemize}
-There are also multiple ways of measuring the resolution:
-\\begin{itemize}
-    \\item d99: Resolution cutoff beyond which Fourier map coefficients are negligibly small. Calculated from the 
-    full map.
-    \\item d\_model: Resolution cutoff at which the model map is the most similar to the target (experimental)
- map. For d\_model to be meaningful, the model is expected to fit the map as well as possible. d\_model (B\ factors = 0) 
- tries to avoid the blurring of the map.
-    \\item d\_FSC\_model; Resolution cutoff up to which the model and map Fourier coefficients are similar at FSC values 
-        of 0, 0.143, 0.5.
-\\end{itemize}
-In addition to these resolution measurements the overall isotropic B factor is another indirect measure of the
-quality of the map.
+MapQ \\cite{Pintilie2020} computes the local correlation between the map and each one of its atoms assumed to
+have a Gaussian shape.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
 """ % secLabel
     report.write(msg)
 
-    Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
-                                            'PhenixProtRunValidationCryoEM', doRaise=True)
-    prot = project.newProtocol(Prot,
-                               objLabel="A.e Phenix",
-                               resolution=max(resolution,3.0))
-    prot.inputVolume.set(protImportMap.outputVolume)
-    prot.inputStructure.set(protAtom.outputPdb)
-    if useSlurm:
-        sendToSlurm(prot, priority=True if priority else False)
-    project.launchProtocol(prot)
-    waitUntilFinishes(project, prot)
 
-    if prot.isFailed():
-        report.writeSummary("A.e Phenix", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
-        phenixStdout = open(os.path.join(project.getPath(), prot.getStdoutLog()), "r").read()
-        controlledErrors = ["Sorry: Input map is all zero after boxing", "Sorry: Map and model are not aligned", "Sorry: Fatal problems interpreting model file"]
-        for error in controlledErrors:
-            if error in phenixStdout:
-                report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % error)
-        report.write(STATUS_ERROR_MESSAGE)
-        return prot
+    # check if we have the precomputed data
+    # https://3dbionotes.cnb.csic.es/bws/api/emv/7xzz/mapq/
+    emdb_Id = getFilename(str(protImportMap.filesPath), withExt=False)
+    pdbdb_Id = getFilename(str(protAtom.outputPdb._filename), withExt=False)
+    print("Get MapQ scores from 3DBionotes-WS for %s" % pdbdb_Id)
+    has_precalculated_data = False
+    cif_data = getFileFromWS(pdbdb_Id, 'mapq')
 
-    if prot.isAborted():
-        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_PHENIX)
-        report.writeSummary("A.e Phenix", secLabel, ERROR_ABORTED_MESSAGE)
-        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
-        return prot
+    if cif_data:
+        # save to report
+        results_msg = \
+            """
+            \\Precalculated MapQ scores obtained from DB source via 3DBionotes-WS:
+            \\\\
+            \\url{https://3dbionotes.cnb.csic.es/bws/api/emv/%s/mapq/}
+            \\\\
+            """ % emdb_Id.lower().replace('_','-')
+        report.write(results_msg)
+        has_precalculated_data = True
+    else:
+        # if there is not precalculated data or failed to retrieve it
+        print('- Could not get data for', pdbdb_Id)
+        print('-- Proceed to calculate it localy')
+        Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
+                                                'ProtMapQ', doRaise=True)
+        prot = project.newProtocol(Prot,
+                                objLabel="A.e MapQ",
+                                inputVol=protImportMap.outputVolume,
+                                pdbs=[protAtom.outputPdb],
+                                mapRes=resolution)
+        if useSlurm:
+            sendToSlurm(prot, priority=True if priority else False)
+        project.launchProtocol(prot)
+        #waitOutput(project, prot, 'scoredStructures')
+        waitUntilFinishes(project, prot)
+        if prot.isFailed():
+            report.writeSummary("A.e MapQ", secLabel, ERROR_MESSAGE)
+            report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+            return
 
-    fnPkl = os.path.join(project.getPath(),prot._getExtraPath("validation_cryoem.pkl"))
-    fnPklOut = os.path.join(report.getReportDir(),"validation_cryoem.pkl")
-    phenixScript=\
-"""import pickle
+        if prot.isAborted():
+            print(PRINT_PROTOCOL_ABORTED + ": " + NAME_MAPQ)
+            report.writeSummary("A.e MapQ", secLabel, ERROR_ABORTED_MESSAGE)
+            report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+            return prot
 
-data=pickle.load(open("%s","r"))
-dataOut = {}
+        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*.cif')))[0], 'cif file')
+        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map_All.txt')))[0], 'Q__map_All txt file')
+        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map.pdb', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.pdb')))[0], 'Q__map pdb file')
 
-# CC ----------------------------------------------------------------
-dataOut["cc_mask"]=data.model_vs_data.cc.cc_mask
-dataOut["cc_box"]=data.model_vs_data.cc.cc_box
-dataOut["cc_peaks"]=data.model_vs_data.cc.cc_peaks
-dataOut["cc_volume"]=data.model_vs_data.cc.cc_volume
-dataOut["cc_main_chain"]=data.model_vs_data.cc.cc_main_chain.cc
-try:
-    dataOut["cc_side_chain"]=data.model_vs_data.cc.cc_side_chain.cc
-except:
-    pass
-
-# CC per chain ------------------------------------------------------
-dataOut['chain_list'] = []
-chain_names = []
-for item in data.model_vs_data.cc.cc_per_chain:
-    if item.chain_id not in chain_names:
-        chain_names.append(item.chain_id)
-        dataOut['chain_list'].append((item.chain_id, item.cc))
-
-dataOut['resseq_list'] = {}
-for chain_name in chain_names:
-    resseq_list = []
-    residue_cc = []
-    for item in data.model_vs_data.cc.cc_per_residue:
-        if item.chain_id == chain_name:
-            resseq_list.append(item.resseq)
-            residue_cc.append(item.cc)
-    dataOut['resseq_list'][chain_name]=(resseq_list,residue_cc)
-
-# Resolutions ------------------------------------------------------
-dataOut['*d99_full_masked']=data.data.masked.d99
-dataOut["overall_b_iso_masked"]=data.data.masked.b_iso_overall
-dataOut['*dmodel_masked']=data.data.masked.d_model
-dataOut['d_model_b0_masked']=data.data.masked.d_model_b0
-dataOut['*dFSCmodel_0_masked']=data.data.masked.d_fsc_model_0
-dataOut['*dFSCmodel_0.143_masked']=data.data.masked.d_fsc_model_0143
-dataOut['*dFSCmodel_0.5_masked']=data.data.masked.d_fsc_model_05
-dataOut['mask_smoothing_radius']=data.data.masked.radius_smooth
-
-dataOut['*d99_full_unmasked']=data.data.unmasked.d99
-dataOut["overall_b_iso_unmasked"]=data.data.unmasked.b_iso_overall
-dataOut['*dmodel_unmasked']=data.data.unmasked.d_model
-dataOut['d_model_b0_unmasked']=data.data.unmasked.d_model_b0
-dataOut['*dFSCmodel_0_unmasked']=data.data.unmasked.d_fsc_model_0
-dataOut['*dFSCmodel_0.143_unmasked']=data.data.unmasked.d_fsc_model_0143
-dataOut['*dFSCmodel_0.5_unmasked']=data.data.unmasked.d_fsc_model_05
-
-# FSCs -------------------------------------------------------------
-if data.data.masked.fsc_curve_model.fsc is not None:
-    fsc_model_map_masked = []
-    d_inv_model_map_masked = []
-    for item in data.data.masked.fsc_curve_model.fsc:
-        fsc_model_map_masked.append(item)
-    dataOut['FSC_Model_Map_Masked'] = fsc_model_map_masked
-    for item in data.data.masked.fsc_curve_model.d_inv:
-        d_inv_model_map_masked.append(item)
-    dataOut['d_inv_Model_Map_Masked'] = d_inv_model_map_masked
-if data.data.unmasked.fsc_curve_model.fsc is not None:
-    fsc_model_map_unmasked = []
-    d_inv_model_map_unmasked = []
-    for item in data.data.unmasked.fsc_curve_model.fsc:
-        fsc_model_map_unmasked.append(item)
-    dataOut['FSC_Model_Map_Unmasked'] = fsc_model_map_unmasked
-    for item in data.data.unmasked.fsc_curve_model.d_inv:
-        d_inv_model_map_unmasked.append(item)
-    dataOut['d_inv_Model_Map_Unmasked'] = d_inv_model_map_unmasked
-        
-fh = open("%s",'wb')
-pickle.dump(dataOut,fh)
-fh.close()
-"""%(fnPkl, fnPklOut)
-    fnPhenixScript = os.path.join(report.getReportDir(),"validation_cryoem.py")
-    fhPhenixScript = open(fnPhenixScript,"w")
-    fhPhenixScript.write(phenixScript)
-    fhPhenixScript.close()
-
-    saveIntermediateData(report.getReportDir(), 'phenix', True, 'validation_cryoem.pkl', fnPkl, 'validation_cryoem.pkl file')
-    saveIntermediateData(report.getReportDir(), 'phenix', True, 'validation_cryoem.py', fnPhenixScript, 'validation_cryoem.py file to get all phenix data from pickle')
-
-    from phenix import Plugin
-    Plugin.runPhenixProgram('',fnPhenixScript)
-
-    data = pickle.load(open(fnPklOut, "rb"))
-    saveIntermediateData(report.getReportDir(), 'phenix', False, 'dataDict', data, ['', 'phenix data dictionary containing all key params'])
+        input_file = glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.pdb')))[0]
+        # emd_26162_pdb_7txz_emv_mapq.json
+        output_file = os.path.join(project.getPath(), prot._getExtraPath(), "%s_pdb_%s_emv_mapq.json" % (emdb_Id.lower().replace('-','_'), pdbdb_Id.lower()))
+        json_file = convert_2_json(emdb_Id, pdbdb_Id, method='mapq', input_file=input_file, output_file=output_file)
+        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'EMV json file', json_file, 'MapQ scores in EMV json format')
 
 
-    # CC
-    msg =\
-"""To avoid ringing in Fourier space a smooth mask with a radius of %5.1f \\AA~has been applied.  \\\\
-\\underline{Overall correlation coefficients}: \\\\
-\\\\
+    # get histogram
+    mapq_scores = []
+    if has_precalculated_data and cif_data:
+        cifWSFilename = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS.cif')
+        pdbFromWS = open(cifWSFilename, 'w')
+        pdbFromWS.write(cif_data)
+        pdbFromWS.close()
+        with open(cifWSFilename) as cif:
+            lines = cif.readlines()
+            for line in lines:
+                if 'ATOM' in line:
+                    line = re.sub(' +', ' ', line)
+                    values = line.split(' ')
+                    mapq_scores.append(float(values[15]))
+    else:
+        ASH = AtomicStructHandler()
+
+        for struct in prot.scoredStructures:
+            fileName = struct.getFileName()
+            fields = ASH.readLowLevel(fileName)
+            attributes = fields["_scipion_attributes.name"]
+            values = fields["_scipion_attributes.value"]
+            mapq_scores += [float(value) for attribute, value in zip(attributes, values) if attribute == "MapQ_Score"]
+
+    fnHist = os.path.join(report.getReportDir(),"mapqHist.png")
+
+    reportHistogram(mapq_scores, "MapQ score", fnHist)
+    Bpercentiles = np.percentile(mapq_scores, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
+
+    toWrite = \
+"""
+Fig. \\ref{fig:histMapQ} shows the histogram of the calculated Q-score. Some representative
+percentiles are:
+
 \\begin{center}
-\\begin{tabular}{rc}
-CC (mask) = & %5.3f\\\\
-CC (box) = & %5.3f\\\\
-CC (volume) = & %5.3f\\\\
-CC (peaks) = & %5.3f\\\\
-CC (main chain) = & %5.3f\\\\
-"""%(data['mask_smoothing_radius'], data['cc_mask'],data['cc_box'],data['cc_volume'],data['cc_peaks'],
-     data['cc_main_chain'])
-    if 'cc_side_chain' in data:
-        msg+="CC (side chain) = & %5.3f\\\\ \n"%data['cc_side_chain']
-    msg+="\\end{tabular}\n\\\\\n"
-    msg+="\\end{center}\n\n"
-
-    # CC per chain
-    msg+=\
-"""
-\\underline{Correlation coefficients per chain}:\\\\
-\\begin{center}
-\\begin{tabular}{cc}
-    \\textbf{Chain} & \\textbf{Cross-correlation} \\\\
-"""
-    for chain_id, cc in data['chain_list']:
-        msg+="%s & %f\\\\ \n"%(chain_id, cc)
-    msg+="\\end{tabular}\n\n"
-    msg+="\\end{center}\n\n\n"
-
-    # CC per residues
-    allCCs = []
-    def plotCCResidue(chain_id, reportDir, allCCs):
-        fnPlot = os.path.join(reportDir, "ccresidue_%s.png"%chain_id)
-        resseq_list, residue_cc = data['resseq_list'][chain_id]
-        allCCs+=residue_cc
-        x = [x+1 for x in np.arange(0,len(residue_cc))]
-        reportPlot(x, residue_cc, 'Aminoacid no.', 'Cross-correlation', fnPlot, addMean=True, title="Chain %s"%chain_id)
-        return fnPlot
-
-    msg+="""We now show the correlation profiles of the different chain per residue.\n"""
-    for chain_id in sorted(data['resseq_list']):
-        fnPlot = plotCCResidue(chain_id, report.getReportDir(), allCCs)
-        saveIntermediateData(report.fnReportDir, "phenix", True, "ccresidue_%s.png"%chain_id, fnPlot, 'Plot including the correlation profiles of the chain %s'%chain_id)
-        msg+="""\\includegraphics[width=7cm]{%s}\n"""%fnPlot
-
-    fnCCHist = os.path.join(report.getReportDir(),"ccModelHist.png")
-    reportHistogram(allCCs, "Cross-correlation", fnCCHist)
-    badResidues = np.sum(np.array(allCCs)<0.5)/len(allCCs)*100
-
-    msg += \
-"""
-
-Fig. \\ref{fig:ccResidueHist} shows the histogram of all cross-correlations evaluated at the residues. The percentage
-of residues whose correlation is below 0.5 is %4.1f \\%%.
+    \\begin{tabular}{|c|c|}
+        \\hline
+        \\textbf{Percentile} & \\textbf{MapQ score [-1,1]} \\\\
+        \\hline
+        2.5\\%% & %5.2f \\\\
+        \\hline
+        25\\%% & %5.2f \\\\
+        \\hline
+        50\\%% & %5.2f \\\\
+        \\hline
+        75\\%% & %5.2f \\\\
+        \\hline
+        97.5\\%% & %5.2f \\\\
+        \\hline
+    \\end{tabular}
+\\end{center}
 
 \\begin{figure}[H]
     \centering
     \includegraphics[width=10cm]{%s}
-    \\caption{Histogram of the cross-correlation between the map and model evaluated for all residues.}
-    \\label{fig:ccResidueHist}
+    \\caption{Histogram of the per-atom Q-score.}
+    \\label{fig:histMapQ}
 \\end{figure}
 
-"""%(badResidues, fnCCHist)
+""" % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist)
+    report.write(toWrite)
 
-    saveIntermediateData(report.fnReportDir, "phenix", True, "ccModelHist.png", fnCCHist, 'Histogram of the cross-correlation between the map and model evaluated for all residues')
-    saveIntermediateData(report.fnReportDir, "phenix", False, "percentageResidues05", badResidues, ['%', 'The percentage of residues whose correlation is below 0.5'])
+    if not has_precalculated_data:
+        files = glob.glob(prot._getExtraPath("*All.txt"))
+    else:
+        cifFilename = os.path.join(report.getReportDir(), pdbdb_Id + '_MAPQFromWS.cif')
+        cifFromWS = open(cifFilename, 'w')
+        cifFromWS.write(getFileFromWS(pdbdb_Id, 'mapq'))
+        cifFromWS.close()
 
-    # Resolutions
+        QStatsScript =\
+"""
+import sys
+import chimera
+
+from chimera import Molecule
+
+mapq_path = "%s"
+sys.path.append(mapq_path)
+
+validation_tools_path = "%s"
+sys.path.append(validation_tools_path)
+
+import mmcif
+import qscores
+from mapq_utils import SaveQStats, ReadMol
+
+print('\\nCreating MapQ Statistics...\\n')
+mol = ReadMol("%s")
+
+chimera.openModels.add([mol])
+
+mols = chimera.openModels.list(modelTypes=[Molecule])
+if len(mols) == 0:
+    print(" - no molecules loaded")
+else:
+    print('\\nMolecules loaded correctly')
+    for mi, mol in enumerate(mols):
+        qscores.SetBBAts(mol)
+        SaveQStats(mol, "All", 0.6, %d)
+
+"""%(mapq_path, validation_tools_path, cifFilename, resolution)        
+        fnQStatsScript = os.path.join(report.getReportDir(),"mapq_stats.py")
+        fhQStatsScript = open(fnQStatsScript,"w")
+        fhQStatsScript.write(QStatsScript)
+        fhQStatsScript.close()
+
+        args = "--nogui --script %s "%(fnQStatsScript)
+        print("Running: %s %s" % (chimeraProgram, args))
+        p = subprocess.Popen('%s %s' % (chimeraProgram, args), shell=True, stderr=subprocess.PIPE)
+        p.wait()
+
+        files = glob.glob(os.path.join(report.getReportDir(), "*All.txt"))
+
+    fh = open(files[0])
+    msg=\
+""" The following table shows the average Q-score and estimated resolution for each chain.
+\\begin{center}
+    \\begin{tabular}{ccc}
+        \\hline
+        \\textbf{Chain} & \\textbf{Average Q-score [-1,-1]} & \\textbf{Estimated Resol. (\\AA)} \\\\
+        \\hline
+"""
+
+    state = 0
+    resolutions = []
+    for line in fh.readlines():
+        if state==0 and line.startswith('Chain'):
+            state=1
+        elif state==1:
+            tokens = line.split()
+            if len(tokens)>0:
+                res = float(tokens[-1])
+                msg+="      %s & %s & %4.1f \\\\ \n"%(tokens[0],tokens[3],res)
+                resolutions.append(res)
+            else:
+                state=2
+                break
     msg+=\
-"""
-\\underline{Resolutions estimated from the model}:\\\\
-\\begin{center}
-\\begin{tabular}{rcc}
-    \\textbf{Resolution} (\\AA) & \\textbf{Masked} & \\textbf{Unmasked} \\\\
-    d99 & %4.1f & %4.1f \\\\
-    d\_model & %4.1f & %4.1f \\\\
-    d\_model (B-factor=0) & %4.1f & %4.1f \\\\
-    FSC\_model=0 & %4.1f & %4.1f \\\\
-    FSC\_model=0.143 & %4.1f & %4.1f \\\\
-    FSC\_model=0.5 & %4.1f & %4.1f \\\\
-\\end{tabular}
-\\end{center}
+    """        \\hline
+        \\end{tabular}
+    \\end{center}
 
-"""%(data['*d99_full_masked'],data['*d99_full_unmasked'],
-     data['*dmodel_masked'],data['*dmodel_unmasked'],
-     data['d_model_b0_masked'],data['d_model_b0_unmasked'],
-     data['*dFSCmodel_0_masked'],data['*dFSCmodel_0_unmasked'],
-     data['*dFSCmodel_0.143_masked'],data['*dFSCmodel_0.143_unmasked'],
-     data['*dFSCmodel_0.5_masked'],data['*dFSCmodel_0.5_unmasked'])
-
-    msg += \
-"""
-\\underline{Overall isotropic B factor}:\\\\
-\\begin{center}
-\\begin{tabular}{rcc}
-    \\textbf{B factor} & \\textbf{Masked} & \\textbf{Unmasked} \\\\
-    Overall B-iso & %4.1f & %4.1f \\\\
-\\end{tabular}
-\\end{center}
-
-""" % (data["overall_b_iso_masked"], data["overall_b_iso_unmasked"])
-
-    if 'FSC_Model_Map_Masked' in data and 'FSC_Model_Map_Unmasked' in data:
-        fnFSCModel = os.path.join(report.getReportDir(),"fscModel.png")
-        reportMultiplePlots(data['d_inv_Model_Map_Masked'],
-                            [data['FSC_Model_Map_Masked'], data['FSC_Model_Map_Unmasked'],
-                             0.5*np.ones(len(data['FSC_Model_Map_Masked']))],
-                            "Resolution (A)", "FSC", fnFSCModel,
-                            ['Masked','Unmasked','0.5 Threshold'], invertXLabels=True)
-        msg+=\
-"""Fig. \\ref{fig:fscModel} shows the FSC between the input map and the model.
-
-\\begin{figure}[H]
-    \centering
-    \includegraphics[width=12cm]{%s}
-    \\caption{FSC between the input map and model with and without a mask constructed from the model.
-              The X-axis is the square of the inverse of the resolution in \\AA.}
-    \\label{fig:fscModel}
-\\end{figure}
-
-"""%fnFSCModel
+    """
     report.write(msg)
+    fh.close()
 
-    saveIntermediateData(report.fnReportDir, "phenix", True, "fscModel.png", fnFSCModel, 'Plot that shows FSC between the input map and model with and without a mask constructed from the model')
+    report.addResolutionEstimate(np.mean(resolutions))
 
-    warnings = []
+    saveIntermediateData(report.getReportDir(), 'MapQ', False, 'estimatedResolution', np.mean(resolutions), ['\u212B', 'The estimated resolution (mean) in Angstroms obtained from MapQ'])
+
+    # get colored models
+    msg = "The atomic model colored by MapQ can be seen in Fig. \\ref{fig:mapq}.\n\n"
+    if not has_precalculated_data:
+        fnCifMapQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_MapQ_score.cif"))
+        # make sure the output mapq file is correct
+        with open(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id))) as cif:
+            cifData = cif.read()
+        cifData = cifData.replace('residues', 'atoms')
+        with open(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id)), 'w') as cif:
+            cif.write(cifData)
+
+        replaceOcuppancyWithAttribute(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id)), "MapQ_Score",
+                                      fnCifMapQ)
+        report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", fnCifMapQ, "fig:mapq", bfactor=False,
+                           occupancy=True, rainbow=False, legendMin=-1, legendMax=1)
+
+    else:
+        # create .defattr file
+        qscores = {}
+        with open(cifWSFilename) as cif:
+            lines = cif.readlines()
+            for line in lines:
+                if 'ATOM' in line:
+                    line = re.sub(' +', ' ', line)
+                    values = line.split(' ')
+                    qscores[values[1]] = values[15]
+
+        attributeFile = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS.defattr')
+        with open(attributeFile, 'a') as af:
+            af.write('attribute: qscores\nrecipient: atoms\n')
+            for atom in qscores:
+                af.write('\t:%s\t%s\n' % (atom, qscores[atom]))
+
+        report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", cifWSFilename, "fig:mapq", bfactor=False,
+                           occupancy=False, otherAttribute=[attributeFile, 'qscores'], rainbow=False, legendMin=-1, legendMax=1)
+
+    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'MapQView',
+                         [os.path.join(report.getReportDir(), 'mapqView1.jpg'),
+                          os.path.join(report.getReportDir(), 'mapqView1.jpg'),
+                          os.path.join(report.getReportDir(), 'mapqView1.jpg')], 'MapQ views')
+
+    # Warnings
+    warnings=[]
     testWarnings = False
-    if badResidues > 10 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The percentage of residues that have a cross-correlation below 0.5 " \
-                        "is %4.1f, that is larger than 10\\%%}}" % badResidues)
-    if resolution<0.8*data['*dFSCmodel_0.5_masked'] or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %4.1f \\AA, is significantly " \
-                        "smaller than the resolution estimated between map and model (FSC=0.5), %4.1f \\AA}}" %\
-                        (resolution,data['*dFSCmodel_0.5_masked']))
-    report.addResolutionEstimate(data['*d99_full_masked'])
-    report.addResolutionEstimate(data['*dmodel_masked'])
-    report.addResolutionEstimate(data['d_model_b0_masked'])
-    report.addResolutionEstimate(data['*dFSCmodel_0_masked'])
-    report.addResolutionEstimate(data['*dFSCmodel_0.143_masked'])
-    report.addResolutionEstimate(data['*dFSCmodel_0.5_masked'])
 
+    BperHomogeneous = isHomogeneous(Bpercentiles[0], Bpercentiles[-1], eps=0.1)
+
+    if BperHomogeneous:
+        warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
+                        "be some program issues analyzing the data.}}")
+
+    if Bpercentiles[2]<0.1 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The median Q-score is less than 0.1.}}")
     msg = \
-"""\\textbf{Automatic criteria}: The validation is OK if 1) the percentage of residues whose correlation is
-smaller than 0.5 is smaller than 10\\%, and 2) the resolution reported by the user is larger than 0.8 times the
-resolution estimated between the map and model at FSC=0.5.
+"""\\textbf{Automatic criteria}: The validation is OK if the median Q-score is larger than 0.1.
 \\\\
 
 """
     report.write(msg)
-    report.writeWarningsAndSummary(warnings, "A.e Phenix validation", secLabel)
+    report.writeWarningsAndSummary(warnings, "A.e MapQ", secLabel)
     if len(warnings)>0:
-        report.writeAbstract("According to phenix, it seems that there might be some mismatch between the map "\
-                             "and its model (see Sec. \\ref{%s}). "%secLabel)
-
+        report.writeAbstract("There seems to be a problem with its MapQ scores (see Sec. \\ref{%s}). "%secLabel)
 
 def emringer(project, report, protImportMap, protAtom, priority=False):
     bblCitation = \
@@ -1513,12 +1510,12 @@ def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFaile
             report.writeSection('Level A analysis')
             protConvert = convertPDB(project, report, protImportMap, protAtom, priority=priority)
             if protConvert is not None:
-                mapq(project, report, protImportMap, protAtom, resolution, priority=priority)
+                phenix(project, report, protImportForPhenix, protAtom, resolution, priority=priority)
                 fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask, fnMaskedMapDict['fnSoftMaskedMap'], priority=priority)
                 if doMultimodel:
                     multimodel(project, report, protImportMap, protAtom, resolution, priority=priority)
                 guinierModel(project, report, protImportMap, protConvert, resolution, priority=priority)
-                phenix(project, report, protImportForPhenix, protAtom, resolution, priority=priority)
+                mapq(project, report, protImportMap, protAtom, resolution, priority=priority)
                 emringer(project, report, protImportForPhenix, protAtom, priority=priority)
                 daq(project, report, protImportMap, protAtom, priority=priority)
 
