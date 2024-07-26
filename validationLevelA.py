@@ -109,56 +109,13 @@ def importModel(project, report, label, protImportMap, fnPdb, priority=False):
 
     return protImport
 
+def moveOriginTo(newOrigin, handler):
+    centerMass = handler.centerOfMass(geometric=True)
+    for atom in handler.getStructure().get_atoms():
+        coords = atom.get_coord()
+        atom.coord = coords + np.asarray(newOrigin) - np.asarray(centerMass)
 
-def phenix(project, report, protImportMap, protAtom, resolution, priority=False):
-    bblCitation = \
-"""\\bibitem[Afonine et~al., 2018]{Afonine2018}
-Afonine, P.~V., Klaholz, B.~P., Moriarty, N.~W., Poon, B.~K., Sobolev, O.~V.,
-  Terwilliger, T.~C., Adams, P.~D., and Urzhumtsev, A. (2018).
-\\newblock New tools for the analysis and validation of cryo-{EM} maps and
-  atomic models.
-\\newblock {\em Acta Crystallographica D, Struct. Biol.}, 74:814--840.
-"""
-    report.addCitation("Afonine2018", bblCitation)
-
-    secLabel = "sec:phenix"
-    msg = \
-"""
-\\subsection{Level A.a Phenix validation}
-\\label{%s}
-\\textbf{Explanation}:\\\\ 
-Phenix provides a number of tools to assess the agreement between the experimental map and its atomic model
-\\cite{Afonine2018}. There are several cross-correlations to assess the quality of the fitting:\\\\
-\\begin{itemize}
-    \\item CC (mask): Model map vs. experimental map correlation coefficient calculated considering map values inside 
-a mask calculated around the macromolecule. 
-    \\item CC (box): Model map vs. experimental map correlation coefficient calculated considering all grid points of the 
-box.
-    \\item CC (volume) and CC (peaks) compare only map regions with the highest density values and regions below a 
-    certain contouring threshold level are ignored. CC (volume): The map region considered is defined by
-    the N highest points inside the molecular mask. CC (peaks): In this case, calculations consider the union of 
-    regions defined by the N highest peaks in the model-calculated map and the N highest peaks in the experimental map.
-    \\item Local real-space correlation coefficients CC (main chain) and CC (side chain) involve the main skeleton chain 
-and side chains, respectively.
-\\end{itemize}
-There are also multiple ways of measuring the resolution:
-\\begin{itemize}
-    \\item d99: Resolution cutoff beyond which Fourier map coefficients are negligibly small. Calculated from the 
-    full map.
-    \\item d\_model: Resolution cutoff at which the model map is the most similar to the target (experimental)
- map. For d\_model to be meaningful, the model is expected to fit the map as well as possible. d\_model (B\ factors = 0) 
- tries to avoid the blurring of the map.
-    \\item d\_FSC\_model; Resolution cutoff up to which the model and map Fourier coefficients are similar at FSC values 
-        of 0, 0.143, 0.5.
-\\end{itemize}
-In addition to these resolution measurements the overall isotropic B factor is another indirect measure of the
-quality of the map.
-\\\\
-\\textbf{Results:}\\\\
-\\\\
-""" % secLabel
-    report.write(msg)
-
+def phenixExecution(project, report, protImportMap, protAtom, resolution, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
                                             'PhenixProtRunValidationCryoEM', doRaise=True)
     prot = project.newProtocol(Prot,
@@ -171,26 +128,12 @@ quality of the map.
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
 
-    if prot.isFailed():
-        report.writeSummary("A.a Phenix", secLabel, ERROR_MESSAGE)
-        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
-        phenixStdout = open(os.path.join(project.getPath(), prot.getStdoutLog()), "r").read()
-        controlledErrors = ["Sorry: Input map is all zero after boxing", "Sorry: Map and model are not aligned", "Sorry: Fatal problems interpreting model file"]
-        for error in controlledErrors:
-            if error in phenixStdout:
-                report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % error)
-        report.write(STATUS_ERROR_MESSAGE)
-        return prot
-
-    if prot.isAborted():
-        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_PHENIX)
-        report.writeSummary("A.a Phenix", secLabel, ERROR_ABORTED_MESSAGE)
-        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
-        return prot
-
     fnPkl = os.path.join(project.getPath(),prot._getExtraPath("validation_cryoem.pkl"))
-    fnPklOut = os.path.join(report.getReportDir(),"validation_cryoem.pkl")
-    phenixScript=\
+    data = None
+
+    if os.path.isfile(fnPkl):
+        fnPklOut = os.path.join(report.getReportDir(),"validation_cryoem.pkl")
+        phenixScript=\
 """import pickle
 
 data=pickle.load(open("%s","r"))
@@ -267,19 +210,88 @@ fh = open("%s",'wb')
 pickle.dump(dataOut,fh)
 fh.close()
 """%(fnPkl, fnPklOut)
-    fnPhenixScript = os.path.join(report.getReportDir(),"validation_cryoem.py")
-    fhPhenixScript = open(fnPhenixScript,"w")
-    fhPhenixScript.write(phenixScript)
-    fhPhenixScript.close()
+        fnPhenixScript = os.path.join(report.getReportDir(),"validation_cryoem.py")
+        fhPhenixScript = open(fnPhenixScript,"w")
+        fhPhenixScript.write(phenixScript)
+        fhPhenixScript.close()
 
-    saveIntermediateData(report.getReportDir(), 'phenix', True, 'validation_cryoem.pkl', fnPkl, 'validation_cryoem.pkl file')
-    saveIntermediateData(report.getReportDir(), 'phenix', True, 'validation_cryoem.py', fnPhenixScript, 'validation_cryoem.py file to get all phenix data from pickle')
+        saveIntermediateData(report.getReportDir(), 'phenix', True, 'validation_cryoem.pkl', fnPkl, 'validation_cryoem.pkl file')
+        saveIntermediateData(report.getReportDir(), 'phenix', True, 'validation_cryoem.py', fnPhenixScript, 'validation_cryoem.py file to get all phenix data from pickle')
 
-    from phenix import Plugin
-    Plugin.runPhenixProgram('',fnPhenixScript)
+        from phenix import Plugin
+        Plugin.runPhenixProgram('',fnPhenixScript)
 
-    data = pickle.load(open(fnPklOut, "rb"))
-    saveIntermediateData(report.getReportDir(), 'phenix', False, 'dataDict', data, ['', 'phenix data dictionary containing all key params'])
+        data = pickle.load(open(fnPklOut, "rb"))
+        saveIntermediateData(report.getReportDir(), 'phenix', False, 'dataDict', data, ['', 'phenix data dictionary containing all key params'])
+
+    return prot, data
+
+
+def phenixReporting(project, report, resolution, prot, data):
+    bblCitation = \
+"""\\bibitem[Afonine et~al., 2018]{Afonine2018}
+Afonine, P.~V., Klaholz, B.~P., Moriarty, N.~W., Poon, B.~K., Sobolev, O.~V.,
+  Terwilliger, T.~C., Adams, P.~D., and Urzhumtsev, A. (2018).
+\\newblock New tools for the analysis and validation of cryo-{EM} maps and
+  atomic models.
+\\newblock {\em Acta Crystallographica D, Struct. Biol.}, 74:814--840.
+"""
+    report.addCitation("Afonine2018", bblCitation)
+
+    secLabel = "sec:phenix"
+    msg = \
+"""
+\\subsection{Level A.a Phenix validation}
+\\label{%s}
+\\textbf{Explanation}:\\\\ 
+Phenix provides a number of tools to assess the agreement between the experimental map and its atomic model
+\\cite{Afonine2018}. There are several cross-correlations to assess the quality of the fitting:\\\\
+\\begin{itemize}
+    \\item CC (mask): Model map vs. experimental map correlation coefficient calculated considering map values inside 
+a mask calculated around the macromolecule. 
+    \\item CC (box): Model map vs. experimental map correlation coefficient calculated considering all grid points of the 
+box.
+    \\item CC (volume) and CC (peaks) compare only map regions with the highest density values and regions below a 
+    certain contouring threshold level are ignored. CC (volume): The map region considered is defined by
+    the N highest points inside the molecular mask. CC (peaks): In this case, calculations consider the union of 
+    regions defined by the N highest peaks in the model-calculated map and the N highest peaks in the experimental map.
+    \\item Local real-space correlation coefficients CC (main chain) and CC (side chain) involve the main skeleton chain 
+and side chains, respectively.
+\\end{itemize}
+There are also multiple ways of measuring the resolution:
+\\begin{itemize}
+    \\item d99: Resolution cutoff beyond which Fourier map coefficients are negligibly small. Calculated from the 
+    full map.
+    \\item d\_model: Resolution cutoff at which the model map is the most similar to the target (experimental)
+ map. For d\_model to be meaningful, the model is expected to fit the map as well as possible. d\_model (B\ factors = 0) 
+ tries to avoid the blurring of the map.
+    \\item d\_FSC\_model; Resolution cutoff up to which the model and map Fourier coefficients are similar at FSC values 
+        of 0, 0.143, 0.5.
+\\end{itemize}
+In addition to these resolution measurements the overall isotropic B factor is another indirect measure of the
+quality of the map.
+\\\\
+\\textbf{Results:}\\\\
+\\\\
+""" % secLabel
+    report.write(msg)
+
+    if prot.isFailed():
+        report.writeSummary("A.a Phenix", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED)
+        phenixStdout = open(os.path.join(project.getPath(), prot.getStdoutLog()), "r").read()
+        controlledErrors = ["Sorry: Input map is all zero after boxing", "Sorry: Map and model are not aligned", "Sorry: Fatal problems interpreting model file"]
+        for error in controlledErrors:
+            if error in phenixStdout:
+                report.write("{\\color{red} \\textbf{REASON: %s.}}\\\\ \n" % error)
+        report.write(STATUS_ERROR_MESSAGE)
+        return prot
+
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_PHENIX)
+        report.writeSummary("A.a Phenix", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
 
 
     # CC
@@ -438,6 +450,37 @@ resolution estimated between the map and model at FSC=0.5.
     if len(warnings)>0:
         report.writeAbstract("According to phenix, it seems that there might be some mismatch between the map "\
                              "and its model (see Sec. \\ref{%s}). "%secLabel)
+
+def phenix(project, report, protImportMap, protAtom, resolution, priority=False):
+    protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, priority)
+    phenixReporting(project, report, resolution, protPhenix, dataPhenix)
+
+def searchFitted():
+    pass
+
+def checkFitted(project, report, section, secLabel, protImportMap, protAtom, resolution, priority=False):
+    protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, priority)
+
+    if protPhenix.isFailed():
+        report.write(ERROR_MESSAGE_CHECK_FITTED_FAILED)
+        return None, protPhenix, dataPhenix     
+
+    if protPhenix.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_PHENIX)
+        report.writeSummary(section, secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return None, protPhenix, dataPhenix     
+    
+    if dataPhenix["cc_mask"] > 0.3:
+        report.write("Map and model seem to be properly aligned.")
+        return True, protPhenix, dataPhenix     
+    elif dataPhenix["cc_mask"] <= 0.3:
+        report.write("Map and model do not seem to be properly aligned.")
+        #searchFitted() probar a mover origen a varios sitios y escoger el que mejor cc_mask tenga, siendo este mayor que 0.3
+
+        return False, protPhenix, dataPhenix
+
+
 
 def convertPDB(project, report, protImportMap, protAtom, priority=False):
 
@@ -1490,6 +1533,10 @@ Atomic model: %s \\\\
     return False
 
 def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False):
+    
+    secLabel = "sec:AAnalysis"
+    section = "Level A Analysis"
+
     if writeAtomicModelFailed:
         reportInput(project, report, FNMODEL, writeAtomicModelFailed)
         protAtom = None
@@ -1507,16 +1554,23 @@ def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFaile
 
         # Quality Measures
         if not skipAnalysis:
-            report.writeSection('Level A analysis')
-            protConvert = convertPDB(project, report, protImportMap, protAtom, priority=priority)
-            if protConvert is not None:
-                phenix(project, report, protImportForPhenix, protAtom, resolution, priority=priority)
-                fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask, fnMaskedMapDict['fnSoftMaskedMap'], priority=priority)
-                if doMultimodel:
-                    multimodel(project, report, protImportMap, protAtom, resolution, priority=priority)
-                guinierModel(project, report, protImportMap, protConvert, resolution, priority=priority)
-                mapq(project, report, protImportMap, protAtom, resolution, priority=priority)
-                emringer(project, report, protImportForPhenix, protAtom, priority=priority)
-                daq(project, report, protImportMap, protAtom, priority=priority)
+            report.writeSection(section, secLabel)
+
+            # Check if map and model are fitted with phenix
+            fitted, protPhenix, dataPhenix = checkFitted(project, report, section, secLabel, protImportMap, protAtom, resolution, priority)
+
+            if fitted is False: # Avoid execcuting level A if map and model are not fitted
+                return protAtom
+            else: # Continue executing level A
+                protConvert = convertPDB(project, report, protImportMap, protAtom, priority=priority)
+                if protConvert is not None:
+                    phenixReporting(project, report, resolution, protPhenix, dataPhenix)
+                    fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask, fnMaskedMapDict['fnSoftMaskedMap'], priority=priority)
+                    if doMultimodel:
+                        multimodel(project, report, protImportMap, protAtom, resolution, priority=priority)
+                    guinierModel(project, report, protImportMap, protConvert, resolution, priority=priority)
+                    mapq(project, report, protImportMap, protAtom, resolution, priority=priority)
+                    emringer(project, report, protImportForPhenix, protAtom, priority=priority)
+                    daq(project, report, protImportMap, protAtom, priority=priority)
 
     return protAtom

@@ -718,8 +718,16 @@ This Validation Report Service is explained in more detail in the paper \\cite{S
 """%(subsection, msg)
         self.fh.write(toWrite)
 
-    def writeSection(self, section):
-        toWrite=\
+    def writeSection(self, section, label=False):
+        if label:
+            toWrite=\
+"""
+\\section{%s}
+\\label{%s}
+
+"""%(section, label)
+        else:
+            toWrite=\
 """
 \\section{%s}
 
