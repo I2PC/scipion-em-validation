@@ -60,6 +60,7 @@ useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 chimeraProgram = config['MAPQ'].get('CHIMERA_PROGRAM_PATH')
 mapq_path = config['MAPQ'].get('MAPQ_PATH')
 validation_tools_path = config['EM-VALIDATION'].get('VALIDATION_TOOLS_PATH')
+EMDB_entries_path = config['EMDB'].get('ENTRIES_PATH')
 
 
 def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ, priority=False):
@@ -115,11 +116,11 @@ def moveOriginTo(newOrigin, handler):
         coords = atom.get_coord()
         atom.coord = coords + np.asarray(newOrigin) - np.asarray(centerMass)
 
-def phenixExecution(project, report, protImportMap, protAtom, resolution, priority=False):
+def phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
                                             'PhenixProtRunValidationCryoEM', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel="A.a Phenix",
+                               objLabel=label,
                                resolution=max(resolution,3.0))
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
@@ -452,34 +453,114 @@ resolution estimated between the map and model at FSC=0.5.
                              "and its model (see Sec. \\ref{%s}). "%secLabel)
 
 def phenix(project, report, protImportMap, protAtom, resolution, priority=False):
-    protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, priority)
+    label = "A.a Phenix"
+    protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority)
     phenixReporting(project, report, resolution, protPhenix, dataPhenix)
 
-def searchFitted():
-    pass
+def searchFitted(list_origins, original_cc_mask, project, report, protImportMap, FNMODEL, resolution, cc_mask_threshold, priority):
+    h = AtomicStructHandler()
+    h.read(FNMODEL)
+    new_cc_mask_dict = {}
+    for origin in list_origins:
 
-def checkFitted(project, report, section, secLabel, protImportMap, protAtom, resolution, priority=False):
-    protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, priority)
+        origin_dict = {}
+
+        originStr = '-'.join(map(str, origin))
+        modelName = os.path.splitext(os.path.basename(FNMODEL))[0]
+        modelNewName = f"{modelName}_{originStr}.cif"
+        newFnModel = os.path.join(report.getReportDir(), modelNewName)
+
+        moveOriginTo(origin, h)
+        h.writeAsCif(newFnModel)
+        newProtAtom = importModel(project, report, f"Import atomic - origin {originStr}", protImportMap, newFnModel, priority=priority)
+        protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, newProtAtom, resolution, f"Phenix search fitted - origin {originStr}", priority)
+
+        importProtId = newProtAtom.getObjId()
+        phenixProtId = protPhenix.getObjId()
+
+        origin_dict["cc_mask"] = dataPhenix["cc_mask"]
+        origin_dict["import_prot_id"] = importProtId
+        origin_dict["phenix_prot_id"] = phenixProtId
+
+        new_cc_mask_dict[originStr] = origin_dict
+
+    # Get greatest cc_mask that is also greater than cc_mask original and beyond cc_mask_threshold (that normally is 0.5)
+    greatest_cc_mask = None
+    greatest_cc_mask_key = None
+    
+    for key, sub_dict in new_cc_mask_dict.items():
+        new_cc_mask = sub_dict.get("cc_mask", None)
+        if new_cc_mask is not None and new_cc_mask > original_cc_mask and new_cc_mask > cc_mask_threshold:
+            if greatest_cc_mask is None or new_cc_mask > greatest_cc_mask:
+                greatest_cc_mask = new_cc_mask
+                greatest_cc_mask_key = key
+
+    if greatest_cc_mask:
+        newOrigin = greatest_cc_mask_key.split("-")
+
+        newImportProtId = new_cc_mask_dict[greatest_cc_mask_key]["import_prot_id"]
+        newImportProt = project.getProtocol(int(newImportProtId), fromRuns=True)
+
+        newPhenixProtId = new_cc_mask_dict[greatest_cc_mask_key]["phenix_prot_id"]
+        newPhenixProt = project.getProtocol(int(newPhenixProtId), fromRuns=True)
+
+        return newImportProt, newPhenixProt, dataPhenix, newOrigin
+    else:
+        return None, None, None, None
+
+def checkFitted(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, priority=False):
+    label = "A.a Phenix"
+    protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority)
 
     if protPhenix.isFailed():
         report.write(ERROR_MESSAGE_CHECK_FITTED_FAILED)
-        return None, protPhenix, dataPhenix     
+        return None, protPhenix, dataPhenix, protAtom
 
     if protPhenix.isAborted():
         print(PRINT_PROTOCOL_ABORTED + ": " + NAME_PHENIX)
         report.writeSummary(section, secLabel, ERROR_ABORTED_MESSAGE)
         report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
-        return None, protPhenix, dataPhenix     
-    
-    if dataPhenix["cc_mask"] > 0.3:
-        report.write("Map and model seem to be properly aligned.")
-        return True, protPhenix, dataPhenix     
-    elif dataPhenix["cc_mask"] <= 0.3:
-        report.write("Map and model do not seem to be properly aligned.")
-        #searchFitted() probar a mover origen a varios sitios y escoger el que mejor cc_mask tenga, siendo este mayor que 0.3
+        return None, protPhenix, dataPhenix, protAtom
 
-        return False, protPhenix, dataPhenix
+    if dataPhenix["cc_mask"] > cc_mask_threshold:
+        report.write(PROPERLY_FITTED)
+        return True, protPhenix, dataPhenix, protAtom
+       
+    elif dataPhenix["cc_mask"] <= cc_mask_threshold:
 
+        # Create list of origin of coordinate to test
+        x, y, z, n = protImportMap.outputVolume.getDimensions()
+
+        list_origins = [[0,0,0], [x/2, y/2, z/2]] #TODO: finish list of origin of coordinates to test (remaining: from header, from API)
+
+        protAtom, protPhenix, dataPhenix, newOrigin = searchFitted(list_origins, dataPhenix["cc_mask"], project, report, protImportMap, FNMODEL, resolution, cc_mask_threshold, priority)
+
+        if protAtom is None and protPhenix is None:
+            report.write(NOT_FOUND_NEW_FITTED)
+
+            ######TODO: this part is for debugging. Remove when finishing debugging.######
+            os.makedirs(EMDB_entries_path, exist_ok=True)
+            with open(os.path.join(EMDB_entries_path, 'EMDB_fail_fitted.txt'), 'a') as output:
+                if EMDB_ID_NUM:
+                    output.writelines(f'{EMDB_ID_NUM}\n')
+                else:
+                    output.writelines('Unkown\n')
+            ##############################################################################
+
+            return False, protPhenix, dataPhenix, protAtom
+        else:
+            report.write(FITTED_NEW_ORIGIN % ', '.join(newOrigin))
+
+            ######TODO: this part is for debugging. Remove when finishing debugging.######
+            os.makedirs(EMDB_entries_path, exist_ok=True)
+            with open(os.path.join(EMDB_entries_path, 'EMDB_new_fitted.txt'), 'a') as output:
+                if EMDB_ID_NUM:
+                    output.writelines(f'{EMDB_ID_NUM}\n')
+                else:
+                    output.writelines('Unkown\n')
+            ##############################################################################
+
+            return True, protPhenix, dataPhenix, protAtom
 
 
 def convertPDB(project, report, protImportMap, protAtom, priority=False):
@@ -1532,7 +1613,7 @@ Atomic model: %s \\\\
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
     return False
 
-def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False):
+def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False):
     
     secLabel = "sec:AAnalysis"
     section = "Level A Analysis"
@@ -1557,7 +1638,8 @@ def levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFaile
             report.writeSection(section, secLabel)
 
             # Check if map and model are fitted with phenix
-            fitted, protPhenix, dataPhenix = checkFitted(project, report, section, secLabel, protImportMap, protAtom, resolution, priority)
+            cc_mask_threshold = 0.5
+            fitted, protPhenix, dataPhenix, protAtom = checkFitted(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, priority)
 
             if fitted is False: # Avoid execcuting level A if map and model are not fitted
                 return protAtom

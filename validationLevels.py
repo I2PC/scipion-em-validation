@@ -772,7 +772,7 @@ else: # go ahead
     #TODO: pass writeAtomicModelFailed to levelA() to write the warning in the report
     if "A" in levels:
         from validationLevelA import levelA
-        protAtom = levelA(project, report, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, MAPRESOLUTION, doMultimodel, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis = False, priority=False if IS_EMDB_ENTRY else True)
+        protAtom = levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, MAPRESOLUTION, doMultimodel, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis = False, priority=False if IS_EMDB_ENTRY else True)
     else:
         protAtom = None
 
