@@ -1648,11 +1648,11 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
                 if protConvert is not None:
                     phenixReporting(project, report, resolution, protPhenix, dataPhenix)
                     fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask, fnMaskedMapDict['fnSoftMaskedMap'], priority=priority)
-                    # if doMultimodel:
-                    #     multimodel(project, report, protImportMap, protAtom, resolution, priority=priority)
-                    # guinierModel(project, report, protImportMap, protConvert, resolution, priority=priority)
-                    # mapq(project, report, protImportMap, protAtom, resolution, priority=priority)
-                    # emringer(project, report, protImportForPhenix, protAtom, priority=priority)
-                    # daq(project, report, protImportMap, protAtom, priority=priority)
+                    if doMultimodel:
+                        multimodel(project, report, protImportMap, protAtom, resolution, priority=priority)
+                    guinierModel(project, report, protImportMap, protConvert, resolution, priority=priority)
+                    mapq(project, report, protImportMap, protAtom, resolution, priority=priority)
+                    emringer(project, report, protImportForPhenix, protAtom, priority=priority)
+                    daq(project, report, protImportMap, protAtom, priority=priority)
 
     return protAtom
