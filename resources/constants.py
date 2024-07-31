@@ -75,8 +75,8 @@ NOT_APPLY_WORSE_RESOLUTION = "{\\color{brown} This method cannot be applied to m
 
 SUMMARY_WARNINGS_TITLE = "\\textbf{\\underline{Summary of the warnings across sections.}}\\\\ \n\n\n"
 PROPERLY_FITTED = "Map and model seem to be properly aligned."
-FITTED_NEW_ORIGIN = "Map and model do not seem to be properly aligned. However, we found an origin of coordinates for which there is a better alignment. All level A analyses from here will take %s as origin of coordinates."
-NOT_FOUND_NEW_FITTED = "Map and model do not seem to be properly aligned. However, we have not found any origin of coordinates that allows a good aligment. Level A analyses will be skipped."
+FITTED_NEW_ORIGIN = "Map and model do not seem to be properly aligned. However, we found an origin of coordinates for which there is a better alignment. All level A analyses from here will take %s as the origin of coordinates."
+NOT_FOUND_NEW_FITTED = "Map and model do not seem to be properly aligned. However, we have not found any origin of coordinates that allows a good alignment. Level A analyses will be skipped."
 
 
 
