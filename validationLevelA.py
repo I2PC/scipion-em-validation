@@ -508,7 +508,7 @@ def searchFitted(list_origins, original_cc_mask, project, report, protImportMap,
     else:
         return None, None, None, None
 
-def checkFitted(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, priority=False):
+def checkFitted(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, mapCoordX, mapCoordY, mapCoordZ, cc_mask_threshold, priority=False):
     label = "A.a Phenix"
     protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority)
 
@@ -529,10 +529,10 @@ def checkFitted(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, 
     elif dataPhenix["cc_mask"] <= cc_mask_threshold:
 
         # Create list of origin of coordinate to test
-        x, y, z, n = protImportMap.outputVolume.getDimensions()
+        x, y, z = protImportMap.outputVolume.getDimensions()        
 
-        list_origins = [[0,0,0], [x/2, y/2, z/2]] #TODO: finish list of origin of coordinates to test (remaining: from header, from API)
-
+        list_origins = [[0,0,0], [x/2, y/2, z/2], [mapCoordX, mapCoordY, mapCoordZ]] #TODO: finish list of origin of coordinates to test (remaining: from header)
+        
         protAtom, protPhenix, dataPhenix, newOrigin = searchFitted(list_origins, dataPhenix["cc_mask"], project, report, protImportMap, FNMODEL, resolution, cc_mask_threshold, priority)
 
         if protAtom is None and protPhenix is None:
@@ -1639,7 +1639,7 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
 
             # Check if map and model are fitted with phenix
             cc_mask_threshold = 0.5
-            fitted, protPhenix, dataPhenix, protAtom = checkFitted(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, priority)
+            fitted, protPhenix, dataPhenix, protAtom = checkFitted(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, mapCoordX, mapCoordY, mapCoordZ, cc_mask_threshold, priority)
 
             if fitted is False: # Avoid execcuting level A if map and model are not fitted
                 return protAtom
@@ -1648,11 +1648,11 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
                 if protConvert is not None:
                     phenixReporting(project, report, resolution, protPhenix, dataPhenix)
                     fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask, fnMaskedMapDict['fnSoftMaskedMap'], priority=priority)
-                    if doMultimodel:
-                        multimodel(project, report, protImportMap, protAtom, resolution, priority=priority)
-                    guinierModel(project, report, protImportMap, protConvert, resolution, priority=priority)
-                    mapq(project, report, protImportMap, protAtom, resolution, priority=priority)
-                    emringer(project, report, protImportForPhenix, protAtom, priority=priority)
-                    daq(project, report, protImportMap, protAtom, priority=priority)
+                    # if doMultimodel:
+                    #     multimodel(project, report, protImportMap, protAtom, resolution, priority=priority)
+                    # guinierModel(project, report, protImportMap, protConvert, resolution, priority=priority)
+                    # mapq(project, report, protImportMap, protAtom, resolution, priority=priority)
+                    # emringer(project, report, protImportForPhenix, protAtom, priority=priority)
+                    # daq(project, report, protImportMap, protAtom, priority=priority)
 
     return protAtom
