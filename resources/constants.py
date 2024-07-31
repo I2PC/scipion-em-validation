@@ -66,7 +66,7 @@ ERROR_MESSAGE_NOT_CLASSES = "{\\color{red} \\textbf{ERROR: Cannot find the outpu
 ERROR_MESSAGE_EMPTY_VOL = "{\\color{red} \\textbf{ERROR: The volume is empty.}}\\\\ \n\n"
 ERROR_MESSAGE_NO_RESULTS = "{\\color{red} \\textbf{ERROR: The protocol did not produce any result.}}\\\\ \n\n"
 ERROR_MESSAGE_ABORTED = "{\\color{red} \\textbf{ERROR: The protocol could not be finished because it was manually aborted.}}\\\\ \n\n"
-ERROR_MESSAGE_CHECK_FITTED_FAILED = "{\\color{red} \\textbf{The protocol to check whether the model and map are aligned has failed. Since we cannot check if they are properly aligned, some problems or bad results may occur when running the Level A analysis.}}\\\\ \n\n"
+ERROR_MESSAGE_CHECK_FITTED_FAILED = "{\\color{red} \\textbf{The protocol to check whether the model and map are aligned has failed. Since we cannot check if they are properly aligned, some problems or bad results may occur when running the Level A analysis due to misalignment.}}\\\\ \n\n"
 
 NOT_APPY_NO_RESOLUTION = "{\\color{brown} This method cannot be applied to maps with no resolution reported.}\\\\ \n\n"
 NOT_APPLY_BETTER_RESOLUTION = "{\\color{brown} This method cannot be applied to maps with a resolution better than %d\\AA.}\\\\ \n\n"
