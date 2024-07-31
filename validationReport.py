@@ -19,7 +19,7 @@ from tools.utils import storeIntermediateData
 import xmipp3
 
 import configparser
-from resources.constants import SUMMARY_WARNINGS_TITLE, STATUS_OK, OK_MESSAGE, STATUS_OK, WARNINGS_MESSAGE
+from resources.constants import *
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
@@ -600,16 +600,22 @@ Manual interpretation is needed. Not included as evaluable item in 'Summarized o
 """
                 {\\bf {%s: }}{%s}\\\\
 """
+
+        entryLineHRef=\
+"""
+                {\\bf {%s: }}\\href{%s}{%s}\\\\
+"""
+
         if IS_EMDB_ENTRY:
             for item in entryInfoList:
                 if item is EMDB_ID and EMDB_ID is not None:
-                    toWrite+=entryLine % ('EMDB ID', EMDB_ID)
+                    toWrite+=entryLineHRef % ('EMDB ID', EMDB_LINK % EMDB_ID, EMDB_ID)
                 if item is PDB_ID and PDB_ID is not None:
-                    toWrite+=entryLine % ('PDB ID', PDB_ID)
+                    toWrite+=entryLineHRef % ('PDB ID', PDB_LINK % PDB_ID, PDB_ID)
                 if item is title and title is not None:
                     toWrite+=entryLine % ('Title', title)
                 if item is authors and authors is not None:
-                    toWrite+=entryLine % ('Authors', authors)
+                    toWrite+=entryLineHRef % ('Authors', EMDB_LINK % EMDB_ID, "See EMDB entry link")
                 if item is deposited and deposited is not None:
                     toWrite+=entryLine % ('Deposited on', deposited)
                 if item is resolution_str and resolution_str is not None:

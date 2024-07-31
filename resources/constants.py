@@ -36,6 +36,9 @@ NAME_XLM = "XLM"
 NAME_SAXS = "SAXS"
 NAME_TILT_PAIR = "Tilt pair"
 
+EMDB_LINK = "https://www.ebi.ac.uk/emdb/%s/"
+PDB_LINK = "https://www.ebi.ac.uk/pdbe/entry/pdb/%s/"
+
 ####################### TERMINAL MESSAGES CONSTANTS #######################
 PRINT_PROTOCOL_ABORTED = "PROTOCOL MANUALLY ABORTED"
 
