@@ -45,16 +45,6 @@ useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 
 
 def xlmValidation(project, report, protAtom, XLM):
-    bblCitation = \
-"""\\bibitem[Sinnott et~al., 2020]{Sinnott2020}
-Sinnott, M., Malhotra, S., Madhusudhan, M.~S., Thalassinos, K., and Topf, M.
-(2020).
-\\newblock Combining information from crosslinks and monolinks in the modeling
-of protein structures.
-\\newblock {\em Structure}, 28:1061--1070.e3.
-
-"""
-    report.addCitation("Sinnott2020", bblCitation)
 
     secLabel = "sec:xlm"
     msg = \
@@ -63,12 +53,12 @@ of protein structures.
 \\label{%s}
 
 \\textbf{Explanation}:\\\\ 
-The method in \\cite{Sinnott2020} uses information from cross- and mono-links to validate the atomic model. In a 
+This method (see this \\href{%s}{link} for more details) uses information from cross- and mono-links to validate the atomic model. In a 
 cross-link, the linker is bound to two residues, while in a mono-link, it is bound to only one residue and it can
 be thought as a measure of the residue surface exposure.\\\\
 \\\\
 \\textbf{Results:}\\\\
-""" % (secLabel)
+""" % (secLabel, XLM_DOI)
     report.write(msg)
 
     Prot = pwplugin.Domain.importFromPlugin('xlmtools.protocols',
@@ -152,17 +142,6 @@ program.
         report.writeAbstract("It seems that many of the mass spectroscopy constraints are not met (see Sec. \\ref{%s}). "%secLabel)
 
 def saxsValidation(project, report, protMap, protMask, SAXS):
-    bblCitation = \
-"""\\bibitem[Jim\\'enez et~al., 2019]{Jimenez2019}
-Jim\\'enez, A., Jonic, S., Majtner, T., O\\'on, J., Vilas, J.~L., Maluenda, D.,
-  Mota, J., Ram\\'irez-Aportela, E., Mart\\'inez, M., Rancel, Y., Segura, J.,
-  S\\'anchez-Garc\\'ia, R., Melero, R., {Del Ca\~no}, L., Conesa, P., Skjaerven,
-  L., Marabini, R., Carazo, J.~M., and Sorzano, C. O.~S. (2019).
-\\newblock Validation of electron microscopy initial models via small angle
-  {X}-ray scattering curves.
-\\newblock {\em Bioinformatics}, 35:2427--2433.
-"""
-    report.addCitation("Jimenez2019", bblCitation)
 
     secLabel = "sec:saxs"
 
@@ -177,11 +156,11 @@ SAXS file: %s \\\\
 SHA256 hash: %s \\\\ 
 
 \\textbf{Explanation}:\\\\ 
-The method in \\cite{Jimenez2019} compares the expected energy profile from the reconstructed map to the one 
+This method (see this \\href{%s}{link} for more details) compares the expected energy profile from the reconstructed map to the one 
 obtained by a SAXS experiment. \\\\
 \\\\
 \\textbf{Results:}\\\\
-""" % (secLabel, basenameSAXS.replace('_', '\_').replace('/', '/\-'), calculateSha256(SAXS))
+""" % (secLabel, basenameSAXS.replace('_', '\_').replace('/', '/\-'), calculateSha256(SAXS), SAXS_DOI)
     report.write(msg)
 
     Prot = pwplugin.Domain.importFromPlugin('continuousflex.protocols',
@@ -265,16 +244,6 @@ Fig. \\ref{fig:saxs} shows the two SAXS profiles for comparison.
 
 def tiltPairValidation(project, report, protMap, UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE,
                        UNTILTEDCOORDS, TILTEDCOORDS, SYM):
-    bblCitation = \
-"""\\bibitem[Henderson et~al., 2011]{Henderson2011}
-Henderson, R., Chen, S., Chen, J.~Z., Grigorieff, N., Passmore, L.~A.,
-  Ciccarelli, L., Rubinstein, J.~L., Crowther, R.~A., Stewart, P.~L., and
-  Rosenthal, P.~B. (2011).
-\\newblock Tilt-pair analysis of images from a range of different specimens in
-  single-particle electron cryomicroscopy.
-\\newblock {\em J. {M}olecular {B}iology}, 413(5):1028--1046.
-"""
-    report.addCitation("Henderson2011", bblCitation)
 
     secLabel = "sec:tiltpair"
     msg = \
@@ -282,11 +251,11 @@ Henderson, R., Chen, S., Chen, J.~Z., Grigorieff, N., Passmore, L.~A.,
 \\subsection{O.c Tilt pair}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-this method is capable of experimentally validating the hand of the reconstructed map by comparing the angular 
-assignment of two sets of particles related by a single-axis tilt \\cite{Henderson2011}.\\\\
+This method (see this \\href{%s}{link} for more details) is capable of experimentally validating the hand of the reconstructed map by comparing the angular 
+assignment of two sets of particles related by a single-axis tilt.\\\\
 \\\\
 \\textbf{Results:}\\\\
-""" % (secLabel)
+""" % (secLabel, TILT_PAIR_VALIDATION_DOI)
     report.write(msg)
 
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',

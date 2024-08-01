@@ -94,16 +94,6 @@ def similarityMeasures(project, report, protMap, protMask, protParticles, symmet
     #waitOutput(project, prot, 'outputParticles')
     waitUntilFinishes(project, prot)
 
-    bblCitation = \
-"""\\bibitem[Sorzano et~al., 2015]{Sorzano2015b}
-Sorzano, C. O.~S., Vargas, J., {de la Rosa-Trev\\'{\i}n}, J.~M., Ot{\\'o}n, J.,
-  {\\'A}lvarez-Cabrera, A.~L., Abrishami, V., Sesmero, E., Marabini, R., and
-  Carazo, J.~M. (2015).
-\\newblock A statistical approach to the initial volume problem in single
-  particle analysis by electron microscopy.
-\\newblock {\em J. Structural Biology}, 189:213--219."""
-    report.addCitation("Sorzano2015b", bblCitation)
-
     secLabel = "sec:outlierDetection"
     msg = \
 """
@@ -114,7 +104,7 @@ We measured the similarity between the experimental images, with the angles and 
 reprojections of the input map along the same direction. We measured the correlation and IMED (IMage Euclidean Distance,
 which is a generalized measure of the standard Euclidean Distance in which nearby pixels also contribute to the
 calculation of the final distance between the image at a given point)
-\\cite{Sorzano2015b} between both sets of images. If the set of particles is properly assigned there should be a 
+(see this \\href{%s}{link} for more details) between both sets of images. If the set of particles is properly assigned there should be a 
 single peak in the
 1D histograms of these two similarity measures, and a single cloud in their joint scatter plot. The presence of 
 multiple peaks could reveal a mixture of different conformations, the presence of misaligned particles or 
@@ -126,7 +116,7 @@ seen in the similarity measures are not caused by defocus groups.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, SIMILARITY_MEASURES_DOI)
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("4.a Similarity criteria", secLabel, ERROR_MESSAGE)
@@ -201,13 +191,6 @@ plot and the dependence of the cross-correlation with the defocus.\\\\
     report.writeWarningsAndSummary(None, "4.a Similarity criteria", secLabel)
 
 def alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry, resolution):
-    bblCitation = \
-"""\\bibitem[M{\\'e}ndez et~al., 2021]{Mendez2021b}
-M{\\'e}ndez, J., Gardu{\\~n}o, E., Carazo, J.~M., and Sorzano, C. O.~S. (2021).
-\\newblock Identification of incorrectly oriented particles in {Cryo-EM} single
-  particle analysis.
-\\newblock {\em J. Structural Biology}, 213:107771."""
-    report.addCitation("Mendez2021b", bblCitation)
 
     secLabel = "sec:alignabilitySmoothness"
     msg = \
@@ -215,13 +198,13 @@ M{\\'e}ndez, J., Gardu{\\~n}o, E., Carazo, J.~M., and Sorzano, C. O.~S. (2021).
 \\subsection{Level 4.b Alignability smoothness}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-This algorithm \\cite{Mendez2021b} analyzes the smoothness of the correlation function over the projection sphere and
+This algorithm (see this \\href{%s}{link} for more details) analyzes the smoothness of the correlation function over the projection sphere and
 the stability of its maximum. Ideally, the angular assignment given by the user should coincide with the maximum
 of the smoothed cross-correlation landscape.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, ALIGNABILITY_SMOOTHNESS_DOI)
     report.write(msg)
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -312,39 +295,21 @@ def multirefAlignability(project, report, protMap, protMask, protParticles, symm
     #waitOutput(project, prot, 'outputVolumes')
     waitUntilFinishes(project, prot)
 
-    bblCitation = \
-"""\\bibitem[Vargas et~al., 2017]{Vargas2017}
-Vargas, J., Melero, R., G{\\'o}mez-Blanco, J., Carazo, J.~M., and Sorzano, C.
-  O.~S. (2017).
-\\newblock Quantitative analysis of {3D} alignment quality: its impact on
-  soft-validation, particle pruning and homogeneity analysis.
-\\newblock {\em Scientific Reports}, 7:6307."""
-    report.addCitation("Vargas2017", bblCitation)
-
-    bblCitation = \
-"""\\bibitem[Vargas et~al., 2016]{Vargas2016}
-Vargas, J., Ot{\\'o}n, J., Marabini, R., Carazo, J.~M., and Sorzano, C. O.~S.
-  (2016).
-\\newblock Particle alignment reliability in single particle electron
-  cryomicroscopy: a general approach.
-\\newblock {\em Scientific Reports}, 6:21626."""
-    report.addCitation("Vargas2016", bblCitation)
-
     secLabel = "sec:multirefAlignability"
     msg = \
 """
 \\subsection{Level 4.c Alignability precision and accuracy}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-The precision \\cite{Vargas2016} analyzes the orientation distribution of the
+The precision (see this \\href{%s}{link} for more details) analyzes the orientation distribution of the
 best matching reprojections from the reference volume. If the high values are clustered around the same orientation,
 then the precision is close to 1. Otherwise, it is closer to -1. Below 0.5 the best directions tend to be scattered.
-The alignability accuracy \\cite{Vargas2017} compares the final angular assignment with the result of a new angular 
+The alignability accuracy (see this \\href{%s}{link} for more details) compares the final angular assignment with the result of a new angular 
 assignment. The similarity between both is again encoded between -1 and 1.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, MULTIREF_ALIGNABILITY_1_DOI, MULTIREF_ALIGNABILITY_2_DOI)
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("4.c Alignability", secLabel, ERROR_MESSAGE)
@@ -532,26 +497,19 @@ def relionAlignment(project, report, protResizeMap, protResizeMask, protResizePa
     #waitOutput(project, prot, 'outputFSC')
     waitUntilFinishes(project, prot)
 
-    bblCitation = \
-        """\\bibitem[Scheres, 2012]{Scheres2012}
-Scheres, S. H.~W. (2012).
-\\newblock A {B}ayesian view on cryo-{EM} structure determination.
-\\newblock {\em J. {M}olecular {B}iology}, 415:406--418."""
-    report.addCitation("Scheres2012", bblCitation)
-
     secLabel = "sec:relionAlignment"
     msg = \
 """
 \\subsection{Level 4.d1 Relion alignment}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-We have performed an independent angular assignment using Relion autorefine \\cite{Scheres2012}. Images were
+We have performed an independent angular assignment using Relion autorefine (see this \\href{%s}{link} for more details). Images were
 downsampled to a pixel size of 3\\AA. Then, we measured the difference between the angular assignment of the 
 particles given by the user and the one done by Relion.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, RELION_ALIGNMENT_AND_CLASSIFICATION_DOI)
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("4.d1 Relion alignment", secLabel, ERROR_MESSAGE)
@@ -615,28 +573,19 @@ def cryosparcAlignment(project, report, protMap, protMask, protParticles, symmet
     #waitOutput(project, prot, 'outputFSC')
     waitUntilFinishes(project, prot)
 
-    bblCitation = \
-"""\\bibitem[Punjani et~al., 2020]{Punjani2020}
-Punjani, A., Zhang, H., and Fleet, D.~J. (2020).
-\\newblock Non-uniform refinement: adaptive regularization improves
-  single-particle cryo-{EM} reconstruction.
-\\newblock {\em Nature Methods}, 17(12):1214--1221.
-"""
-    report.addCitation("Punjani2020", bblCitation)
-
     secLabel = "sec:cryosparcAlignment"
     msg = \
 """
 \\subsection{Level 4.d2 CryoSparc alignment}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-We have performed an independent angular assignment using CryoSparc non-homogeneous refinement \\cite{Punjani2020}.
+We have performed an independent angular assignment using CryoSparc non-homogeneous refinement (see this \\href{%s}{link} for more details).
 Images were downsampled to a pixel size of 3\\AA.  Then, we measured the difference between the angular assignment
 of the particles given by the user and the one done by CryoSparc.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, CRYOSPARC_ALIGNMENT_DOI)
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("4.d2 CryoSparc alignment", secLabel, ERROR_MESSAGE)
@@ -744,13 +693,6 @@ def relionClassification(project, report, protMap, protMask, protParticles, symm
     #waitOutput(project, prot, 'outputVolumes')
     waitUntilFinishes(project, prot)
 
-    bblCitation = \
-        """\\bibitem[Scheres, 2012]{Scheres2012}
-Scheres, S. H.~W. (2012).
-\\newblock A {B}ayesian view on cryo-{EM} structure determination.
-\\newblock {\em J. {M}olecular {B}iology}, 415:406--418."""
-    report.addCitation("Scheres2012", bblCitation)
-
     secLabel = "sec:relionClassification"
     msg = \
 """
@@ -758,13 +700,13 @@ Scheres, S. H.~W. (2012).
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 We have performed a 3D classification of the input particles in two classes without aligning them using Relion
-\\cite{Scheres2012} to confirm they belong to a single state. Images were downsampled to a pixel size of 3\\AA. 
+(see this \\href{%s}{link} for more details) to confirm they belong to a single state. Images were downsampled to a pixel size of 3\\AA. 
 A valid result would be: 1) a class attracting most particles and an almost empty class, 2) two classes with an 
 arbitrary number of images in each one, but without any significant structural difference between the two.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, RELION_ALIGNMENT_AND_CLASSIFICATION_DOI)
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("4.e Classification without alignment", secLabel, ERROR_MESSAGE)
@@ -845,13 +787,6 @@ def validateOverfitting(project, report, protMap, protMask, protParticles, symme
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
 
-    bblCitation = \
-"""\\bibitem[Heymann, 2015]{Heymann2015}
-Heymann, B. (2015).
-\\newblock Validation of {3DEM} reconstructions: The phantom in the noise.
-\\newblock {\em AIMS Biophysics}, 2:21--35."""
-    report.addCitation("Heymann2015", bblCitation)
-
     secLabel = "sec:relionClassification"
     msg = \
 """
@@ -859,12 +794,12 @@ Heymann, B. (2015).
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 The detection of overfitting can be performed through a series of 5 reconstructions with an increasing number
-of experimental particles and the same number of pure noise particles \\cite{Heymann2015}. The resolution of
+of experimental particles and the same number of pure noise particles (see this \\href{%s}{link} for more details). The resolution of
 the reconstructions with experimental particles should always be better than those from noise. \\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, VALIDATE_OVERFITTING_DOI)
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("4.f Overfitting detection", secLabel, ERROR_MESSAGE)
@@ -957,28 +892,20 @@ def angularDistributionEfficiency(project, report, protResizeParticles, symmetry
     #waitOutput(project, prot, 'outputVolume2')
     waitUntilFinishes(project, prot)
 
-    bblCitation = \
-"""\\bibitem[Naydenova and Russo, 2017]{Naydenova2017}
-Naydenova, K. and Russo, C.~J. (2017).
-\\newblock Measuring the effects of particle orientation to improve the
-  efficiency of electron cryomicroscopy.
-\\newblock {\em Nature communications}, 8:629."""
-    report.addCitation("Naydenova2017", bblCitation)
-
     secLabel = "sec:AngularDistributionEfficiency"
     msg = \
 """
 \\subsection{Level 4.g Angular distribution efficiency}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-This method \\cite{Naydenova2017} evaluates the ability of the angular distribution to fill the Fourier space. 
+This method (see this \\href{%s}{link} for more details) evaluates the ability of the angular distribution to fill the Fourier space. 
 It determines a resolution
 per direction based on the number of particles in each direction and reports the distribution efficiency, a 
 number between 0 (inefficient) and 1 (total efficiency).\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, ANGULAR_DISTR_EFFICIENCY_DOI)
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("4.g Angular distribution efficiency", secLabel, ERROR_MESSAGE)
@@ -1030,20 +957,6 @@ the average directional resolution.
     report.writeWarningsAndSummary(warnings, "4.g Angular distribution efficiency", secLabel)
 
 def samplingCompensationFactor(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry):
-    bblCitation = \
-"""\\bibitem[Baldwin and Lyumkis, 2020]{Baldwin2020}
-Baldwin, P.~R. and Lyumkis, D. (2020).
-\\newblock Non-uniformity of projection distributions attenuates resolution in
-  {Cryo-EM}.
-\\newblock {\em Progress in Biophysics and Molecular Biology}, 150:160--183."""
-    report.addCitation("Baldwin2020", bblCitation)
-
-    bblCitation = \
-        """\\bibitem[Baldwin and Lyumkis, 2021]{Baldwin2021}
-        Baldwin, P.~R. and Lyumkis, D. (2021).
-        \\newblock Non-uniformity of projection distributions attenuates resolution in {Cryo-EM}.
-        \\newblock {\em Progress in Biophysics and Molecular Biology}, 160:53--65."""
-    report.addCitation("Baldwin2021", bblCitation)
 
     secLabel = "sec:SCF"
     msg = \
@@ -1051,7 +964,7 @@ Baldwin, P.~R. and Lyumkis, D. (2020).
 \\subsection{Level 4.h Sampling compensation factor}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-The SCF \\cite{Baldwin2020, Baldwin2021} is a measure of how effectively projections have been arranged on the
+The SCF (see these links [\\href{%s}{link 1}, \\href{%s}{link 2}] for more details) is a measure of how effectively projections have been arranged on the
 projection sphere in order to maximize
 the resulting SNR. It is evaluated over the particle assignments and estimates how much the global SSNR/FSC has been
 decremented due to deviations from uniformity in the projection distribution. The SCF calculation is based solely on
@@ -1080,7 +993,7 @@ angle mis-assignment.
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, SAMPLING_COMPENS_FACTOR_1_DOI, SAMPLING_COMPENS_FACTOR_2_DOI)
     report.write(msg)
 
     Prot = pwplugin.Domain.importFromPlugin('scf.protocols',
@@ -1167,13 +1080,13 @@ def ctfStability(project, report, protRefinement, protResizeParticles, protResiz
 \\subsection{Level 4.i CTF stability}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-We estimated the per-particle defocus, B-factor, astigmatism, and phase shift using Relion's ctf refine. Ideally,
+We estimated the per-particle defocus, B-factor, astigmatism, and phase shift using Relion's ctf refine (see this \\href{%s}{link} for more details). Ideally,
 the differences in defoci cannot be larger than the ice thickness. We also estimated the local magnification offsets 
 (which should be around 0) and the B-factor.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, CTF_STABILITY_DOI)
     report.write(msg)
     if protPostprocess.isFailed():
         report.writeSummary("4.i CTF stability", secLabel, ERROR_MESSAGE)

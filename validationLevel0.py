@@ -671,25 +671,18 @@ amount expected for a Gaussian with the same standard deviation whose mean is 0.
 
 
 def bFactorAnalysis(project, report, map, resolution, priority=False):
-    bblCitation = \
-        """\\bibitem[Rosenthal and Henderson, 2003]{Rosenthal2003}
-        Rosenthal, P.~B. and Henderson, R. (2003).
-        \\newblock Optimal determination of particle orientation, absolute hand, and
-          contrast loss in single particle electron-cryomicroscopy.
-        \\newblock {\em J. {M}olecular {B}iology}, 333:721--745."""
-    report.addCitation("Rosenthal2003", bblCitation)
 
     secLabel = "sec:bfactor"
     msg = \
 """\\subsection{Level 0.d B-factor analysis}
 \\label{%s}
 \\textbf{Explanation:}\\\\
-The B-factor line \\cite{Rosenthal2003} fitted between 15\AA and the resolution reported should have a slope that 
+The B-factor line (see this \\href{%s}{link} for more details) fitted between 15\AA and the resolution reported should have a slope that 
 is between 0 and 300 \AA$^2$.
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, BFACTOR_GUINIER_DOI)
     report.write(msg)
 
     if not resolution:
@@ -786,14 +779,6 @@ Fourier transform) of the experimental map, its fitted line, and the corrected m
     return bfactor
 
 def xmippDeepRes(project, report, label, map, mask, resolution, fnMaskedMap, priority=False):
-    bblCitation= \
-"""\\bibitem[Ram\\'{\i}rez-Aportela et~al., 2019]{Ramirez2019}
-Ram\\'{\i}rez-Aportela, E., Mota, J., Conesa, P., Carazo, J.~M., and Sorzano, C.
- O.~S. (2019).
-\\newblock {DeepRes}: a new deep-learning- and aspect-based local resolution
- method for electron-microscopy maps.
-\\newblock {\em IUCRj}, 6:1054--1063."""
-    report.addCitation("Ramirez2019",bblCitation)
 
     secLabel = "sec:deepres"
     msg = \
@@ -801,13 +786,13 @@ Ram\\'{\i}rez-Aportela, E., Mota, J., Conesa, P., Carazo, J.~M., and Sorzano, C.
 \\subsection{Level 0.e Local resolution with DeepRes}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-DeepRes \\cite{Ramirez2019} measures the local resolution using a neural network that has been trained on 
+DeepRes (see this \\href{%s}{link} for more details) measures the local resolution using a neural network that has been trained on 
 the appearance of atomic structures at different resolutions. Then, by comparing the local appearance of the
 input map to the appearance of the atomic structures a local resolution label can be assigned.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-"""%secLabel
+""" % (secLabel, DEEPRES_DOI)
     report.write(msg)
 
     if not resolution:
@@ -949,14 +934,6 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
     return prot
 
 def locBfactor(project, report, label, map, mask, resolution, fnResizedMaskedMap, priority=False):
-    bblCitation = \
-"""\\bibitem[Kaur et~al., 2021]{Kaur2021}
-Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
-  R., Wrapp, D., McLellan, J.~S., Bui, K.~H., and Vargas, J. (2021).
-\\newblock Local computational methods to improve the interpretability and
-  analysis of cryo-{EM} maps.
-\\newblock {\em Nature Communications}, 12(1):1--12."""
-    report.addCitation("Kaur2021", bblCitation)
 
     secLabel = "sec:locbfactor"
     msg = \
@@ -964,12 +941,12 @@ Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
 \\subsection{Level 0.f Local B-factor}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-LocBfactor \\cite{Kaur2021} estimates a local resolution B-factor by decomposing the input map into a 
+LocBfactor (see this \\href{%s}{link} for more details) estimates a local resolution B-factor by decomposing the input map into a 
 local magnitude and phase term using the spiral transform.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, LOCBFACTOR_LOCOCCUPANCY_DOI)
     report.write(msg)
 
     if not resolution:
@@ -1090,14 +1067,6 @@ Fig. \\ref{fig:locBfactorColor} shows some representative views of the local B-f
 
 
 def locOccupancy(project, report, label, map, mask, resolution, fnResizedMaskedMap, priority=False):
-    bblCitation = \
-"""\bibitem[Kaur et~al., 2021]{Kaur2021}
-Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
-  R., Wrapp, D., McLellan, J.~S., Bui, K.~H., and Vargas, J. (2021).
-\newblock Local computational methods to improve the interpretability and
-  analysis of cryo-{EM} maps.
-\newblock {\em Nature Communications}, 12(1):1--12."""
-    report.addCitation("Kaur2021", bblCitation)
 
     secLabel = "sec:locOccupancy"
     msg = \
@@ -1105,11 +1074,11 @@ Kaur, S., Gomez-Blanco, J., Khalifa, A.~A., Adinarayanan, S., Sanchez-Garcia,
 \\subsection{Level 0.g Local Occupancy}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-LocOccupancy \\cite{Kaur2021} estimates the occupancy of a voxel by the macromolecule.\\\\
+LocOccupancy (see this \\href{%s}{link} for more details) estimates the occupancy of a voxel by the macromolecule.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, LOCBFACTOR_LOCOCCUPANCY_DOI)
     report.write(msg)
 
     if not resolution:
@@ -1226,12 +1195,6 @@ Fig. \\ref{fig:locOccupancyColor} shows some representative views of the local o
 
 
 def deepHand(project, report, label, resolution, map, threshold, priority=False):
-    bblCitation= \
-"""\\bibitem[Garc\\'{\i}a et~al., 2022]{GarciaCondado2022}
-Garc\\'{\i}a Condado, J., Mu\\~{n}oz-Burrutia, A., and Sorzano, C. O.~S. (2022).
-\\newblock {Automatic determination of the handedness of single-particle maps of macromolecules solved by CryoEM.
-\\newblock {\em J. Structural Biology}, 214:107915."""
-    report.addCitation("GarciaCondado2022",bblCitation)
 
     secLabel = "sec:deepHand"
     msg = \
@@ -1239,12 +1202,12 @@ Garc\\'{\i}a Condado, J., Mu\\~{n}oz-Burrutia, A., and Sorzano, C. O.~S. (2022).
 \\subsection{Level 0.h Hand correction}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-Deep Hand \\cite{GarciaCondado2022} determines the correction of the hand for those maps with a resolution smaller than 5\\AA. The method
+Deep Hand (see this \\href{%s}{link} for more details) determines the correction of the hand for those maps with a resolution smaller than 5\\AA. The method
 calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neural network to assign its hand.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, DEEPHAND_DOI)
     report.write(msg)
 
     if not resolution:

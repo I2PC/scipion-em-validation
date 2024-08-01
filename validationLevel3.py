@@ -165,17 +165,6 @@ def classAnalysis(project, report, protParticles, protClasses):
     #waitOutput(project, protGL2D, 'outputClasses')
     waitUntilFinishes(project, protGL2D)
 
-    bblCitation = \
-"""\\bibitem[Sorzano et~al., 2014]{Sorzano2014}
-Sorzano, C. O.~S., Vargas, J., de~la Rosa-Trev\\'{\i}n, J.~M.,
-  Zald\\'{\i}var-Peraza, A., Ot{\\'o}n, J., Abrishami, V., Foche, I., Marabini,
-  R., Caffarena, G., and Carazo, J.~M. (2014).
-\\newblock Outlier detection for single particle analysis in electron
-  microscopy.
-\\newblock In {\em Proc. Intl. Work-Conference on Bioinformatics and Biomedical
-  Engineering, IWBBIO}, page 950."""
-    report.addCitation("Sorzano2014", bblCitation)
-
     secLabel = "sec:outlierDetection"
     msg = \
 """
@@ -184,12 +173,12 @@ Sorzano, C. O.~S., Vargas, J., de~la Rosa-Trev\\'{\i}n, J.~M.,
 \\textbf{Explanation}:\\\\ 
 The set of particles is classified into the input set of 2D classes of Level 2. The number of particles that are
 considered to be outliers in those classes is reported. A particle is an outlier if its Mahalanobis distance to the
-centroid of the class is larger than 3 \\cite{Sorzano2014}. This distance takes into account the covariance of
+centroid of the class is larger than 3 (see this \\href{%s}{link} for more details). This distance takes into account the covariance of
 the images assigned to that class.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, CLASSANALYSES_DOI)
     report.write(msg)
     if protGL2D.isFailed():
         report.writeSummary("3.a Outlier detection", secLabel, ERROR_MESSAGE)
@@ -385,27 +374,18 @@ def newClassification(project, report, protParticles, protClasses):
     #waitOutput(project, protClassif2D, 'outputClasses')
     waitUntilFinishes(project, protClassif2D)
 
-    bblCitation = \
-"""\\bibitem[Punjani et~al., 2017]{Punjani2017b}
-Punjani, A., Brubaker, M.~A., and Fleet, D.~J. (2017).
-\\newblock Building proteins in a day: Efficient {3D} molecular structure
-  estimation with electron cryomicroscopy.
-\\newblock {\em {IEEE} Trans. Pattern Analysis \& Machine Intelligence},
-  39:706--718."""
-    report.addCitation("Punjani2017b", bblCitation)
-
     secLabel = "sec:externalConsistency"
     msg = \
 """
 \\subsection{Level 3.c Classification external consistency}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-The input particles were classified with CryoSparc \\cite{Punjani2017b} using the same number of classes
+The input particles were classified with CryoSparc (see this \\href{%s}{link} for more details) using the same number of classes
 as the ones provided by the user. Except for the difference in number of particles between the original classification
 and the number of particles available to the server, the new classes should resemble the old ones.\\\\
 \\\\
 \\textbf{Results:}\\\\
-""" % (secLabel)
+""" % (secLabel, NEWCLASSIFICATION_DOI)
     report.write(msg)
 
     if protClassif2D.isFailed():

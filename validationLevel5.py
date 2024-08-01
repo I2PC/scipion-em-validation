@@ -133,15 +133,6 @@ def micCleaner(project, report, label, protCoords):
     #waitOutput(project, prot, 'outputCoordinates_Auto_090')
     waitUntilFinishes(project, prot)
 
-    bblCitation = \
-"""\\bibitem[Sanchez-Garcia et~al., 2020]{Sanchez2020}
-Sanchez-Garcia, R., Segura, J., Maluenda, D., Sorzano, C. O.~S., and Carazo,
-  J.~M. (2020).
-\\newblock {MicrographCleaner}: A python package for cryo-{EM} micrograph
-  cleaning using deep learning.
-\\newblock {\em J. Structural Biology}, 210:107498."""
-    report.addCitation("Sanchez2020", bblCitation)
-
     secLabel = "sec:micCleaner"
     msg = \
 """
@@ -149,11 +140,11 @@ Sanchez-Garcia, R., Segura, J., Maluenda, D., Sorzano, C. O.~S., and Carazo,
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 This method assigns a score between 0 (bad coordinate) and 1 (good coordinate) reflecting the probability that the
-coordinate is outside a region with aggregations, ice crystals, carbon edges, etc. \\cite{Sanchez2020} \\\\
+coordinate is outside a region with aggregations, ice crystals, carbon edges, etc. (See this \\href{%s}{link} for more details). \\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, MICROGRAPH_CLEANER_DOI)
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("5.a Micrograph cleaner", secLabel, ERROR_MESSAGE)

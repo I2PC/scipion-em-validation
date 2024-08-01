@@ -114,16 +114,6 @@ def globalResolution(project, report, label, protImportMap1, protImportMap2, res
     #waitOutput(project, prot, 'outputFSC')
     waitUntilFinishes(project, prot)
 
-    bblCitation = \
-"""\\bibitem[Sorzano et~al., 2017]{Sorzano2017}
-Sorzano, C. O.~S., Vargas, J., Oton, J., Abrishami, V., de~la Rosa-Trevin,
-  J.~M., Gomez-Blanco, J., Vilas, J.~L., Marabini, R., and Carazo, J.~M.
-  (2017).
-\\newblock A review of resolution measures and related aspects in {3D} electron
-  microscopy.
-\\newblock {\em Progress in biophysics and molecular biology}, 124:1--30."""
-    report.addCitation("Sorzano2017", bblCitation)
-
     secLabel = "sec:globalResolution"
     msg = \
 """
@@ -134,7 +124,7 @@ method to determine the global resolution of a map. However, other measures exis
 Signal-to-Noise Ratio and the Differential Phase Residual. There is a long debate about the right thresholds 
 for these measures. Probably, the most clear threshold is the one of the SSNR (SSNR=1). For the DPR we have 
 chosen 103.9$^\circ$ and for the FSC, the standard 0.143. For a deep discussion of all these thresholds, see
-\\cite{Sorzano2017}. Note that these thresholds typically result in resolution values that are at the lower
+this \\href{%s}{link}. Note that these thresholds typically result in resolution values that are at the lower
 extreme of the local resolution range, meaning that this resolution is normally in the first quarter.
 It should not be understood as the average resolution of the map.\\\\
 \\\\
@@ -142,7 +132,7 @@ Except for the noise, the FSC and DPR should be approximately monotonic. They sh
 behavior. If they have, this is typically due to the presence of a mask in real space or non-linear processing.\\\\
 \\\\
 \\textbf{Results:} \\\\
-""" % secLabel
+""" % (secLabel, GLOBALRES_DOI)
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("1.a Global resolution", secLabel, ERROR_MESSAGE)
@@ -328,13 +318,6 @@ resolution estimated by 1) FSC, 2) DPR, and 3) SSNR.
     return prot
 
 def fscPermutation(project, report, label, protImportMap1, protImportMap2, protMask, resolution, priority=False):
-    bblCitation = \
-"""\\bibitem[Beckers and Sachse, 2020]{Beckers2020b}
-Beckers, M. and Sachse, C. (2020).
-\\newblock Permutation testing of fourier shell correlation for resolution
-  estimation of cryo-em maps.
-\\newblock {\em J. Structural Biology}, 212(1):107579."""
-    report.addCitation("Beckers2020b", bblCitation)
 
     secLabel = "sec:fscPermutation"
     msg = \
@@ -342,12 +325,12 @@ Beckers, M. and Sachse, C. (2020).
 \\subsection{Level 1.b FSC permutation}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-This method \\cite{Beckers2020b} calculates a global resolution by formulating a hypothesis test in which the 
+This method (see this \\href{%s}{link} for more details) calculates a global resolution by formulating a hypothesis test in which the 
 distribution of the FSC of noise is calculated from the two maps.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, FSCPERMUTATION_DOI)
     report.write(msg)
 
     Prot = pwplugin.Domain.importFromPlugin('spoc.protocols',
@@ -434,13 +417,6 @@ resolution estimated by FSC permutation.
     return prot
 
 def blocres(project, report, label, protImportMap, protImportMap1, protImportMap2, protMask, resolution, fnMaskedMap, priority=False):
-    bblCitation = \
-"""\\bibitem[Cardone et~al., 2013]{Cardone2013}
-Cardone, G., Heymann, J.~B., and Steven, A.~C. (2013).
-\\newblock One number does not fit all: Mapping local variations in resolution
-  in cryo-em reconstructions.
-\\newblock {\em J. Structural Biology}, 184:226--236."""
-    report.addCitation("Cardone2013", bblCitation)
 
     secLabel = "sec:blocres"
     msg = \
@@ -448,11 +424,11 @@ Cardone, G., Heymann, J.~B., and Steven, A.~C. (2013).
 \\subsection{Level 1.c Local resolution with Blocres}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-This method \\cite{Cardone2013} computes a local Fourier Shell Correlation (FSC) between the two half maps.\\\\
+This method (see this \\href{%s}{link} for more details) computes a local Fourier Shell Correlation (FSC) between the two half maps.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, BLOCRES_DOI)
     report.write(msg)
 
     Prot = pwplugin.Domain.importFromPlugin('bsoft.protocols',
@@ -572,12 +548,6 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
     report.writeWarningsAndSummary(warnings, "1.c Blocres", secLabel)
 
 def resmap(project, report, label,  protImportMap, protImportMap1, protImportMap2, protMask, resolution, fnMaskedMap, priority=False):
-    bblCitation = \
-"""\\bibitem[Kucukelbir et~al., 2014]{Kucukelbir2014}
-Kucukelbir, A., Sigworth, F.~J., and Tagare, H.~D. (2014).
-\\newblock Quantifying the local resolution of cryo-{EM} density maps.
-\\newblock {\em Nature Methods}, 11:63--65."""
-    report.addCitation("Kucukelbir2014", bblCitation)
 
     secLabel = "sec:resmap"
     msg = \
@@ -585,11 +555,11 @@ Kucukelbir, A., Sigworth, F.~J., and Tagare, H.~D. (2014).
 \\subsection{Level 1.d Local resolution with Resmap}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-This method \\cite{Kucukelbir2014} is based on a test hypothesis testing of the superiority of signal over noise at different frequencies.\\\\
+This method (see this \\href{%s}{link} for more details) is based on a test hypothesis testing of the superiority of signal over noise at different frequencies.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, RESMAP_DOI)
     report.write(msg)
 
     fnVol1 = os.path.join(report.getReportDir(), "half1.mrc")
@@ -754,23 +724,13 @@ def monores(project, report, label, protImportMap, protCreateMask, resolution, f
     #waitOutputFile(project, prot, "hist.xmd")
     waitUntilFinishes(project, prot)
 
-    bblCitation = \
-"""\\bibitem[Vilas et~al., 2018]{Vilas2018}
-Vilas, J.~L., G{\\'o}mez-Blanco, J., Conesa, P., Melero, R., de~la
-  Rosa~Trev\\'{\i}n, J.~M., Ot{\\'o}n, J., Cuenca, J., Marabini, R., Carazo,
-  J.~M., Vargas, J., and Sorzano, C. O.~S. (2018).
-\\newblock {MonoRes}: automatic and unbiased estimation of local resolution for
-  electron microscopy maps.
-\\newblock {\em Structure}, 26:337--344."""
-    report.addCitation("Vilas2018", bblCitation)
-
     secLabel = "sec:monores"
     msg = \
 """
 \\subsection{Level 1.e Local resolution with MonoRes}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-MonoRes \\cite{Vilas2018} evaluates the local energy of a point with respect to the distribution of 
+MonoRes (see this \\href{%s}{link} for more details) evaluates the local energy of a point with respect to the distribution of 
 energy in the noise. This comparison is performed at multiple frequencies and for each one, the monogenic 
 transformation separates the amplitude and phase of the input map. Then the energy of the amplitude within the map
 is compared to the amplitude distribution observed in the noise, and a hypothesis test is run for every voxel to check
@@ -778,7 +738,7 @@ if its energy is signficantly above the level of noise.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, MONORES_DOI)
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("1.e MonoRes", secLabel, ERROR_MESSAGE)
@@ -887,23 +847,13 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
 
 def monodir(project, report, label, protImportMap, protCreateMask, resolution, priority=False):
 
-    bblCitation = \
-"""\\bibitem[Vilas et~al., 2020]{Vilas2020}
-Vilas, J.~L., Tagare, H.~D., Vargas, J., Carazo, J.~M., and Sorzano, C. O.~S.
-  (2020).
-\\newblock Measuring local-directional resolution and local anisotropy in
-  cryo-{EM} maps.
-\\newblock {\em Nature communications}, 11:55.
-"""
-    report.addCitation("Vilas2020", bblCitation)
-
     secLabel = "sec:monodir"
     msg = \
 """
 \\subsection{Level 1.f Local and directional resolution with MonoDir}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-MonoDir \\cite{Vilas2020} extends the concept of local resolution to local and directional resolution by changing 
+MonoDir (see this \\href{%s}{link} for more details) extends the concept of local resolution to local and directional resolution by changing 
 the shape of the filter applied to the input map. The directional analysis can reveal image alignment problems.\\n
 
 Ideally, the radial average of the minimum, maximum, and average resolution at each voxel (note that these are spatial
@@ -913,7 +863,7 @@ protein. As the shells approach the outside of the protein, these radial average
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, MONODIR_DOI)
     report.write(msg)
 
     if resolution>10:
@@ -1022,14 +972,14 @@ def fso(project, report, label, protImportMap, protMask, resolution, priority=Fa
 \\subsection{Level 1.g Fourier Shell Occupancy}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-This method calculates the anisotropy of the energy distribution in Fourier shells. This is an indirect measure of
+This method (see this \\href{%s}{link} for more details) calculates the anisotropy of the energy distribution in Fourier shells. This is an indirect measure of
 anisotropy of the angular distribution or the presence of heterogeneity. A natural threshold for this measure is 0.5.
 However, 0.9 and 0.1 are also interesting values that define the frequency at which the occupancy is 90\\%% and 10\\%%,
 respectively. This region is shaded in the plot.
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, FSO_DOI)
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("1.g FSO", secLabel, ERROR_MESSAGE)
@@ -1169,11 +1119,11 @@ def fsc3d(project, report, label, protImportMapResize, protImportMap1, protImpor
 \\subsection{Level 1.h Fourier Shell Correlation 3D}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-This method analyzes the FSC in different directions and evaluates its homogeneity.
+This method (see this \\href{%s}{link} for more details) analyzes the FSC in different directions and evaluates its homogeneity.
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, FSC3D_DOI)
     report.write(msg)
 
     if protResizeHalf1 and protResizeHalf2:

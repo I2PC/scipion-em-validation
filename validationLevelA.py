@@ -229,15 +229,6 @@ fh.close()
 
 
 def phenixReporting(project, report, resolution, prot, data):
-    bblCitation = \
-"""\\bibitem[Afonine et~al., 2018]{Afonine2018}
-Afonine, P.~V., Klaholz, B.~P., Moriarty, N.~W., Poon, B.~K., Sobolev, O.~V.,
-  Terwilliger, T.~C., Adams, P.~D., and Urzhumtsev, A. (2018).
-\\newblock New tools for the analysis and validation of cryo-{EM} maps and
-  atomic models.
-\\newblock {\em Acta Crystallographica D, Struct. Biol.}, 74:814--840.
-"""
-    report.addCitation("Afonine2018", bblCitation)
 
     secLabel = "sec:phenix"
     msg = \
@@ -246,7 +237,7 @@ Afonine, P.~V., Klaholz, B.~P., Moriarty, N.~W., Poon, B.~K., Sobolev, O.~V.,
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 Phenix provides a number of tools to assess the agreement between the experimental map and its atomic model
-\\cite{Afonine2018}. There are several cross-correlations to assess the quality of the fitting:\\\\
+(see this \\href{%s}{link} for more details). There are several cross-correlations to assess the quality of the fitting:\\\\
 \\begin{itemize}
     \\item CC (mask): Model map vs. experimental map correlation coefficient calculated considering map values inside 
 a mask calculated around the macromolecule. 
@@ -274,7 +265,7 @@ quality of the map.
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, PHENIX_DOI)
     report.write(msg)
 
     if prot.isFailed():
@@ -616,29 +607,19 @@ def fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMa
     if not protImportMap.outputVolume.hasHalfMaps():
         return
 
-    bblCitation = \
-"""\\bibitem[Ram{\\'i}rez-Aportela et~al., 2021]{Ramirez2021}
-Ram{\\'i}rez-Aportela, E., Maluenda, D., Fonseca, Y.~C., Conesa, P., Marabini,
-  R., Heymann, J.~B., Carazo, J.~M., and Sorzano, C. O.~S. (2021).
-\\newblock Fsc-q: A cryoem map-to-atomic model quality validation based on the
-  local fourier shell correlation.
-\\newblock {\em Nature Communications}, 12(1):1--7.
-"""
-    report.addCitation("Ramirez2021", bblCitation)
-
     secLabel = "sec:fscq"
     msg = \
 """
 \\subsection{Level A.b FSC-Q}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-FSC-Q \\cite{Ramirez2021} compares the local FSC between the map and the atomic model to the local FSC of the two 
+FSC-Q (see this \\href{%s}{link} for more details) compares the local FSC between the map and the atomic model to the local FSC of the two 
 half maps. FSC-Qr is the normalized version of FSC-Q to facilitate comparisons. Typically, FSC-Qr should
 take values between -1.5 and 1.5, being 0 an indicator of good matching between map and model.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, FSCQ_DOI)
     report.write(msg)
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
@@ -736,14 +717,6 @@ in absolute value is smaller than 10\\%.
                              "(see Sec. \\ref{%s}). "%secLabel)
 
 def multimodel(project, report, protImportMap, protAtom, resolution, priority=False):
-    bblCitation = \
-"""\\bibitem[Herzik et~al., 2019]{Herzik2019}
-Herzik, M.~A., Fraser, J.~S., and Lander, G.~C. (2019).
-\\newblock A multi-model approach to assessing local and global cryo-{EM} map
-  quality.
-\\newblock {\em Structure}, 27(2):344--358.e3.
-"""
-    report.addCitation("Herzik2019", bblCitation)
 
     secLabel = "sec:multimodel"
     msg = \
@@ -751,12 +724,12 @@ Herzik, M.~A., Fraser, J.~S., and Lander, G.~C. (2019).
 \\subsection{Level A.c Multimodel stability}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-The method of \\cite{Herzik2019} estimates the ambiguity of the atomic model in each region of the CryoEM map due to 
+This method (see this \\href{%s}{link} for more details) estimates the ambiguity of the atomic model in each region of the CryoEM map due to 
 the different local resolutions or local heterogeneity.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, MULTIMODEL_DOI)
     report.write(msg)
 
     Prot = pwplugin.Domain.importFromPlugin('rosetta.protocols',
@@ -899,7 +872,7 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
 """\\subsection{Level A.d Map-Model Guinier analysis}
 \\label{%s}
 \\textbf{Explanation:}\\\\
-We compared the Guinier plot \\cite{Rosenthal2003} of the atomic model and the experimental map. We made the mean
+We compared the Guinier plot (see this \\href{%s}{link} for more details) of the atomic model and the experimental map. We made the mean
 of both profiles to be equal (and equal to the mean of the atomic model) to make sure that they had comparable scales. 
 \\\\
 \\\\
@@ -915,7 +888,7 @@ Fourier transform) of the atom model and the experimental map. The correlation b
     \\label{fig:BfactorModel}
 \\end{figure}
 
-""" % (secLabel, R, fnPlot)
+""" % (secLabel, BFACTOR_GUINIER_DOI, R, fnPlot)
     report.write(msg)
 
     warnings = []
@@ -940,13 +913,6 @@ than 0.5.
     saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'guinierPlot', fnPlot, 'guinier plot for Map-Model Guinier Analysis')
 
 def mapq(project, report, protImportMap, protAtom, resolution, priority=False):
-    bblCitation = \
-"""\\bibitem[Pintilie et~al., 2020]{Pintilie2020}
-Pintilie, G., Zhang, K., Su, Z., Li, S., Schmid, M.~F., and Chiu, W. (2020).
-\\newblock Measurement of atom resolvability in cryo-em maps with q-scores.
-\\newblock {\em Nature methods}, 17(3):328--334.
-"""
-    report.addCitation("Pintilie2020", bblCitation)
 
     secLabel = "sec:mapq"
     msg = \
@@ -954,14 +920,13 @@ Pintilie, G., Zhang, K., Su, Z., Li, S., Schmid, M.~F., and Chiu, W. (2020).
 \\subsection{Level A.e MapQ}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-MapQ \\cite{Pintilie2020} computes the local correlation between the map and each one of its atoms assumed to
+MapQ (see this \\href{%s}{link} for more details) computes the local correlation between the map and each one of its atoms assumed to
 have a Gaussian shape.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, MAPQ_DOI)
     report.write(msg)
-
 
     # check if we have the precomputed data
     # https://3dbionotes.cnb.csic.es/bws/api/emv/7xzz/mapq/
@@ -1235,15 +1200,6 @@ else:
         report.writeAbstract("There seems to be a problem with its MapQ scores (see Sec. \\ref{%s}). "%secLabel)
 
 def emringer(project, report, protImportMap, protAtom, priority=False):
-    bblCitation = \
-"""\\bibitem[Barad et~al., 2015]{Barad2015}
-Barad, B.~A., Echols, N., Wang, R. Y.-R., Cheng, Y., DiMaio, F., Adams, P.~D.,
-  and Fraser, J.~S. (2015).
-\\newblock {EMR}inger: side chain-directed model and map validation for 3{D}
-  cryo-electron microscopy.
-\\newblock {\em Nature Methods}, 12(10):943--946.
-"""
-    report.addCitation("Barad2015", bblCitation)
 
     secLabel = "sec:emringer"
     msg = \
@@ -1251,7 +1207,7 @@ Barad, B.~A., Echols, N., Wang, R. Y.-R., Cheng, Y., DiMaio, F., Adams, P.~D.,
 \\subsection{Level A.f EMRinger validation}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-EMringer \\cite{Barad2015} compares the side chains of the atomic model to the CryoEM map. The following features are
+EMringer (see this \\href{%s}{link} for more details) compares the side chains of the atomic model to the CryoEM map. The following features are
 reported:
 \\begin{itemize}
     \\item Optimal Threshold: Electron potential map cutoff value at which the maximum EMRinger score was obtained.
@@ -1266,7 +1222,7 @@ that may need improvement.
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, EMRINGER_DOI)
     report.write(msg)
 
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
@@ -1399,13 +1355,6 @@ sequence of the protein chains.
     saveIntermediateData(report.getReportDir(), 'EMRinger', True, '_emringer_plots', _emringer_plots, '_emringer_plots files')
 
 def daq(project, report, protImportMap, protAtom, priority=False):
-    bblCitation = \
-"""\\bibitem[Terashi et~al., 2022]{Terashi2022}
-Terashi, G., Wang, X., Subramaniya, S.R.M.V., Tesmer, J.J.G. and Kihara, D. (2022).
-\\newblock Residue-Wise Local Quality Estimation for Protein Models from {Cryo-EM} Maps.
-\\newblock (submitted).
-"""
-    report.addCitation("Terashi2022", bblCitation)
 
     secLabel = "sec:daq"
     msg = \
@@ -1413,13 +1362,13 @@ Terashi, G., Wang, X., Subramaniya, S.R.M.V., Tesmer, J.J.G. and Kihara, D. (202
 \\subsection{Level A.g DAQ validation}
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
-DAQ \\cite{Terashi2022} is a computational tool using deep learning that can estimate the residue-wise local
+DAQ (see this \\href{%s}{link} for more details) is a computational tool using deep learning that can estimate the residue-wise local
 quality for protein models from cryo-Electron Microscopy maps. The method calculates the likelihood that a given
 density feature corresponds to an aminoacid, atom, and secondary structure. These likelihoods are combined into a
  score that ranges from -1 (bad quality) to 1 (good quality). \\\\
 \\\\
 \\textbf{Results:}\\\\
-""" % secLabel
+""" % (secLabel, DAQ_DOI)
     report.write(msg)
 
     #TODO: API call

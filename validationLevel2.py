@@ -124,12 +124,12 @@ def compareReprojections(project, report, protImportMap, protAvgs, symmetry):
 \\label{%s}
 \\textbf{Explanation}:\\\\ 
 The 2D classes can be aligned against the reconstructed map, then the correlation between reprojections of the map 
-and the 2D classes can be analyzed. Also, analyzing the residuals (2D class minus the corresponding reprojection) can 
+and the 2D classes can be analyzed (see this \\href{%s}{link} for more details). Also, analyzing the residuals (2D class minus the corresponding reprojection) can 
 reveal systematic differences between them.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % secLabel
+""" % (secLabel, COMPARE_REPROJECTIONS_DOI)
     report.write(msg)
     if prot.isFailed():
         report.writeSummary("2.a Compare reprojections", secLabel, ERROR_MESSAGE)
