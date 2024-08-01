@@ -926,7 +926,7 @@ protein. As the shells approach the outside of the protein, these radial average
     prot = project.newProtocol(Prot,
                                objLabel=label,
                                fast=True,
-                               resstep=resolution/3,
+                               resstep=0.5,
                                numberOfThreads=10)
     prot.inputVolumes.set(protImportMap.outputVolume)
     prot.Mask.set(protCreateMask.outputMask)
