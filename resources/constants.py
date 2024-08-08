@@ -78,6 +78,7 @@ XLM_DOI = "https://doi.org/10.1016/j.str.2020.05.012"
 SAXS_DOI = "https://doi.org/10.1093/bioinformatics/bty985"
 TILT_PAIR_VALIDATION_DOI = "https://doi.org/10.1016/j.jmb.2011.09.008"
 VRS_DOI = "https://doi.org/10.1039/D2FD00059H"
+HELP_WEBSITE_LINK = "https://biocomp.cnb.csic.es/EMValidationService/help/"
 
 ####################### TERMINAL MESSAGES CONSTANTS #######################
 PRINT_PROTOCOL_ABORTED = "PROTOCOL MANUALLY ABORTED"
