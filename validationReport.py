@@ -369,7 +369,6 @@ def plotMicrograph(fnMic, fnOut, coords=None, boxSize=0, Ts=0):
 class ValidationReport:
 
     def __init__(self, fnDir, levels,  IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION):
-        self.citations = {}
         self.fnProjectDir = fnDir
         self.fnReportDir = os.path.join(fnDir,"validationReport")
         makePath(self.fnReportDir)
