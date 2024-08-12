@@ -178,7 +178,7 @@ the images assigned to that class.\\\\
 \\\\
 \\textbf{Results:}\\\\
 \\\\
-""" % (secLabel, CLASSANALYSES_DOI)
+""" % (secLabel, CLASSANALYSES_LINK)
     report.write(msg)
     if protGL2D.isFailed():
         report.writeSummary("3.a Outlier detection", secLabel, ERROR_MESSAGE)
