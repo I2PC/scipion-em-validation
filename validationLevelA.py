@@ -1403,7 +1403,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         prot.inputVolume.set(protImportMap.outputVolume)
         prot.inputAtomStruct.set(protAtom.outputPdb)
         if useSlurm:
-            sendToSlurm(prot, priority=True if priority else False)
+            sendToSlurm(prot, GPU=True, priority=True if priority else False)
         project.launchProtocol(prot)
         #waitOutput(project, prot, 'outputAtomStruct')
         waitUntilFinishes(project, prot)
