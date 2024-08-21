@@ -1354,7 +1354,7 @@ sequence of the protein chains.
 
     saveIntermediateData(report.getReportDir(), 'EMRinger', True, '_emringer_plots', _emringer_plots, '_emringer_plots files')
 
-def daq(project, report, protImportMap, protAtom, priority=False):
+def daq(project, report, protImportMap, protAtom, resolution, priority=False):
 
     secLabel = "sec:daq"
     msg = \
@@ -1395,6 +1395,12 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         # if there is not precalculated data or failed to retrieve it
         print('- Could not get data for', pdbdb_Id)
         print('-- Proceed to calculate it localy')
+
+        if resolution>5:
+            report.writeSummary("A.g DAQ", secLabel, NOT_APPLY_MESSAGE)
+            report.write(NOT_APPLY_WORSE_RESOLUTION % 5 + STATUS_NOT_APPLY)
+            return None
+
         Prot = pwplugin.Domain.importFromPlugin('kiharalab.protocols',
                                                 'ProtDAQValidation', doRaise=True)
         prot = project.newProtocol(Prot,
