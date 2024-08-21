@@ -1608,6 +1608,6 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
                     guinierModel(project, report, protImportMap, protConvert, resolution, priority=priority)
                     mapq(project, report, protImportMap, protAtom, resolution, priority=priority)
                     emringer(project, report, protImportForPhenix, protAtom, priority=priority)
-                    daq(project, report, protImportMap, protAtom, priority=priority)
+                    daq(project, report, protImportMap, protAtom, resolution, priority=priority)
 
     return protAtom
