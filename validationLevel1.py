@@ -1189,7 +1189,9 @@ This method (see this \\href{%s}{link} for more details) analyzes the FSC in dif
                                    objLabel=label,
                                    provideHalfMaps=True,
                                    applyMask=True,
-                                   useGpu=True)
+                                   useGpu=True,
+                                   hpFilter=200,
+                                   numThr=0)
         prot.inputVolume.set(protImportMapResize.outputVol)
         prot.volumeHalf1.set(protResizeHalf1.outputVol)
         prot.volumeHalf2.set(protResizeHalf2.outputVol)
