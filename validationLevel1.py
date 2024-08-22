@@ -856,6 +856,13 @@ def monodir(project, report, label, protImportMap, protCreateMask, resolution, p
 MonoDir (see this \\href{%s}{link} for more details) extends the concept of local resolution to local and directional resolution by changing 
 the shape of the filter applied to the input map. The directional analysis can reveal image alignment problems.\\n
 
+The histogram of best resolution voxels per direction (Directional Histogram 1D) shows how many voxels in the
+volume have their maximum resolution in that direction. Directions are arbitrarily numbered from 1 to N. This histogram
+should be relatively flat. We perform a Kolmogorov-Smirnov test to check its uniformity. If the null hypothesis is
+rejected, then the directional resolution is not uniform. It does not mean that it is wrong, and it could be caused
+by several reasons: 1) the angular distribution is not uniform, 2) there are missing directions, 3) there is some
+anisotropy in the data (including some preferential directional movement).
+
 Ideally, the radial average of the minimum, maximum, and average resolution at each voxel (note that these are spatial
 radial averages) should be flat and as low as possible. If they show some slope, this is associated with
 inaccuracies in the angular assignment. These averages make sense when the shells are fully contained within the
@@ -899,6 +906,25 @@ protein. As the shells approach the outside of the protein, these radial average
         report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
+    # 1D Histogram
+    fnHistDirMonoDir1 = os.path.join(report.getReportDir(), "histDirMonoDir1D.png")
+    md = xmipp3.MetaData()
+    md.read(prot._getExtraPath("hist_prefdir.xmd"))
+    direction = md.getColumnValues(xmipp3.MDL_X)
+    count = md.getColumnValues(xmipp3.MDL_COUNT)
+    reportPlot(direction, count, 'Direction index', '# of voxels', fnHistDirMonoDir1, plotType="bar")
+
+    # Test
+    randomSample = np.random.choice([x for x in range(int(np.max(direction))+1)], size=50000,
+                                    p=np.array(count,dtype=np.float)/np.sum(count))
+    D, p = scipy.stats.kstest(randomSample, scipy.stats.randint(0, int(np.max(direction))).cdf)
+
+    # 2D Histogram
+    fnHistDirMonoDir2 = os.path.join(report.getReportDir(), "histDirMonoDir2D.png")
+    rot = md.getColumnValues(xmipp3.MDL_ANGLE_ROT)
+    tilt = md.getColumnValues(xmipp3.MDL_ANGLE_TILT)
+    radialPlot(rot, tilt, count, fnHistDirMonoDir2)
+
     # Radial averages
     fnMonodirRadial = os.path.join(report.getReportDir(), "monoDirRadial.png")
     md = xmipp3.MetaData()
@@ -912,8 +938,27 @@ protein. As the shells approach the outside of the protein, these radial average
     avgDirResolution = np.mean(avgResolution)
 
     msg=\
-"""The radial average of the minimum, maximum and average resolution at each voxel is shown in
+"""Fig. \\ref{fig:histDirMonoDir1} shows the 1D directional histogram and Fig. \\ref{fig:histDirMonoDir2} the 2D
+directional histogram. We compared the 1D directional histogram to a uniform distribution using a Kolmogorov-Smirnov
+test. The D statistic was %f, and the p-value of the null hypothesis %f.
+
+The radial average of the minimum, maximum and average resolution at each voxel is shown in
 Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is %5.2f
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Histogram 1D of the best direction at each voxel.}
+    \\label{fig:histDirMonoDir1}
+\\end{figure}
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Histogram 2D of the best direction at each voxel. The azimuthal rotation is circular, while the tilt
+    angle is the radius. The size of the point is proportional to the number of voxels whose maximum resolution
+    is in that direction (this count can be seen in Fig. \\ref{fig:histDirMonoDir1}. }
+    \\label{fig:histDirMonoDir2}
+\\end{figure}
 
 \\begin{figure}[H]
     \centering
@@ -921,9 +966,11 @@ Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is
     \\caption{Radial averages (in space) of the minimum, maximum and average resolution at each voxel.}
     \\label{fig:monoDirRadial}
 \\end{figure}
-"""%(avgDirResolution, fnMonodirRadial)
+"""%(D, p, avgDirResolution, fnHistDirMonoDir1, fnHistDirMonoDir2, fnMonodirRadial)
     report.write(msg)
 
+    saveIntermediateData(report.getReportDir(), 'monoDir', False, 'D-statistic', D, ['', 'D-statistic after applying Kolmogorov-Smirnov test to compare the 1D directional histogram to a uniform distribution'])
+    saveIntermediateData(report.getReportDir(), 'monoDir', False, 'p-value', p, ['', 'p-value of the null hypothesis after applying Kolmogorov-Smirnov test to compare the 1D directional histogram to a uniform distribution'])
     saveIntermediateData(report.getReportDir(), 'monoDir', False, 'avgResolution', avgDirResolution, ['\u212B', 'The overall mean of the directional resolution'])
 
     saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_prefdir', os.path.join(project.getPath(), prot._getExtraPath("hist_prefdir.xmd")), 'hist_prefdir xmd file')
@@ -934,15 +981,24 @@ Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is
     saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_radial', os.path.join(project.getPath(), prot._getExtraPath("hist_radial.xmd")), 'hist_radial xmd file')
     saveIntermediateData(report.getReportDir(), 'monoDir', True, 'hist_azimuthal', os.path.join(project.getPath(), prot._getExtraPath("hist_azimuthal.xmd")), 'hist_azimuthal xmd file')
 
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'monoDir1DHist', fnHistDirMonoDir1, 'Histogram 1D of the best direction at each voxel')
+    saveIntermediateData(report.getReportDir(), 'monoDir', True, 'monoDir2DHist', fnHistDirMonoDir2, 'Histogram 2D of the best direction at each voxel')
     saveIntermediateData(report.getReportDir(), 'monoDir', True, 'monoDirRadialPlot', fnMonodirRadial, 'Plot of Radial averages (in space) of the minimum, maximum and average resolution at each voxel.')
 
     # Warnings
     warnings=[]
-    if resolution<0.8*avgDirResolution:
+    testWarnings = False
+    if p<0.001 or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The distribution of best resolution is not uniform in all directions. "\
+                        "The associated p-value is %f.}}"%p)
+        report.writeAbstract("The resolution does not seem to be uniform in all directions (see Sec. \\ref{%s}). "%\
+                             secLabel)
+    if resolution<0.8*avgDirResolution or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the average directional resolution, %5.2f \\AA.}}" % (resolution, avgDirResolution))
     msg = \
-"""\\textbf{Automatic criteria}: The validation is OK if the resolution provided by the user is not 
+"""\\textbf{Automatic criteria}: The validation is OK if 1) the null hypothesis that the directional resolution is not
+uniform is not rejected with a threshold of 0.001 for the p-value, and 2) the resolution provided by the user is not 
 smaller than 0.8 times the average directional resolution.
 \\\\
 
