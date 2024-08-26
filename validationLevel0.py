@@ -133,7 +133,7 @@ def createResizedMaskedMap(report, resizedMap, resizedMask):
     save.write(fnResizedMaskedMap)
     return fnResizedMaskedMap
 
-def resizeProject(project, protMap, protHardMask, protSoftMask, resolution, priority=False):
+def resizeMap(project, protMap, resolution, priority=False):
     Xdim = protMap.outputVolume.getDim()[0]
     Ts = protMap.outputVolume.getSamplingRate()
     AMap = Xdim * Ts
@@ -167,83 +167,8 @@ def resizeProject(project, protMap, protHardMask, protSoftMask, resolution, prio
     projectPath = os.path.join(project.getPath())
     subprocess.call(['chmod', '-R', 'o+r', projectPath])
 
-    # hard mask
-    if resolution:
-        protResizeHardMask = project.newProtocol(Prot,
-                                             objLabel="Resize Hard Mask Ts=%2.1f"%TsTarget,
-                                             doResize=True,
-                                             resizeSamplingRate=TsTarget,
-                                             doWindow=True,
-                                             windowOperation=1,
-                                             windowSize=Xdimp)
-    else:
-        protResizeHardMask = project.newProtocol(Prot,
-                                                 objLabel="Resize Hard Mask Factor=1",
-                                                 doResize=True,
-                                                 resizeOption=2,
-                                                 resizeFactor=1)
-    protResizeHardMask.inputVolumes.set(protHardMask.outputMask)
-    if useSlurm:
-        sendToSlurm(protResizeHardMask, priority=True if priority else False)
-    project.launchProtocol(protResizeHardMask)
-    #waitOutput(project, protResizeMask, 'outputVol')
-    waitUntilFinishes(project, protResizeHardMask)
+    return protResizeMap, TsTarget
 
-    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
-                                            'XmippProtPreprocessVolumes', doRaise=True)
-    protPreprocessHardMask = project.newProtocol(Prot,
-                                             objLabel="Binarize Hard Mask",
-                                             doThreshold=True,
-                                             thresholdType=1,
-                                             threshold=0.5,
-                                             fillType=1)
-    protPreprocessHardMask.inputVolumes.set(protResizeHardMask.outputVol)
-    if useSlurm:
-        sendToSlurm(protPreprocessHardMask, priority=True if priority else False)
-    project.launchProtocol(protPreprocessHardMask)
-    #waitOutput(project, protPreprocessMask, 'outputVol')
-    waitUntilFinishes(project, protPreprocessHardMask)
-
-    # soft mask
-    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
-                                            'XmippProtCropResizeVolumes', doRaise=True)
-    if resolution:
-        protResizeSoftMask = project.newProtocol(Prot,
-                                             objLabel="Resize Soft Mask Ts=%2.1f"%TsTarget,
-                                             doResize=True,
-                                             resizeSamplingRate=TsTarget,
-                                             doWindow=True,
-                                             windowOperation=1,
-                                             windowSize=Xdimp)
-    else:
-        protResizeSoftMask = project.newProtocol(Prot,
-                                                 objLabel="Resize Soft Mask Factor=1",
-                                                 doResize=True,
-                                                 resizeOption=2,
-                                                 resizeFactor=1)
-    protResizeSoftMask.inputVolumes.set(protSoftMask.outputMask)
-    if useSlurm:
-        sendToSlurm(protResizeSoftMask, priority=True if priority else False)
-    project.launchProtocol(protResizeSoftMask)
-    #waitOutput(project, protResizeMask, 'outputVol')
-    waitUntilFinishes(project, protResizeSoftMask)
-
-    Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
-                                            'XmippProtPreprocessVolumes', doRaise=True)
-    protPreprocessSoftMask = project.newProtocol(Prot,
-                                             objLabel="Binarize Soft Mask",
-                                             doThreshold=True,
-                                             thresholdType=1,
-                                             threshold=0.5,
-                                             fillType=1)
-    protPreprocessSoftMask.inputVolumes.set(protResizeSoftMask.outputVol)
-    if useSlurm:
-        sendToSlurm(protPreprocessSoftMask, priority=True if priority else False)
-    project.launchProtocol(protPreprocessSoftMask)
-    #waitOutput(project, protPreprocessMask, 'outputVol')
-    waitUntilFinishes(project, protPreprocessSoftMask)
-
-    return protResizeMap, protPreprocessHardMask, protPreprocessSoftMask
 
 def properMask(mask):
     M = readMap(mask.getFileName()).getData()
@@ -1352,6 +1277,11 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
     saveIntermediateData(report.fnReportDir, 'inputData', False, 'threshold', threshold, ['', 'Threshold from EMDB map'])
     saveIntermediateData(report.fnReportDir, 'inputData', False, 'resolution', resolution, ['\u212B', 'Resolution from EMDB map'])
 
+
+    # Resize to the given resolution
+    protResizeMap, TsResizeMap = resizeMap(project, protImportMap, resolution, priority=priority)
+
+    # Create soft and hard masks
     protCreateHardMask = createMask(project, "create hard mask", protImportMap.outputVolume, Ts, threshold, smooth=False, priority=priority)
     if protCreateHardMask.isFailed():
         raise Exception("Create hard mask did not work")
@@ -1365,15 +1295,24 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
     reportInput(project, report, fnMap, Ts, threshold, resolution, protImportMap, protCreateHardMask, protCreateSoftMask)
     # properMask = properMask(protCreateMask.outputMask)
 
-    # Resize to the given resolution
-    protResizeMap, protResizeHardMask, protResizeSoftMask = resizeProject(project, protImportMap, protCreateHardMask, protCreateSoftMask, resolution, priority=priority)
+    # Create resized soft and hard masks
+    protCreateHardMaskFromResizedMap = createMask(project, "create resized hard mask", protResizeMap.outputVol, TsResizeMap, threshold, smooth=False, priority=priority)
+    if protCreateHardMaskFromResizedMap.isFailed():
+        raise Exception("Create resized hard mask did not work")
+    elif protCreateHardMaskFromResizedMap.isAborted():
+        raise Exception("Create resized hard mask was MANUALLY ABORTED")
+    protCreateSoftMaskFromResizedMAp = createMask(project, "create resized soft mask", protResizeMap.outputVol, TsResizeMap, threshold, smooth=True, priority=priority)
+    if protCreateSoftMaskFromResizedMAp.isFailed():
+        raise Exception("Create resized soft mask did not work")
+    if protCreateSoftMaskFromResizedMAp.isAborted():
+        raise Exception("Create resized soft mask MANUALLY ABORTED")
 
     # Mask map and resized map for chimera views
     fnMaskedMapDict = {}
     fnMaskedMapDict['fnHardMaskedMap'] = createMaskedMap(report, protImportMap.outputVolume, protCreateHardMask.outputMask)
     fnMaskedMapDict['fnSoftMaskedMap'] = createMaskedMap(report, protImportMap.outputVolume, protCreateSoftMask.outputMask)
-    fnMaskedMapDict['fnResizedHardMaskedMap'] = createResizedMaskedMap(report, protResizeMap.outputVol, protResizeHardMask.outputVol)
-    fnMaskedMapDict['fnResizedSoftMaskedMap'] = createResizedMaskedMap(report, protResizeMap.outputVol, protResizeSoftMask.outputVol)     
+    fnMaskedMapDict['fnResizedHardMaskedMap'] = createResizedMaskedMap(report, protResizeMap.outputVol, protCreateHardMaskFromResizedMap.outputMask)
+    fnMaskedMapDict['fnResizedSoftMaskedMap'] = createResizedMaskedMap(report, protResizeMap.outputVol, protCreateSoftMaskFromResizedMAp.outputMask)     
 
     # Quality Measures
     report.writeSection('Level 0 analysis')
@@ -1384,7 +1323,7 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
 
     if not skipAnalysis:
         xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateHardMask.outputMask, resolution, fnMaskedMapDict['fnHardMaskedMap'], priority=priority)
-        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protResizeSoftMask.outputVol, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
-        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protResizeSoftMask.outputVol, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
+        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protCreateSoftMaskFromResizedMAp.outputMask, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
+        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protCreateSoftMaskFromResizedMAp.outputMask, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
         deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, threshold, priority=priority)
-    return protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protResizeHardMask, protResizeSoftMask, fnMaskedMapDict
+    return protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, protCreateSoftMaskFromResizedMAp, fnMaskedMapDict

@@ -1163,7 +1163,7 @@ def resizeMapToTargetResolution(project, map, TsTarget, priority=False):
     return protResizeMap
 
 
-def fsc3d(project, report, label, protImportMapResize, protImportMap1, protImportMap2, protMaskResize, resolution, priority=False):
+def fsc3d(project, report, label, protImportMapResize, protImportMap1, protImportMap2, protCreateSoftMaskFromResizedMap, resolution, priority=False):
     Xdim = protImportMapResize.outputVol.getDim()[0]
 
     protResizeHalf1 = resizeMapToTargetResolution(project, protImportMap1.outputVolume, resolution/2, priority=priority)
@@ -1195,7 +1195,7 @@ This method (see this \\href{%s}{link} for more details) analyzes the FSC in dif
         prot.inputVolume.set(protImportMapResize.outputVol)
         prot.volumeHalf1.set(protResizeHalf1.outputVol)
         prot.volumeHalf2.set(protResizeHalf2.outputVol)
-        prot.maskVolume.set(protMaskResize.outputVol)
+        prot.maskVolume.set(protCreateSoftMaskFromResizedMap.outputMask)
 
         if useSlurm:
             sendToSlurm(prot, GPU=True, priority=True if priority else False)
@@ -1359,7 +1359,7 @@ any structure in this difference. Sometimes some patterns are seen if the map is
                             "Slices of maximum variation in the three dimensions of the difference Half1-Half2.", Vdiff,
                             "fig:maxVarHalfDiff", maxVar=True)
 
-def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized, protCreateHardMask, protCreateSoftMask, protCreateSoftMaskResized, fnMaskedMapDict, skipAnalysis = False, priority=False):
+def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized, protCreateHardMask, protCreateSoftMask, protCreateSoftMaskFromResizedMap, fnMaskedMapDict, skipAnalysis = False, priority=False):
     # Import maps
     protImportMap1 = importMap(project, "import half1", fnMap1, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=priority)
     if protImportMap1.isFailed():
@@ -1385,6 +1385,6 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY
         monodir(project, report, "1.f MonoDir", protImportMap, protCreateHardMask, resolution, priority=priority)
         fso(project, report, "1.g FSO", protImportMap, protCreateSoftMask, resolution, priority=priority)
         fsc3d(project, report, "1.h FSC3D", protImportMapResized, protImportMap1, protImportMap2,
-              protCreateSoftMaskResized, resolution, priority=priority)
+              protCreateSoftMaskFromResizedMap, resolution, priority=priority)
 
     return protImportMap1, protImportMap2

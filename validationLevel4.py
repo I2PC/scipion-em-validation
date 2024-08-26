@@ -478,7 +478,7 @@ to have an uncertain shift, and %4.1f\\%% of particles were considered to have a
 
     return outliersShift, outliersAngles
 
-def relionAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution):
+def relionAlignment(project, report, protResizeMap, protCreateHardMaskFromResizedMap, protResizeParticles, symmetry, resolution):
     Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
                                             'ProtRelionRefine3D', doRaise=True)
     prot = project.newProtocol(Prot,
@@ -488,7 +488,7 @@ def relionAlignment(project, report, protResizeMap, protResizeMask, protResizePa
                                )
     prot.referenceVolume.set(protResizeMap.outputVol)
     prot.inputParticles.set(protResizeParticles.outputParticles)
-    prot.referenceMask.set(protResizeMask.outputVol)
+    prot.referenceMask.set(protCreateHardMaskFromResizedMap.outputMask)
     if useSlurm:
         sendToSlurm(prot, GPU=True)
     project.launchProtocol(prot)
@@ -545,14 +545,14 @@ larger than 5\\AA, and 2) an angular difference larger than 5 degrees.
                              "produced by Relion (see Sec. \\ref{%s}). "%secLabel)
     return prot
 
-def cryosparcAlignment(project, report, protMap, protMask, protParticles, symmetry):
+def cryosparcAlignment(project, report, protResizeMap, protCreateHardMaskFromResizedMap, protParticles, symmetry):
     Prot = pwplugin.Domain.importFromPlugin('cryosparc2.protocols',
                                             'ProtCryoSparcNonUniformRefine3D', doRaise=True)
     prot = project.newProtocol(Prot,
                                objLabel="4.d Cryosparc Refine")
-    prot.referenceVolume.set(protMap.outputVol)
+    prot.referenceVolume.set(protResizeMap.outputVol)
     prot.inputParticles.set(protParticles.outputParticles)
-    prot.refMask.set(protMask.outputVol)
+    prot.refMask.set(protCreateHardMaskFromResizedMap.outputMask)
     if symmetry[0]=="c":
         prot.symmetryGroup.set(0)
         prot.symmetryOrder.set(int(symmetry[1:]))
@@ -598,7 +598,7 @@ of the particles given by the user and the one done by CryoSparc.\\\\
         report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
-    shiftOutliers, angleOutliers = compareAlignment(project, report, protMap.outputVol, protParticles, prot, symmetry,
+    shiftOutliers, angleOutliers = compareAlignment(project, report, protResizeMap.outputVol, protParticles, prot, symmetry,
                                                     "2. Cryosparc", "the user", "CryoSparc", "alignmentCryosparc")
 
     warnings = []
@@ -671,7 +671,7 @@ larger than 5\\AA, and 2) an angular difference larger than 5 degrees.
                              "produced by Cryosparc (see Sec. \\ref{%s}). This is probably a sign of the difficulty "\
                              "to align these particles. " %secLabel)
 
-def relionClassification(project, report, protMap, protMask, protParticles, symmetry):
+def relionClassification(project, report, protResizeMap, protCreateHardMaskFromResizedMap, protParticles, symmetry):
     Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
                                             'ProtRelionClassify3D', doRaise=True)
     prot = project.newProtocol(Prot,
@@ -683,9 +683,9 @@ def relionClassification(project, report, protMap, protMask, protParticles, symm
                                doImageAlignment=False,
                                doGpu=False,
                                numberOfMpi=8)
-    prot.referenceVolume.set(protMap.outputVol)
+    prot.referenceVolume.set(protResizeMap.outputVol)
     prot.inputParticles.set(protParticles.outputParticles)
-    prot.referenceMask.set(protMask.outputVol)
+    prot.referenceMask.set(protCreateHardMaskFromResizedMap.outputMask)
     if useSlurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
@@ -763,7 +763,7 @@ should be just noise without any visible structure related to the macromolecule.
     report.writeWarningsAndSummary(warnings, "4.e Classification without alignment", secLabel)
     return prot
 
-def validateOverfitting(project, report, protMap, protMask, protParticles, symmetry, resolution):
+def validateOverfitting(project, report, protResizeMap, protCreateHardMaskFromResizedMap, protParticles, symmetry, resolution):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtValidateOverfitting', doRaise=True)
 
@@ -780,7 +780,7 @@ def validateOverfitting(project, report, protMap, protMask, protParticles, symme
                                numberOfMpi=8,
                                symmetry=symmetry)
 
-    prot.input3DReference.set(protMap.outputVol)
+    prot.input3DReference.set(protResizeMap.outputVol)
     prot.inputParticles.set(protParticles.outputParticles)
     if useSlurm:
         sendToSlurm(prot, GPU=True)
@@ -956,7 +956,7 @@ the average directional resolution.
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "4.g Angular distribution efficiency", secLabel)
 
-def samplingCompensationFactor(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry):
+def samplingCompensationFactor(project, report, protResizeMap, protCreateHardMaskFromResizedMap, protResizeParticles, symmetry):
 
     secLabel = "sec:SCF"
     msg = \
@@ -1060,14 +1060,14 @@ angle mis-assignment.
     report.writeWarningsAndSummary(warnings, "4.h SCF", secLabel)
 
 
-def ctfStability(project, report, protRefinement, protResizeParticles, protResizeMask):
+def ctfStability(project, report, protRefinement, protResizeParticles, protCreateHardMaskFromResizedMap):
     Prot = pwplugin.Domain.importFromPlugin('relion.protocols',
                                             'ProtRelionPostprocess', doRaise=True)
 
     protPostprocess = project.newProtocol(Prot,
                                           objLabel="4.i PostProcess")
     protPostprocess.protRefine.set(protRefinement)
-    protPostprocess.solventMask.set(protResizeMask.outputVol)
+    protPostprocess.solventMask.set(protCreateHardMaskFromResizedMap.outputMask)
     if useSlurm:
         sendToSlurm(protPostprocess)
     project.launchProtocol(protPostprocess)
@@ -1234,7 +1234,7 @@ between -5 and 5; and 5) the scale factor is between -0.1 and 0.1.
     return prot
 
 def level4(project, report, protMap, protMask, protParticles, symmetry, resolution, bfactor,
-           protResizeMap, protResizeMask, skipAnalysis = False):
+           protResizeMap, protCreateHardMaskFromResizedMap, skipAnalysis = False):
 
     protResizeParticles = resizeProject(project, protMap, protParticles, resolution)
 
@@ -1248,12 +1248,12 @@ map."""
         similarityMeasures(project, report, protMap, protMask, protParticles, symmetry, resolution)
         alignabilitySmoothness(project, report, protMap, protMask, protParticles, symmetry, resolution)
         multirefAlignability(project, report, protMap, protMask, protParticles, symmetry)
-        protRelion = relionAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
-        protCryoSparc = cryosparcAlignment(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
+        protRelion = relionAlignment(project, report, protResizeMap, protCreateHardMaskFromResizedMap, protResizeParticles, symmetry, resolution)
+        protCryoSparc = cryosparcAlignment(project, report, protResizeMap, protCreateHardMaskFromResizedMap, protResizeParticles, symmetry)
         compareRelionAndCryosparc(project, report, protRelion, protCryoSparc, symmetry)
-        relionClassification(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
-        validateOverfitting(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry, resolution)
+        relionClassification(project, report, protResizeMap, protCreateHardMaskFromResizedMap, protResizeParticles, symmetry)
+        validateOverfitting(project, report, protResizeMap, protCreateHardMaskFromResizedMap, protResizeParticles, symmetry, resolution)
         angularDistributionEfficiency(project, report, protResizeParticles, symmetry, resolution, bfactor)
-        samplingCompensationFactor(project, report, protResizeMap, protResizeMask, protResizeParticles, symmetry)
-        ctfStability(project, report, protCryoSparc, protResizeParticles, protResizeMask)
+        samplingCompensationFactor(project, report, protResizeMap, protCreateHardMaskFromResizedMap, protResizeParticles, symmetry)
+        ctfStability(project, report, protCryoSparc, protResizeParticles, protCreateHardMaskFromResizedMap)
     return protResizeParticles
