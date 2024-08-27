@@ -945,7 +945,7 @@ test. The D statistic was %f, and the p-value of the null hypothesis %f.
 The radial average of the minimum, maximum and average resolution at each voxel is shown in
 Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is %5.2f
 
-\begin{figure}[H]
+\\begin{figure}[H]
     \centering
     \includegraphics[width=9cm]{%s}
     \\caption{Histogram 1D of the best direction at each voxel.}
