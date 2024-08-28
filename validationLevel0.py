@@ -1303,10 +1303,10 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
         raise Exception("Create resized hard mask did not work")
     elif protCreateHardMaskFromResizedMap.isAborted():
         raise Exception("Create resized hard mask was MANUALLY ABORTED")
-    protCreateSoftMaskFromResizedMAp = createMask(project, "create resized soft mask", protResizeMap.outputVol, TsResizeMap, threshold, smooth=True, priority=priority)
-    if protCreateSoftMaskFromResizedMAp.isFailed():
+    protCreateSoftMaskFromResizedMap = createMask(project, "create resized soft mask", protResizeMap.outputVol, TsResizeMap, threshold, smooth=True, priority=priority)
+    if protCreateSoftMaskFromResizedMap.isFailed():
         raise Exception("Create resized soft mask did not work")
-    if protCreateSoftMaskFromResizedMAp.isAborted():
+    if protCreateSoftMaskFromResizedMap.isAborted():
         raise Exception("Create resized soft mask MANUALLY ABORTED")
 
     # Mask map and resized map for chimera views
@@ -1314,7 +1314,7 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
     fnMaskedMapDict['fnHardMaskedMap'] = createMaskedMap(report, protImportMap.outputVolume, protCreateHardMask.outputMask)
     fnMaskedMapDict['fnSoftMaskedMap'] = createMaskedMap(report, protImportMap.outputVolume, protCreateSoftMask.outputMask)
     fnMaskedMapDict['fnResizedHardMaskedMap'] = createResizedMaskedMap(report, protResizeMap.outputVol, protCreateHardMaskFromResizedMap.outputMask)
-    fnMaskedMapDict['fnResizedSoftMaskedMap'] = createResizedMaskedMap(report, protResizeMap.outputVol, protCreateSoftMaskFromResizedMAp.outputMask)     
+    fnMaskedMapDict['fnResizedSoftMaskedMap'] = createResizedMaskedMap(report, protResizeMap.outputVol, protCreateSoftMaskFromResizedMap.outputMask)     
 
     # Quality Measures
     report.writeSection('Level 0 analysis')
@@ -1325,7 +1325,7 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
 
     if not skipAnalysis:
         xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateHardMask.outputMask, resolution, fnMaskedMapDict['fnHardMaskedMap'], priority=priority)
-        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protCreateSoftMaskFromResizedMAp.outputMask, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
-        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protCreateSoftMaskFromResizedMAp.outputMask, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
+        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protCreateSoftMaskFromResizedMap.outputMask, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
+        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protCreateSoftMaskFromResizedMap.outputMask, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
         deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, threshold, priority=priority)
-    return protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, protCreateSoftMaskFromResizedMAp, fnMaskedMapDict
+    return protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, protCreateSoftMaskFromResizedMap, fnMaskedMapDict
