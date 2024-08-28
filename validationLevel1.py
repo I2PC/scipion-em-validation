@@ -587,6 +587,7 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
     if not useSlurm:
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
         p.wait()
+        sleep(120)
     else:
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
         slurmScriptPath = createScriptForSlurm('resmap_' + str(randomInt), report.getReportDir(), cmd, nTasks=10, priority=priority)

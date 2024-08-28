@@ -629,6 +629,8 @@ is between 0 and 300 \AA$^2$.
     if not useSlurm:
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
         outputLines = p.stderr.read().decode('utf-8').split('\n')
+        p.wait()
+        sleep(120)
     else:
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
         slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_level0_' + str(randomInt), report.getReportDir(), cmd, priority=priority)

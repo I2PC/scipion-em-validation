@@ -845,6 +845,8 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
 
     if not useSlurm:
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
+        p.wait()
+        sleep(120)
     else:
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
         slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_levelA_' + str(randomInt), report.getReportDir(), cmd, priority=priority)
