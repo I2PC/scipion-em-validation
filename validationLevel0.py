@@ -1325,7 +1325,7 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
 
     if not skipAnalysis:
         xmippDeepRes(project, report, "0.e deepRes", protImportMap.outputVolume, protCreateHardMask.outputMask, resolution, fnMaskedMapDict['fnHardMaskedMap'], priority=priority)
-        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protCreateSoftMaskFromResizedMap.outputMask, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
-        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protCreateSoftMaskFromResizedMap.outputMask, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
+        locBfactor(project, report, "0.f locBfactor", protResizeMap.outputVol, protCreateHardMaskFromResizedMap.outputMask, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
+        locOccupancy(project, report, "0.g locOccupancy", protResizeMap.outputVol, protCreateHardMaskFromResizedMap.outputMask, resolution, fnMaskedMapDict['fnResizedSoftMaskedMap'], priority=priority)
         deepHand(project, report, "0.h deepHand", resolution, protImportMap.outputVolume, threshold, priority=priority)
     return protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, protCreateSoftMaskFromResizedMap, fnMaskedMapDict
