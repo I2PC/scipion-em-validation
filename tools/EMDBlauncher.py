@@ -80,7 +80,7 @@ def launcher(entry, cmd, log_file, levels):
         connection.commit()
         connection.close()
         # remove scipion project
-        if cleanOriginalData and process.returncode == 0:
+        if cleanOriginalData and process.returncode == 0 and os.path.exists(reportPath):
             cmd = 'rm -rf %s' % os.path.join(scipionProjects_path, entry)
             subprocess.run(cmd, shell=True)
     except Exception as e:
