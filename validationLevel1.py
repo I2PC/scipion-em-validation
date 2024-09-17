@@ -1164,11 +1164,8 @@ def resizeMapToTargetResolution(project, map, TsTarget, priority=False):
     return protResizeMap
 
 
-def fsc3d(project, report, label, protImportMapResize, protImportMap1, protImportMap2, protCreateSoftMaskFromResizedMap, resolution, priority=False):
-    Xdim = protImportMapResize.outputVol.getDim()[0]
-
-    protResizeHalf1 = resizeMapToTargetResolution(project, protImportMap1.outputVolume, resolution/2, priority=priority)
-    protResizeHalf2 = resizeMapToTargetResolution(project, protImportMap2.outputVolume, resolution/2, priority=priority)
+def fsc3d(project, report, label, protImportMap, protImportMap1, protImportMap2, protCreateSoftMask, resolution, priority=False):
+    Xdim = protImportMap.outputVolume.getDim()[0]
 
     secLabel = "sec:fsc3d"
     msg = \
@@ -1183,144 +1180,137 @@ This method (see this \\href{%s}{link} for more details) analyzes the FSC in dif
 """ % (secLabel, FSC3D_DOI)
     report.write(msg)
 
-    if protResizeHalf1 and protResizeHalf2:
-        Prot = pwplugin.Domain.importFromPlugin('fsc3d.protocols',
-                                                'Prot3DFSC', doRaise=True)
-        prot = project.newProtocol(Prot,
-                                   objLabel=label,
-                                   provideHalfMaps=True,
-                                   applyMask=True,
-                                   useGpu=True,
-                                   hpFilter=200,
-                                   numThr=0)
-        prot.inputVolume.set(protImportMapResize.outputVol)
-        prot.volumeHalf1.set(protResizeHalf1.outputVol)
-        prot.volumeHalf2.set(protResizeHalf2.outputVol)
-        prot.maskVolume.set(protCreateSoftMaskFromResizedMap.outputMask)
+    Prot = pwplugin.Domain.importFromPlugin('fsc3d.protocols',
+                                            'Prot3DFSC', doRaise=True)
+    prot = project.newProtocol(Prot,
+                                objLabel=label,
+                                provideHalfMaps=True,
+                                applyMask=True,
+                                useGpu=True,
+                                hpFilter=200,
+                                numThr=0)
+    prot.inputVolume.set(protImportMap.outputVolume)
+    prot.volumeHalf1.set(protImportMap1.outputVolume)
+    prot.volumeHalf2.set(protImportMap2.outputVolume)
+    prot.maskVolume.set(protCreateSoftMask.outputMask)
 
-        if useSlurm:
-            sendToSlurm(prot, GPU=True, priority=True if priority else False)
-        project.launchProtocol(prot)
-        #waitOutput(project, prot, 'outputVolume')
-        waitUntilFinishes(project, prot)
+    if useSlurm:
+        sendToSlurm(prot, GPU=True, priority=True if priority else False)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputVolume')
+    waitUntilFinishes(project, prot)
 
-        if prot.isFailed():
-            report.writeSummary("1.h FSC3D", secLabel, ERROR_MESSAGE)
-            report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
-            fsc3dStdout = open(os.path.join(project.getPath(), prot.getStderrLog()), "r").read()
-            if "ValueError: could not broadcast input array from shape" in fsc3dStdout:
-                report.write("{\\color{red} \\textbf{REASON: FSC3D software experienced an internal error.}}\\\\ \n")
-            if "UnboundLocalError: cannot access local variable 'highpassfilter_fouriershell' where it is not associated with a value" in fsc3dStdout:
-                report.write("{\\color{red} \\textbf{REASON: FSC3D software experienced an internal error.}}\\\\ \n")
-            return prot
-        
-        if prot.isAborted():
-            print(PRINT_PROTOCOL_ABORTED + ": " + NAME_FSC3D)
-            report.writeSummary("1.h FSC3D", secLabel, ERROR_ABORTED_MESSAGE)
-            report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
-            return prot
-
-        Ts = protImportMapResize.outputVol.getSamplingRate()
-        md=np.genfromtxt(prot._getExtraPath(os.path.join('Results_vol','Plotsvol.csv')), delimiter=' ')
-        N=md.shape[0]
-        f = np.arange(0,N)*2*Ts/Xdim
-        fscx = md[:,0].tolist()
-        fscy = md[:,1].tolist()
-        fscz = md[:,2].tolist()
-        fscg = md[:,4].tolist()
-
-        fx = findFirstCross(f,fscx,0.143,'lesser')
-        fy = findFirstCross(f,fscy,0.143,'lesser')
-        fz = findFirstCross(f,fscz,0.143,'lesser')
-        fg = findFirstCross(f,fscg,0.143,'lesser')
-        if fx is None or fy is None or fz is None or fg is None:
-            strFSC3D = "The FSC 3D did not cross the 0.143 threshold in at least one direction."
-            saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'llResolutionRange', None, ['\u212B', 'The FSC 3D resolution range lower limit. llResolutionRange = None means that FSC 3D does not cross the 0.143 threshold in at least one direction'])
-            saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'ulResolutionRange', None, ['\u212B', 'The FSC 3D resolution range upper limit. ulResolutionRange = None means that FSC 3D does not cross the 0.143 threshold in at least one direction'])
-
-        else:
-            fList = [1/fx, 1/fy, 1/fz, 1/fg]
-            strFSC3D = "The FSC 3D resolutions at a 0.143 threshold in X, Y, and Z are %5.2f, %5.2f, and %5.2f \AA, "\
-                       "respectively. The global resolution at the same threshold is %5.2f \AA. The resolution range is "\
-                       "[%5.2f,%5.2f]\AA."%(1/fx, 1/fy, 1/fz, 1/fg, np.min(fList), np.max(fList))
-            saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'llResolutionRange', np.min(fList), ['\u212B', 'The FSC 3D resolution range lower limit. llResolutionRange = None means that FSC 3D does not cross the 0.143 threshold in at least one direction'])
-            saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'ulResolutionRange', np.max(fList), ['\u212B', 'The FSC 3D resolution range upper limit. ulResolutionRange = None means that FSC 3D does not cross the 0.143 threshold in at least one direction'])
-
-        fnDir = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','Plotsvol.jpg'))
-        fnHist = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','histogram.png'))
-        fnPower = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','FTPlotvol.jpg'))
-
-        msg = \
-    """Fig. \\ref{fig:fsc3DDir} shows the FSCs in X, Y, Z, and the global FSC. Fig. \\ref{fig:fsc3DHist} shows the global
-    FSC and the histogram of the directional FSC. Finally, Fig. \\ref{fig:FSC3DFTPower} shows the rotational average of
-    the map power in Fourier space. %s
-    
-    \\begin{figure}[H]
-        \centering
-        \includegraphics[width=9cm]{%s}
-        \\caption{FSC in  X, Y, Z, the global FSC, and the Average Cosine Phase.}
-        \\label{fig:fsc3DDir}
-    \\end{figure}
-    
-    \\begin{figure}[H]
-        \centering
-        \includegraphics[width=9cm]{%s}
-        \\caption{Global FSC and histogram of the directional FSC.}
-        \\label{fig:fsc3DHist}
-    \\end{figure}
-    
-    \\begin{figure}[H]
-        \centering
-        \includegraphics[width=9cm]{%s}
-        \\caption{Logarithm of the radial average of the input map power in Fourier space.}
-        \\label{fig:FSC3DFTPower}
-    \\end{figure}
-    
-    """ % (strFSC3D, fnDir, fnHist, fnPower)
-        report.write(msg)
-
-        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionX', 1/fx if fx else fx, ['?', 'The FSC 3D resolutions at a 0.143 threshold in X. FSC3DresolutionX = None means that FSC 3D does not cross the 0.143 threshold in X'])
-        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionY', 1/fy if fy else fy, ['?', 'The FSC 3D resolutions at a 0.143 threshold in Y. FSC3DresolutionY = None means that FSC 3D does not cross the 0.143 threshold in Y'])
-        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionZ', 1/fz if fz else fz, ['?', 'The FSC 3D resolutions at a 0.143 threshold in Z. FSC3DresolutionZ = None means that FSC 3D does not cross the 0.143 threshold in Z'])
-        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionGlobal', 1/fg if fg else fg, ['', 'The estimated global resolution according to the FSC 3D. FSC3DresolutionGlobal = None means that FSC 3D does not cross the 0.143 threshold'])
-
-        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'Plotsvol', fnDir, 'Plotsvol image file')
-        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram', fnHist, 'FSC3D histogram')
-        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'FTPlotvol', fnPower, 'FTPlotvol image file')
-        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram_raw',
-                             os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'histogram_raw.csv')), 'histogram_raw csv file')
-        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'Plotsvol',
-                             os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'Plotsvol.csv')), 'Plotsvol csv file')
-        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'ResEMvolOutglobalFSC',
-                             os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'ResEMvolOutglobalFSC.csv')),
-                             'ResEMvolOutglobalFSC csv file')
-        saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram_values',
-                             os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'histogram_values.lst')), 'histogram_values lst file')
-
-        # Warnings
-        warnings=[]
-        testWarnings = False
-        if (fg is not None and resolution<0.8/fg) or testWarnings:
-            warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
-                            "smaller than the resolution estimated by FSC3D, %5.2f \\AA.}}" % (resolution, 1/fg))
-        if fg is not None or testWarnings:
-            warnings.append("{\\color{red} \\textbf{We could not estimate the global FSC3D}}")
-        msg = \
-    """\\textbf{Automatic criteria}: The validation is OK if the resolution provided by the user is not 
-    smaller than 0.8 the resolution estimated by the first cross of the global directional FSC below 0.143.
-    \\\\
-    
-    """
-        report.write(msg)
-        report.writeWarningsAndSummary(warnings, "1.h FSC3D", secLabel)
-        if fg is not None:
-            report.addResolutionEstimate(1/fg)
-    else:
+    if prot.isFailed():
         report.writeSummary("1.h FSC3D", secLabel, ERROR_MESSAGE)
-        if not protResizeHalf1:
-            report.write(ERROR_MESSAGE_HALF1_NOT_RESIZED + STATUS_ERROR_MESSAGE)
-        if not protResizeHalf2:
-            report.write(ERROR_MESSAGE_HALF2_NOT_RESIZED + STATUS_ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        fsc3dStdout = open(os.path.join(project.getPath(), prot.getStderrLog()), "r").read()
+        if "ValueError: could not broadcast input array from shape" in fsc3dStdout:
+            report.write("{\\color{red} \\textbf{REASON: FSC3D software experienced an internal error.}}\\\\ \n")
+        if "UnboundLocalError: cannot access local variable 'highpassfilter_fouriershell' where it is not associated with a value" in fsc3dStdout:
+            report.write("{\\color{red} \\textbf{REASON: FSC3D software experienced an internal error.}}\\\\ \n")
+        return prot
+    
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_FSC3D)
+        report.writeSummary("1.h FSC3D", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
+
+    Ts = protImportMap.outputVolume.getSamplingRate()
+    md=np.genfromtxt(prot._getExtraPath(os.path.join('Results_vol','Plotsvol.csv')), delimiter=' ')
+    N=md.shape[0]
+    f = np.arange(0,N)*2*Ts/Xdim
+    fscx = md[:,0].tolist()
+    fscy = md[:,1].tolist()
+    fscz = md[:,2].tolist()
+    fscg = md[:,4].tolist()
+
+    fx = findFirstCross(f,fscx,0.143,'lesser')
+    fy = findFirstCross(f,fscy,0.143,'lesser')
+    fz = findFirstCross(f,fscz,0.143,'lesser')
+    fg = findFirstCross(f,fscg,0.143,'lesser')
+    if fx is None or fy is None or fz is None or fg is None:
+        strFSC3D = "The FSC 3D did not cross the 0.143 threshold in at least one direction."
+        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'llResolutionRange', None, ['\u212B', 'The FSC 3D resolution range lower limit. llResolutionRange = None means that FSC 3D does not cross the 0.143 threshold in at least one direction'])
+        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'ulResolutionRange', None, ['\u212B', 'The FSC 3D resolution range upper limit. ulResolutionRange = None means that FSC 3D does not cross the 0.143 threshold in at least one direction'])
+
+    else:
+        fList = [1/fx, 1/fy, 1/fz, 1/fg]
+        strFSC3D = "The FSC 3D resolutions at a 0.143 threshold in X, Y, and Z are %5.2f, %5.2f, and %5.2f \AA, "\
+                    "respectively. The global resolution at the same threshold is %5.2f \AA. The resolution range is "\
+                    "[%5.2f,%5.2f]\AA."%(1/fx, 1/fy, 1/fz, 1/fg, np.min(fList), np.max(fList))
+        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'llResolutionRange', np.min(fList), ['\u212B', 'The FSC 3D resolution range lower limit. llResolutionRange = None means that FSC 3D does not cross the 0.143 threshold in at least one direction'])
+        saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'ulResolutionRange', np.max(fList), ['\u212B', 'The FSC 3D resolution range upper limit. ulResolutionRange = None means that FSC 3D does not cross the 0.143 threshold in at least one direction'])
+
+    fnDir = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','Plotsvol.jpg'))
+    fnHist = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','histogram.png'))
+    fnPower = os.path.join(project.getPath(),prot._getExtraPath('Results_vol','FTPlotvol.jpg'))
+
+    msg = \
+"""Fig. \\ref{fig:fsc3DDir} shows the FSCs in X, Y, Z, and the global FSC. Fig. \\ref{fig:fsc3DHist} shows the global
+FSC and the histogram of the directional FSC. Finally, Fig. \\ref{fig:FSC3DFTPower} shows the rotational average of
+the map power in Fourier space. %s
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{FSC in  X, Y, Z, the global FSC, and the Average Cosine Phase.}
+    \\label{fig:fsc3DDir}
+\\end{figure}
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Global FSC and histogram of the directional FSC.}
+    \\label{fig:fsc3DHist}
+\\end{figure}
+
+\\begin{figure}[H]
+    \centering
+    \includegraphics[width=9cm]{%s}
+    \\caption{Logarithm of the radial average of the input map power in Fourier space.}
+    \\label{fig:FSC3DFTPower}
+\\end{figure}
+
+""" % (strFSC3D, fnDir, fnHist, fnPower)
+    report.write(msg)
+
+    saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionX', 1/fx if fx else fx, ['?', 'The FSC 3D resolutions at a 0.143 threshold in X. FSC3DresolutionX = None means that FSC 3D does not cross the 0.143 threshold in X'])
+    saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionY', 1/fy if fy else fy, ['?', 'The FSC 3D resolutions at a 0.143 threshold in Y. FSC3DresolutionY = None means that FSC 3D does not cross the 0.143 threshold in Y'])
+    saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionZ', 1/fz if fz else fz, ['?', 'The FSC 3D resolutions at a 0.143 threshold in Z. FSC3DresolutionZ = None means that FSC 3D does not cross the 0.143 threshold in Z'])
+    saveIntermediateData(report.getReportDir(), 'FSC3D', False, 'FSC3DresolutionGlobal', 1/fg if fg else fg, ['', 'The estimated global resolution according to the FSC 3D. FSC3DresolutionGlobal = None means that FSC 3D does not cross the 0.143 threshold'])
+
+    saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'Plotsvol', fnDir, 'Plotsvol image file')
+    saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram', fnHist, 'FSC3D histogram')
+    saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'FTPlotvol', fnPower, 'FTPlotvol image file')
+    saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram_raw',
+                            os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'histogram_raw.csv')), 'histogram_raw csv file')
+    saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'Plotsvol',
+                            os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'Plotsvol.csv')), 'Plotsvol csv file')
+    saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'ResEMvolOutglobalFSC',
+                            os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'ResEMvolOutglobalFSC.csv')),
+                            'ResEMvolOutglobalFSC csv file')
+    saveIntermediateData(report.getReportDir(), 'FSC3D', True, 'histogram_values',
+                            os.path.join(project.getPath(), prot._getExtraPath('Results_vol', 'histogram_values.lst')), 'histogram_values lst file')
+
+    # Warnings
+    warnings=[]
+    testWarnings = False
+    if (fg is not None and resolution<0.8/fg) or testWarnings:
+        warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
+                        "smaller than the resolution estimated by FSC3D, %5.2f \\AA.}}" % (resolution, 1/fg))
+    if fg is not None or testWarnings:
+        warnings.append("{\\color{red} \\textbf{We could not estimate the global FSC3D}}")
+    msg = \
+"""\\textbf{Automatic criteria}: The validation is OK if the resolution provided by the user is not 
+smaller than 0.8 the resolution estimated by the first cross of the global directional FSC below 0.143.
+\\\\
+
+"""
+    report.write(msg)
+    report.writeWarningsAndSummary(warnings, "1.h FSC3D", secLabel)
+    if fg is not None:
+        report.addResolutionEstimate(1/fg)
 
 
 def reportInput(project, report, fnMap1, fnMap2, protImportMap1, protImportMap2):
