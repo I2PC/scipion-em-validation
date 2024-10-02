@@ -192,6 +192,39 @@ def launch_fails(exceptions=[]):
     else:
         print('There are no failed entries to relaunch')
 
+
+def launch_list(input_list, doLevels):
+    # Create database for keeping track of the validations launched
+    create_ddbb_data()
+
+    if 'A' in doLevels:
+        if '1' not in doLevels:
+            doLevels = '0,A'
+        else:
+            doLevels = '0,1,A'
+    elif '1' in doLevels:
+        doLevels = '0,1'
+    else:
+        doLevels = '0'
+
+    with open(input_list, 'r') as file:
+        emdb_entries = [line.strip() for line in file.readlines()]
+        print(f"Launching validations over input list: {file.__str__()}...")
+        print(f"Processing the following entries: {emdb_entries}.")
+
+        cmd = '%s python %s EMDBid=%s doLevels=%s'
+        cmds = []
+        output_files = []
+
+        for entry in emdb_entries:
+            cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, doLevels))
+            output_files.append(os.path.join(log_folder, entry))
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for cmd, output_file, entry in zip(cmds, output_files, emdb_entries):
+                executor.submit(launcher, entry, cmd, output_file, doLevels)
+                sleep(60)
+
 def EMDB_pattern_validator(emdb_list):
     emdb_list = [emdb_entry for emdb_entry in emdb_list.replace(' ', '').split(',')]
     for emdb_entry in emdb_list:
@@ -204,16 +237,23 @@ def main(argv):
     main_group = parser.add_mutually_exclusive_group()
     subgroup = parser.add_mutually_exclusive_group()
 
+    # Get EMDB entries subsets
     main_group.add_argument('--getEMDBentries', '-g', help='retrieve EMDB entries', action='store_true')
 
+    # Launch validation over all EMDB entries
     main_group.add_argument('--launchAll', '-la', help='launch validations over all EMDB entries', action='store_true')
     parser.add_argument('--level', '-l', help='when --launchAll: which level launch', choices=['0', '0,A', '0,1', 'O,A,1'])
     parser.add_argument('--nEntries', '-n', type=int, help='when --launchAll: how many EMDB entries (i.e: 100)')
     subgroup.add_argument('--startEntry', '-start', type=int, help='when --launchAll: starting EMDB position entry from list (i.e:1)')
     subgroup.add_argument('--random', '-r', help='when --launchAll: select nEntries random entries from list', action='store_true')
 
+    # Launch validation on failed entries
     main_group.add_argument('--launchFails', '-lf', help='repeat validations over failed EMDB entries', action='store_true')
     parser.add_argument('--exceptions', '-e', type=EMDB_pattern_validator, help='when --launchFails: list of comma separated EMDB entries you want to avoid launch (i.e: EMD-1111, EMD-4374)')
+
+    # Launch validation over a specific list of EMDB entries
+    main_group.add_argument('--launchList', '-ll', help='launch validations over a specific list of EMDB entries', action='store_true')
+    parser.add_argument('--inputList', '-i', help='path to the input file containing the list of EMDB entries. It must have one entry per line.')
 
     args = parser.parse_args()
 
@@ -238,6 +278,14 @@ def main(argv):
     elif args.launchFails:
         exceptions = args.exceptions
         launch_fails(exceptions=exceptions if exceptions else [])
+
+    elif args.launchList:
+        input_list = args.inputList
+        level = args.level
+
+        if not input_list:
+            parser.error('--launchList requires --inputList')
+        launch_list(input_list, level)
 
     else:
         print('You must use a valid option. Use -h or --help to see the help.')
