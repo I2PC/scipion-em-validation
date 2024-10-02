@@ -1165,7 +1165,7 @@ def resizeMapToTargetResolution(project, map, TsTarget, priority=False):
 
 
 def fsc3d(project, report, label, protImportMap, protImportMap1, protImportMap2, protCreateSoftMask, resolution, priority=False):
-    Xdim = protImportMap.outputVolume.getDim()[0]
+    Xdim = protImportMap.outputVol.getDim()[0]
 
     secLabel = "sec:fsc3d"
     msg = \
@@ -1189,7 +1189,7 @@ This method (see this \\href{%s}{link} for more details) analyzes the FSC in dif
                                 useGpu=True,
                                 hpFilter=200,
                                 numThr=0)
-    prot.inputVolume.set(protImportMap.outputVolume)
+    prot.inputVolume.set(protImportMap.outputVol)
     prot.volumeHalf1.set(protImportMap1.outputVolume)
     prot.volumeHalf2.set(protImportMap2.outputVolume)
     prot.maskVolume.set(protCreateSoftMask.outputMask)
@@ -1216,7 +1216,7 @@ This method (see this \\href{%s}{link} for more details) analyzes the FSC in dif
         report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
-    Ts = protImportMap.outputVolume.getSamplingRate()
+    Ts = protImportMap.outputVol.getSamplingRate()
     md=np.genfromtxt(prot._getExtraPath(os.path.join('Results_vol','Plotsvol.csv')), delimiter=' ')
     N=md.shape[0]
     f = np.arange(0,N)*2*Ts/Xdim
