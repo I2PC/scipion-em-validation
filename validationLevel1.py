@@ -1165,7 +1165,7 @@ def resizeMapToTargetResolution(project, map, TsTarget, priority=False):
 
 
 def fsc3d(project, report, label, protImportMap, protImportMap1, protImportMap2, protCreateSoftMask, resolution, priority=False):
-    Xdim = protImportMap.outputVol.getDim()[0]
+    Xdim = protImportMap.outputVolume.getDim()[0]
 
     secLabel = "sec:fsc3d"
     msg = \
@@ -1189,7 +1189,7 @@ This method (see this \\href{%s}{link} for more details) analyzes the FSC in dif
                                 useGpu=True,
                                 hpFilter=200,
                                 numThr=0)
-    prot.inputVolume.set(protImportMap.outputVol)
+    prot.inputVolume.set(protImportMap.outputVolume)
     prot.volumeHalf1.set(protImportMap1.outputVolume)
     prot.volumeHalf2.set(protImportMap2.outputVolume)
     prot.maskVolume.set(protCreateSoftMask.outputMask)
@@ -1216,7 +1216,7 @@ This method (see this \\href{%s}{link} for more details) analyzes the FSC in dif
         report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
-    Ts = protImportMap.outputVol.getSamplingRate()
+    Ts = protImportMap.outputVolume.getSamplingRate()
     md=np.genfromtxt(prot._getExtraPath(os.path.join('Results_vol','Plotsvol.csv')), delimiter=' ')
     N=md.shape[0]
     f = np.arange(0,N)*2*Ts/Xdim
@@ -1350,7 +1350,7 @@ any structure in this difference. Sometimes some patterns are seen if the map is
                             "Slices of maximum variation in the three dimensions of the difference Half1-Half2.", Vdiff,
                             "fig:maxVarHalfDiff", maxVar=True)
 
-def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protImportMapResized, protCreateHardMask, protCreateSoftMask, protCreateSoftMaskFromResizedMap, fnMaskedMapDict, skipAnalysis = False, priority=False):
+def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY, mapCoordZ, protImportMap, protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis = False, priority=False):
     # Import maps
     protImportMap1 = importMap(project, "import half1", fnMap1, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=priority)
     if protImportMap1.isFailed():
@@ -1375,7 +1375,7 @@ def level1(project, report, fnMap1, fnMap2, Ts, resolution, mapCoordX, mapCoordY
         monores(project, report, "1.e MonoRes", protImportMap, protCreateHardMask, resolution, fnMaskedMapDict['fnHardMaskedMap'], priority=priority)
         monodir(project, report, "1.f MonoDir", protImportMap, protCreateHardMask, resolution, priority=priority)
         fso(project, report, "1.g FSO", protImportMap, protCreateSoftMask, resolution, priority=priority)
-        fsc3d(project, report, "1.h FSC3D", protImportMapResized, protImportMap1, protImportMap2,
-              protCreateSoftMaskFromResizedMap, resolution, priority=priority)
+        fsc3d(project, report, "1.h FSC3D", protImportMap, protImportMap1, protImportMap2,
+              protCreateSoftMask, resolution, priority=priority)
 
     return protImportMap1, protImportMap2
