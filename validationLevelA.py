@@ -35,6 +35,7 @@ import re
 from datetime import datetime
 from random import randint
 from time import sleep
+import pwem.convert as emconv
 
 from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
@@ -448,11 +449,11 @@ def phenix(project, report, protImportMap, protAtom, resolution, priority=False)
     protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority)
     phenixReporting(project, report, resolution, protPhenix, dataPhenix)
 
-def searchFitted(list_origins, original_cc_mask, project, report, protImportMap, FNMODEL, resolution, cc_mask_threshold, priority):
+def searchFittedInOriginListWithPhenix(unique_list_origins, original_cc_mask, project, report, protImportMap, FNMODEL, resolution, cc_mask_threshold, priority=False):
     h = AtomicStructHandler()
     h.read(FNMODEL)
     new_cc_mask_dict = {}
-    for origin in list_origins:
+    for origin in unique_list_origins:
 
         origin_dict = {}
 
@@ -466,14 +467,19 @@ def searchFitted(list_origins, original_cc_mask, project, report, protImportMap,
         newProtAtom = importModel(project, report, f"Import atomic - origin {originStr}", protImportMap, newFnModel, priority=priority)
         protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, newProtAtom, resolution, f"Phenix search fitted - origin {originStr}", priority)
 
-        importProtId = newProtAtom.getObjId()
-        phenixProtId = protPhenix.getObjId()
+        if protPhenix.isFailed():
+            print(f"Phenix protocol failed while checking new origin {originStr}")
+        elif protPhenix.isAborted():
+            print(f"Phenix protocol was aborted while checking new origin {originStr}")
+        else:
+            importProtId = newProtAtom.getObjId()
+            phenixProtId = protPhenix.getObjId()
 
-        origin_dict["cc_mask"] = dataPhenix["cc_mask"]
-        origin_dict["import_prot_id"] = importProtId
-        origin_dict["phenix_prot_id"] = phenixProtId
+            origin_dict["cc_mask"] = dataPhenix["cc_mask"]
+            origin_dict["import_prot_id"] = importProtId
+            origin_dict["phenix_prot_id"] = phenixProtId
 
-        new_cc_mask_dict[originStr] = origin_dict
+            new_cc_mask_dict[originStr] = origin_dict
 
     # Get greatest cc_mask that is also greater than cc_mask original and beyond cc_mask_threshold (that normally is 0.5)
     greatest_cc_mask = None
@@ -489,6 +495,7 @@ def searchFitted(list_origins, original_cc_mask, project, report, protImportMap,
     if greatest_cc_mask:
         newOrigin = greatest_cc_mask_key.split("-")
 
+        # Get import and phenix protocol for new origin
         newImportProtId = new_cc_mask_dict[greatest_cc_mask_key]["import_prot_id"]
         newImportProt = project.getProtocol(int(newImportProtId), fromRuns=True)
 
@@ -499,12 +506,13 @@ def searchFitted(list_origins, original_cc_mask, project, report, protImportMap,
     else:
         return None, None, None, None
 
-def checkFitted(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, mapCoordX, mapCoordY, mapCoordZ, cc_mask_threshold, priority=False):
+def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, unique_list_origins, priority=False):
+
     label = "A.a Phenix"
     protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority)
 
     if protPhenix.isFailed():
-        report.write(ERROR_MESSAGE_CHECK_FITTED_FAILED)
+        print("Phenix protocol failed while checking if map and model are fitted.")
         return None, protPhenix, dataPhenix, protAtom
 
     if protPhenix.isAborted():
@@ -517,14 +525,8 @@ def checkFitted(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, 
         report.write(PROPERLY_FITTED)
         return True, protPhenix, dataPhenix, protAtom
        
-    elif dataPhenix["cc_mask"] <= cc_mask_threshold:
-
-        # Create list of origin of coordinate to test
-        x, y, z = protImportMap.outputVolume.getDimensions()        
-
-        list_origins = [[0,0,0], [x/2, y/2, z/2], [mapCoordX, mapCoordY, mapCoordZ]] #TODO: finish list of origin of coordinates to test (remaining: from header)
-        
-        protAtom, protPhenix, dataPhenix, newOrigin = searchFitted(list_origins, dataPhenix["cc_mask"], project, report, protImportMap, FNMODEL, resolution, cc_mask_threshold, priority)
+    elif dataPhenix["cc_mask"] <= cc_mask_threshold: 
+        protAtom, protPhenix, dataPhenix, newOrigin = searchFittedInOriginListWithPhenix(unique_list_origins, dataPhenix["cc_mask"], project, report, protImportMap, FNMODEL, resolution, cc_mask_threshold, priority=priority)
 
         if protAtom is None and protPhenix is None:
             report.write(NOT_FOUND_NEW_FITTED)
@@ -553,6 +555,32 @@ def checkFitted(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, 
 
             return True, protPhenix, dataPhenix, protAtom
 
+def getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ):
+    
+    sampling = protImportMap.outputVolume.getSamplingRate()
+
+    ## Origin in center of the box
+    x, y, z = protImportMap.outputVolume.getDimensions()
+    xA = x * sampling / 2
+    yA = y * sampling / 2
+    zA = z * sampling / 2
+
+    ## Origin from header
+    ccp4header = emconv.Ccp4Header(protImportMap.outputVolume, readHeader=True)
+    origin_header = np.array(ccp4header.getOrigin())
+    x_header = origin_header[0]
+    y_header = origin_header[1]
+    z_header = origin_header[2]
+
+    list_origins = [[x_header, y_header, z_header], [-x_header, -y_header, -z_header], [0,0,0], [xA, yA, zA], [-xA, -yA, -zA], [mapCoordX, mapCoordY, mapCoordZ], [-mapCoordX, -mapCoordY, -mapCoordZ]] 
+    
+    # Filter sublists and avoid those that include None values
+    filtered_list_origins = [lst for lst in list_origins if all(elem is not None for elem in lst)]
+
+    # Create list of unique aublists
+    unique_list_origins = [list(x) for x in set(tuple(x) for x in filtered_list_origins)]
+
+    return unique_list_origins
 
 def convertPDB(project, report, protImportMap, protAtom, priority=False):
 
@@ -1594,11 +1622,19 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
         if not skipAnalysis:
             report.writeSection(section, secLabel)
 
-            # Check if map and model are fitted with phenix
-            cc_mask_threshold = 0.5
-            fitted, protPhenix, dataPhenix, protAtom = checkFitted(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, mapCoordX, mapCoordY, mapCoordZ, cc_mask_threshold, priority)
+            # Get list of origin to coordinates to test in case map and model are not fitted
+            unique_list_origins = getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ)
+
+            # Check if map and model are fitted with phenix. If phenix fails, check it manually.
+            cc_mask_threshold = 0.8
+            fitted, protPhenix, dataPhenix, protAtom = checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, unique_list_origins, priority=priority)
+            
+            if protPhenix is not None and protPhenix.isFailed(): # protPhenix = None when phenix finished properly but any new origin was found. For those cases, we do not want to execute manual checks (it is only useful when phenix fails).
+                print("Start checking manually whether map and model are fitted or not...")
+                #TODO: add function to do manual checks
 
             if fitted is False: # Avoid execcuting level A if map and model are not fitted
+                report.write(ERROR_MESSAGE_CHECK_FITTED_FAILED)
                 return protAtom
             else: # Continue executing level A
                 protConvert = convertPDB(project, report, protImportMap, protAtom, priority=priority)
