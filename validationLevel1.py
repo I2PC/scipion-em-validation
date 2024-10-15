@@ -54,6 +54,8 @@ from resources.constants import *
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+N_TASKS = config['QUEUE'].getboolean('N_TASKS')
+N_THREADS = config['SCIPION'].get('N_THREADS')
 
 def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -590,7 +592,7 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
         sleep(120)
     else:
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
-        slurmScriptPath = createScriptForSlurm('resmap_' + str(randomInt), report.getReportDir(), cmd, nTasks=10, priority=priority)
+        slurmScriptPath = createScriptForSlurm('resmap_' + str(randomInt), report.getReportDir(), cmd, nTasks=N_TASKS, priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished
@@ -715,7 +717,7 @@ def monores(project, report, label, protImportMap, protCreateMask, resolution, f
                                useHalfVolumes=True,
                                minRes=2*Ts,
                                maxRes=max(10,5*resolution),
-                               numberOfThreads=10)
+                               numberOfThreads=N_THREADS)
     prot.associatedHalves.set(protImportMap.outputVolume)
     prot.mask.set(protCreateMask.outputMask)
     if useSlurm:
@@ -885,7 +887,7 @@ protein. As the shells approach the outside of the protein, these radial average
                                objLabel=label,
                                fast=True,
                                resstep=0.5,
-                               numberOfThreads=10)
+                               numberOfThreads=N_THREADS)
     prot.inputVolumes.set(protImportMap.outputVolume)
     prot.Mask.set(protCreateMask.outputMask)
     if useSlurm:

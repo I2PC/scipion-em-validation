@@ -62,6 +62,7 @@ chimeraProgram = config['MAPQ'].get('CHIMERA_PROGRAM_PATH')
 mapq_path = config['MAPQ'].get('MAPQ_PATH')
 validation_tools_path = config['EM-VALIDATION'].get('VALIDATION_TOOLS_PATH')
 EMDB_entries_path = config['EMDB'].get('ENTRIES_PATH')
+N_THREADS = config['SCIPION'].get('N_THREADS')
 
 
 def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ, priority=False):
@@ -655,7 +656,7 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
     prot = project.newProtocol(Prot,
                                objLabel="A.b FSC-Q",
                                inputPDBObj=protAtom.outputPdb,
-                               numberOfThreads=10)
+                               numberOfThreads=N_THREADS)
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.pdbMap.set(protConvert.outputVolume)
     prot.inputMask.set(protCreateSoftMask.outputMask)

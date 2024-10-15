@@ -6,6 +6,7 @@ GPU_ID_SKIP_SLURM = 7
 # Queue names
 STANDARD_QUEUE_NAME = standard
 PRIORITY_QUEUE_NAME = fast
+N_TASKS = 10
 
 [CHIMERA]
 MAX_MEM_TO_USE = 60000
@@ -31,3 +32,4 @@ LOG_PATH = /home/vrs/EMDB/logs
 [SCIPION]
 SCIPIONPROJECTS_PATH = /home/vrs/ScipionUserData/projects
 SCIPION_LAUNCHER = /home/vrs/scipion3/scipion3
+N_THREADS = 10

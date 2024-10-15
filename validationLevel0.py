@@ -57,6 +57,7 @@ config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
 gpuIdSkipSlurm = config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
+N_THREADS = config['SCIPION'].get('N_THREADS')
 
 def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -888,7 +889,7 @@ local magnitude and phase term using the spiral transform.\\\\
                                vol=map,
                                mask_in_molecule=mask,
                                max_res=resolution,
-                               numberOfThreads=10)
+                               numberOfThreads=N_THREADS)
     if useSlurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
