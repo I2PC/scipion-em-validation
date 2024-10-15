@@ -54,7 +54,7 @@ from resources.constants import *
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 useSlurm = config['QUEUE'].getboolean('USE_SLURM')
-N_TASKS = config['QUEUE'].getboolean('N_TASKS')
+N_TASKS = config['QUEUE'].get('N_TASKS')
 N_THREADS = config['SCIPION'].get('N_THREADS')
 
 def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=False):
