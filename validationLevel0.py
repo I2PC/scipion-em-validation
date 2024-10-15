@@ -106,7 +106,7 @@ def createMask(project, label, map, Ts, threshold, smooth=False, priority=False)
                                doMorphological=True,
                                doSmooth=True if smooth else False,
                                sigmaConvolution=2.0 if smooth else None,
-                               elementSize=math.ceil(2/Ts)) # Dilation by 2A
+                               elementSize=math.ceil(2/Ts) if Ts else 1) # Dilation by 2A
     if useSlurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
@@ -153,6 +153,7 @@ def resizeMap(project, protMap, resolution, priority=False):
                                             windowOperation=1,
                                             windowSize=Xdimp)
     else:
+        TsTarget = None
         protResizeMap = project.newProtocol(Prot,
                                             objLabel="Resize Volume Factor=1",
                                             doResize=True,
