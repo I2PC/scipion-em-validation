@@ -919,7 +919,7 @@ protein. As the shells approach the outside of the protein, these radial average
 
     # Test
     randomSample = np.random.choice([x for x in range(int(np.max(direction))+1)], size=50000,
-                                    p=np.array(count,dtype=np.float)/np.sum(count))
+                                    p=np.array(count,dtype=np.float64)/np.sum(count))
     D, p = scipy.stats.kstest(randomSample, scipy.stats.randint(0, int(np.max(direction))).cdf)
 
     # 2D Histogram
