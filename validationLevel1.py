@@ -901,6 +901,20 @@ protein. As the shells approach the outside of the protein, these radial average
     if prot.isFailed():
         report.writeSummary("1.f MonoDir", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+
+        monodirStdout = open(os.path.join(project.getPath(), prot.getStdoutLog()), "r").read()
+        if ("The map does not verify the requirements for MonoDir." and "Possible cause:" and "* The protein is masked (lack of noise)." and "* The protein has a large radius, thus, the algorithm cannot find a shell of noise") in monodirStdout:
+            reasonText = \
+"""
+{\\color{red} \\textbf{REASON: The map does not verify the requirements for MonoDir.}}\\ \n
+{\\color{red} \\textbf{Possible cause:}}\\ \n
+\\begin{enumerate}
+   \\item {\\color{red} \\textbf{The protein is masked (lack of noise).}}
+   \\item {\\color{red} \\textbf{The protein has a large radius, thus, the algorithm cannot find a shell of noise.}}
+\\end{enumerate}
+"""
+            report.write(reasonText)
+
         return prot
 
     if prot.isAborted():
