@@ -376,6 +376,9 @@ else:
 if len(levels)==0 or not "0" in levels:
     usage()
 
+# Get unique list of levels
+levels = list(set(levels))
+
 # Creating the project
 projectDir = manager.getProjectPath(PROJECT_NAME)
 if os.path.exists(projectDir):
