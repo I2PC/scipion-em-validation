@@ -29,6 +29,15 @@ doStoreIntermediateData = config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMED
 intermediateDataFinalPath = config['INTERMEDIATE_DATA'].get('DEST_PATH')
 cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 
+def escapeLatexSpecialChars(text):
+
+    special_chars = ['#', '$', '%', '&', '_', '{', '}']
+
+    # Replace special character to escape them in latex
+    for char in special_chars:
+        text = text.replace(char, f"\\{char}")
+    return text
+
 def isHomogeneous(value1, value2, eps=0.01):
     if abs(value1-value2) < eps:
         isHomogeneous = True
@@ -554,10 +563,9 @@ Manual interpretation is needed. Not included as evaluable item in 'Summarized o
             else:
                 resolution_str = "{\\color{red} (not reported)}"
 
-            MAP_NAME = os.path.basename(FNMAP).replace('_','\_') if FNMAP else None
-            MODEL_NAME = os.path.basename(FNMODEL).replace('_','\_') if FNMODEL else None
-            JOB_NAME = JOB_NAME.replace('_','\_') if JOB_NAME else None
-            TRIMMED_JOB_DESCRIPTION = JOB_DESCRIPTION[:420].replace('_','\_') if JOB_DESCRIPTION else None
+            MAP_NAME = os.path.basename(FNMAP) if FNMAP else None
+            MODEL_NAME = os.path.basename(FNMODEL) if FNMODEL else None
+            TRIMMED_JOB_DESCRIPTION = JOB_DESCRIPTION[:420] if JOB_DESCRIPTION else None
 
             entryInfoList = [MAP_NAME, MODEL_NAME, JOB_NAME, TRIMMED_JOB_DESCRIPTION, resolution_str]
 
@@ -612,23 +620,23 @@ Manual interpretation is needed. Not included as evaluable item in 'Summarized o
                 if item is PDB_ID and PDB_ID is not None:
                     toWrite+=entryLineHRef % ('PDB ID', PDB_LINK % PDB_ID, PDB_ID)
                 if item is title and title is not None:
-                    toWrite+=entryLine % ('Title', title)
+                    toWrite+=entryLine % ('Title', escapeLatexSpecialChars(title))
                 if item is authors and authors is not None:
                     toWrite+=entryLineHRef % ('Authors', EMDB_LINK % EMDB_ID, "See EMDB entry link")
                 if item is deposited and deposited is not None:
-                    toWrite+=entryLine % ('Deposited on', deposited)
+                    toWrite+=entryLine % ('Deposited on', escapeLatexSpecialChars(deposited))
                 if item is resolution_str and resolution_str is not None:
                     toWrite+=entryLine % ('Reported Resolution', resolution_str)
         else:
             for item in entryInfoList:
                 if item is MAP_NAME and MAP_NAME is not None:
-                    toWrite+=entryLine % ('Volumen Map', MAP_NAME)
+                    toWrite+=entryLine % ('Volumen Map', escapeLatexSpecialChars(MAP_NAME))
                 if item is MODEL_NAME and MODEL_NAME is not None:
-                    toWrite+=entryLine % ('Atomic Model', MODEL_NAME)
+                    toWrite+=entryLine % ('Atomic Model', escapeLatexSpecialChars(MODEL_NAME))
                 if item is JOB_NAME and JOB_NAME is not None:
-                    toWrite+=entryLine % ('Job Name', JOB_NAME)
+                    toWrite+=entryLine % ('Job Name', escapeLatexSpecialChars(JOB_NAME))
                 if item is TRIMMED_JOB_DESCRIPTION and TRIMMED_JOB_DESCRIPTION is not None:
-                    toWrite+=entryLine % ('Job Description', TRIMMED_JOB_DESCRIPTION)
+                    toWrite+=entryLine % ('Job Description', escapeLatexSpecialChars(TRIMMED_JOB_DESCRIPTION))
                 if item is resolution_str and resolution_str is not None:
                     toWrite+=entryLine % ('Reported Resolution', resolution_str)
 
