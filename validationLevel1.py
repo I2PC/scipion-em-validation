@@ -1315,7 +1315,7 @@ the map power in Fourier space. %s
     if (fg is not None and resolution<0.8/fg) or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the resolution estimated by FSC3D, %5.2f \\AA.}}" % (resolution, 1/fg))
-    if fg is not None or testWarnings:
+    if fg is None or testWarnings:
         warnings.append("{\\color{red} \\textbf{We could not estimate the global FSC3D}}")
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the resolution provided by the user is not 
