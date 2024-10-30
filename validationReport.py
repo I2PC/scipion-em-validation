@@ -25,7 +25,7 @@ config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 maxMemToUse = config['CHIMERA'].getint('MAX_MEM_TO_USE')
 maxVoxelsToOpen = config['CHIMERA'].getint('MAX_VOXELS')
-doStoreIntermediateData = config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
+STORE_INTERMEDIATE_DATA = config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
 intermediateDataFinalPath = config['INTERMEDIATE_DATA'].get('DEST_PATH')
 cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 
@@ -977,7 +977,7 @@ This Validation Report Service is explained in more detail in this \\href{%s}{pa
 """
         self.write(toWrite)
 
-    def closeReport(self, resolution):
+    def closeReport(self, resolution, isTest):
 
         toWrite = "\\end{document}\n"
         self.fh.write(toWrite)
@@ -1015,5 +1015,13 @@ This Validation Report Service is explained in more detail in this \\href{%s}{pa
                        stdout=subprocess.DEVNULL,
                        stderr=subprocess.STDOUT)
         os.chdir(self.fnProjectDir)
+
+        # If the VRS launch is a test do not store intermediate date
+        if isTest:
+            doStoreIntermediateData = False
+        # In case, VRS launch is not a test, follow config.yaml rules
+        else:
+            doStoreIntermediateData = STORE_INTERMEDIATE_DATA
+
         if doStoreIntermediateData:
             storeIntermediateData(self.fnReportDir, intermediateDataFinalPath)

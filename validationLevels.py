@@ -118,6 +118,7 @@ def usage(message=''):
           "\n         or"
           "\n         project:  myProject"
           "\n         doLevels: 0,1,A"
+          "\n         isTest"
           "\n         LEVEL 0 ====="
           "\n            map:  mymap.mrc"
           "\n            sampling:  1 [A]"
@@ -219,6 +220,8 @@ TILTANGLE = None
 UNTILTEDCOORDS = None
 TILTEDCOORDS = None
 
+IS_TEST = False
+
 levels = []
 # Validate inputs formats
 wrongInputs = {'errors':[], 'warnings':[]}
@@ -231,6 +234,8 @@ for arg in sys.argv:
         PROJECT_NAME = EMDB_ID
     if arg.startswith('doLevels='):
         LEVELS = arg.split('doLevels=')[1]
+    if arg.startswith('--isTest'):
+        IS_TEST = True
 
 if IS_EMDB_ENTRY:
     does_map_exist = EMDButils.does_map_exist(EMDB_ID_NUM)
@@ -820,4 +825,4 @@ else: # go ahead
         with open(os.path.join(fnProjectDir, 'validationReport', 'workflow.json'), 'w') as f:
             f.write(json.dumps(list(protDicts.values()), indent=4, separators=(',', ': ')))
 
-    report.closeReport(MAPRESOLUTION)
+    report.closeReport(MAPRESOLUTION, IS_TEST)

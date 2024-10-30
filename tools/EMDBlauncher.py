@@ -127,7 +127,7 @@ def get_fails():
     connection.close()
     return failed_entries
 
-def launch(levels, n_entries, start_entry=1, random=False):
+def launch(levels, n_entries, isTest, start_entry=1, random=False):
     print('Launching validations over EMDB entries...')
     # Create database for keeping track of the validations launched
     create_ddbb_data()
@@ -155,12 +155,12 @@ def launch(levels, n_entries, start_entry=1, random=False):
     elif random:
         emdb_entries = sample(emdb_entries, k=n_entries)
 
-    cmd = '%s python %s EMDBid=%s doLevels=%s'
+    cmd = '%s python %s EMDBid=%s doLevels=%s %s'
     cmds = []
     output_files = []
 
     for entry in emdb_entries:
-        cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, doLevels))
+        cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, doLevels, "--isTest" if isTest else ""))
         output_files.append(os.path.join(log_folder, entry))
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -168,9 +168,9 @@ def launch(levels, n_entries, start_entry=1, random=False):
             executor.submit(launcher, entry, cmd, output_file, doLevels)
             sleep(60)
 
-def launch_fails(exceptions=[]):
+def launch_fails(isTest, exceptions=[]):
     print('Launching validations again over previous fails...')
-    cmd = '%s python %s EMDBid=%s doLevels=%s'
+    cmd = '%s python %s EMDBid=%s doLevels=%s %s'
     cmds = []
     output_files = []
     emdb_entries = []
@@ -181,7 +181,7 @@ def launch_fails(exceptions=[]):
         if entry not in exceptions:
             emdb_entries.append(entry)
             doLevels.append(level)
-            cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, level))
+            cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, level, "--isTest" if isTest else ""))
             output_files.append(os.path.join(log_folder, entry))
 
     if emdb_entries:
@@ -193,7 +193,7 @@ def launch_fails(exceptions=[]):
         print('There are no failed entries to relaunch')
 
 
-def launch_list(input_list, doLevels):
+def launch_list(input_list, doLevels, isTest):
     # Create database for keeping track of the validations launched
     create_ddbb_data()
 
@@ -212,12 +212,12 @@ def launch_list(input_list, doLevels):
         print(f"Launching validations over input list: {file.__str__()}...")
         print(f"Processing the following entries: {emdb_entries}.")
 
-        cmd = '%s python %s EMDBid=%s doLevels=%s'
+        cmd = '%s python %s EMDBid=%s doLevels=%s %s'
         cmds = []
         output_files = []
 
         for entry in emdb_entries:
-            cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, doLevels))
+            cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, doLevels, "--isTest" if isTest else ""))
             output_files.append(os.path.join(log_folder, entry))
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -256,6 +256,9 @@ def main(argv):
     parser.add_argument('--inputList', '-i', help='path to the input file containing the list of EMDB entries (it must have one entry per line). \
                         Bear in mind that all entries in the list must have the same level since only one can be entered as part of the flag --level \
                         and that will be the level specified in the database.')
+    
+    # Launch as a test
+    parser.add_argument('--isTest', '-t', help='launch validations as tests (intermediate data will not be stored)', action='store_true')
 
     args = parser.parse_args()
 
@@ -267,6 +270,7 @@ def main(argv):
         n_entries = args.nEntries
         start_entry = args.startEntry
         random = args.random
+        isTest = args.isTest
 
         if not level:
             parser.error('--launchAll requires --level')
@@ -275,19 +279,21 @@ def main(argv):
         if not (start_entry or random):
             parser.error('--launchAll requires either --startEntry or --random')
 
-        launch(level, n_entries, start_entry=start_entry, random=random)
+        launch(level, n_entries, isTest, start_entry=start_entry, random=random)
 
     elif args.launchFails:
         exceptions = args.exceptions
-        launch_fails(exceptions=exceptions if exceptions else [])
+        isTest = args.isTest
+        launch_fails(isTest, exceptions=exceptions if exceptions else [])
 
     elif args.launchList:
         input_list = args.inputList
         level = args.level
+        isTest = args.isTest
 
         if not input_list:
             parser.error('--launchList requires --inputList')
-        launch_list(input_list, level)
+        launch_list(input_list, level, isTest)
 
     else:
         print('You must use a valid option. Use -h or --help to see the help.')
