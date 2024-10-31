@@ -18,7 +18,7 @@ log_folder = config['EMDB'].get('LOG_PATH')
 scipionProjects_path = config['SCIPION'].get('SCIPIONPROJECTS_PATH')
 scipion_launcher = config['SCIPION'].get('SCIPION_LAUNCHER')
 validation_server_launcher = config['EM-VALIDATION'].get('VALIDATION_SERVER_LAUNCHER')
-cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
+CLEAN_ORIGINAL_DATA = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 
 def connect_to_ddbb():
     connection = mysql.connector.connect(host='localhost', user='vrs', password='', database='vrs')
@@ -45,7 +45,7 @@ def create_ddbb_data():
     connection.commit()
     connection.close()
 
-def launcher(entry, cmd, log_file, levels):
+def launcher(entry, cmd, log_file, levels, isTest):
     try:
         print("Launching", entry)
         connection = connect_to_ddbb()
@@ -80,6 +80,14 @@ def launcher(entry, cmd, log_file, levels):
         connection.commit()
         connection.close()
         # remove scipion project
+
+        # If the VRS launch is a test do not clean original data
+        if isTest:
+            cleanOriginalData = False
+        # In case, VRS launch is not a test, follow config.yaml rules
+        else:
+            cleanOriginalData = CLEAN_ORIGINAL_DATA
+
         if cleanOriginalData and process.returncode == 0 and os.path.exists(reportPath):
             cmd = 'rm -rf %s' % os.path.join(scipionProjects_path, entry)
             subprocess.run(cmd, shell=True)
@@ -165,7 +173,7 @@ def launch(levels, n_entries, isTest, start_entry=1, random=False):
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         for cmd, output_file, entry in zip(cmds, output_files, emdb_entries):
-            executor.submit(launcher, entry, cmd, output_file, doLevels)
+            executor.submit(launcher, entry, cmd, output_file, doLevels, isTest)
             sleep(60)
 
 def launch_fails(isTest, exceptions=[]):
@@ -187,7 +195,7 @@ def launch_fails(isTest, exceptions=[]):
     if emdb_entries:
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for cmd, output_file, entry, level in zip(cmds, output_files, emdb_entries, doLevels):
-                executor.submit(launcher, entry, cmd, output_file, level)
+                executor.submit(launcher, entry, cmd, output_file, level, isTest)
                 sleep(60)
     else:
         print('There are no failed entries to relaunch')
@@ -222,7 +230,7 @@ def launch_list(input_list, doLevels, isTest):
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for cmd, output_file, entry in zip(cmds, output_files, emdb_entries):
-                executor.submit(launcher, entry, cmd, output_file, doLevels)
+                executor.submit(launcher, entry, cmd, output_file, doLevels, isTest)
                 sleep(60)
 
 def EMDB_pattern_validator(emdb_list):
@@ -258,7 +266,7 @@ def main(argv):
                         and that will be the level specified in the database.')
     
     # Launch as a test
-    parser.add_argument('--isTest', '-t', help='launch validations as tests (intermediate data will not be stored)', action='store_true')
+    parser.add_argument('--isTest', '-t', help='launch validations as tests (intermediate data will not be stored and scipion project will not be cleaned)', action='store_true')
 
     args = parser.parse_args()
 
