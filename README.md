@@ -5,8 +5,8 @@ This scheme has been implemented in a website https://biocomp.cnb.csic.es/EMVali
 
 ## Commands to launch validations over EMDB
 ### Single entry
-- scipion3 python validationLevels.py EMDBid=EMD-29734 doLevels=0,1 > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
-- scipion3 python validationLevels.py EMDBid=EMD-29734 doLevels=0,1 --isTest > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
+- scipion3 python validationLevels.py EMDBid=EMD-29734 doLevels=0,1
+- scipion3 python validationLevels.py EMDBid=EMD-29734 doLevels=0,1 --isTest
 
 IMPORTANT: --isTest flag is meant to avoid storing intermediate data in /data/ScipionUserDataToRetrieve and avoid cleaning scipion project
 
