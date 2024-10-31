@@ -45,7 +45,7 @@ from pwem.viewers.viewer_localres import replaceOcuppancyWithAttribute, makeResi
 import pwem.convert.atom_struct
 import xmipp3
 
-from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot, isHomogeneous
+from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot, isHomogeneous, safeNeg
 from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished
 
 import configparser
@@ -556,7 +556,7 @@ def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protI
 
             return True, protPhenix, dataPhenix, protAtom
 
-def getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ):
+def getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ, fnMap):
     
     sampling = protImportMap.outputVolume.getSamplingRate()
 
@@ -567,13 +567,13 @@ def getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ):
     zA = z * sampling / 2
 
     ## Origin from header
-    ccp4header = emconv.Ccp4Header(protImportMap.outputVolume, readHeader=True)
+    ccp4header = emconv.Ccp4Header(fnMap, readHeader=True)
     origin_header = np.array(ccp4header.getOrigin())
     x_header = origin_header[0]
     y_header = origin_header[1]
     z_header = origin_header[2]
 
-    list_origins = [[x_header, y_header, z_header], [-x_header, -y_header, -z_header], [0,0,0], [xA, yA, zA], [-xA, -yA, -zA], [mapCoordX, mapCoordY, mapCoordZ], [-mapCoordX, -mapCoordY, -mapCoordZ]] 
+    list_origins = [[x_header, y_header, z_header], [safeNeg(x_header), safeNeg(y_header), safeNeg(z_header)], [0,0,0], [xA, yA, zA], [safeNeg(xA), safeNeg(yA), safeNeg(zA)], [mapCoordX, mapCoordY, mapCoordZ], [safeNeg(mapCoordX), safeNeg(mapCoordY), safeNeg(mapCoordZ)]] 
     
     # Filter sublists and avoid those that include None values
     filtered_list_origins = [lst for lst in list_origins if all(elem is not None for elem in lst)]
@@ -1599,7 +1599,7 @@ Atomic model: %s \\\\
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
     return False
 
-def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False):
+def levelA(project, report, EMDB_ID_NUM, FNMAP, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False):
     
     secLabel = "sec:AAnalysis"
     section = "Level A Analysis"
@@ -1624,7 +1624,7 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
             report.writeSection(section, secLabel)
 
             # Get list of origin to coordinates to test in case map and model are not fitted
-            unique_list_origins = getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ)
+            unique_list_origins = getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ, FNMAP)
 
             # Check if map and model are fitted with phenix. If phenix fails, check it manually.
             cc_mask_threshold = 0.8

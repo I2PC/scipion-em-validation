@@ -29,6 +29,11 @@ STORE_INTERMEDIATE_DATA = config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMED
 intermediateDataFinalPath = config['INTERMEDIATE_DATA'].get('DEST_PATH')
 cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 
+
+def safeNeg(value):
+    return -value if value is not None else None
+
+
 def escapeLatexSpecialChars(text):
 
     special_chars = ['#', '$', '%', '&', '_', '{', '}']
