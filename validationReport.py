@@ -670,15 +670,25 @@ Manual interpretation is needed. Not included as evaluable item in 'Summarized o
         self.fnFrontpage.write(toWrite)
 
     def writeContext(self):
+
+        ScipionEmValDir = os.path.dirname(__file__)
+        scipion_logo = os.path.join(ScipionEmValDir, 'resources', 'figures', 'scipion_logo.png') 
+
         toWrite = \
 """
 \\begin{center}\\textbf{Context}\\end{center}
 Cryo-electron microscopy is currently one of the most active techniques in Structural Biology. The number of maps deposited at the \\href{https://www.ebi.ac.uk/emdb/}{Electron Microscopy Data Bank} is rapidly growing every year and keeping the quality of the submitted maps is essential to maintain the scientific quality of the field. \\\\
 The ultimate quality measure is the consistency of the map and an atomic model. However, this is only possible for high resolution maps. Over the years there have been many suggestions about validation measures of 3DEM maps. Unfortunately, most of these measures are not currently in use for their spread in multiple software tools and the associated difficulty to access them. To alleviate this problem, we made available a validation grading system that evaluate the information provided to assess the map. \\\\
-This system grades a map from 0 to 5 depending on the amount of information available. In this way, a map could be validated at Level 0 (the deposited map), 1 (two half maps), 2 (2D classes), 3 (particles), 4 (... + angular assignment), 5 (... + micrographs and coordinates). In addition, we can have three optional qualifiers: A (... + atomic model), W (... + image processing workflow), and O (... + other techniques). \\\\
+This system grades a map from 0 to 5 depending on the amount of information available. In this way, a map could be validated at Level 0 (the deposited map), 1 (two half maps), 2 (2D classes), 3 (particles), 4 (... + angular assignment), 5 (... + micrographs and coordinates). In addition, we can have three optional qualifiers: A (... + atomic model), W (... + image processing workflow), and O (... + other techniques). To know more about this service read this \\href{%s}{paper} \\\\
 
-This Validation Report Service is explained in more detail in this \\href{%s}{paper}. For more information about the different methods and softwares used for this report, see the references \\href{%s}{here}.\\\\
-""" % (VRS_DOI, HELP_WEBSITE_LINK)
+This Validation Report Service uses Scipion (see this \\href{%s}{link} for more detail) as workflow engine and ChimeraX (see this \\href{%s}{link} for more detail) to generate the 3D views. For more information about the different methods and softwares used for this report, see the references \\href{%s}{here}.\\\\
+
+\\vfill 
+\\begin{center}
+    \\includegraphics[width=8cm]{%s}\\
+\\end{center}
+
+""" % (VRS_DOI, SCIPION_DOI, CHIMERAX_DOI, HELP_WEBSITE_LINK, scipion_logo)
         self.fnContext.write(toWrite)
 
     def addResolutionEstimate(self, R):
