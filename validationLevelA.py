@@ -556,7 +556,7 @@ def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protI
 
             return True, protPhenix, dataPhenix, protAtom
 
-def getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ, fnMap):
+def getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ):
     
     sampling = protImportMap.outputVolume.getSamplingRate()
 
@@ -567,7 +567,7 @@ def getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ, fnMap):
     zA = z * sampling / 2
 
     ## Origin from header
-    ccp4header = emconv.Ccp4Header(fnMap, readHeader=True)
+    ccp4header = emconv.Ccp4Header(protImportMap.outputVolume.getFileName(), readHeader=True)
     origin_header = np.array(ccp4header.getOrigin())
     x_header = origin_header[0]
     y_header = origin_header[1]
@@ -1599,7 +1599,7 @@ Atomic model: %s \\\\
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
     return False
 
-def levelA(project, report, EMDB_ID_NUM, FNMAP, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False):
+def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False):
     
     secLabel = "sec:AAnalysis"
     section = "Level A Analysis"
@@ -1624,7 +1624,7 @@ def levelA(project, report, EMDB_ID_NUM, FNMAP, protImportMap, FNMODEL, fnPdb, w
             report.writeSection(section, secLabel)
 
             # Get list of origin to coordinates to test in case map and model are not fitted
-            unique_list_origins = getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ, FNMAP)
+            unique_list_origins = getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ)
 
             # Check if map and model are fitted with phenix. If phenix fails, check it manually.
             cc_mask_threshold = 0.8
