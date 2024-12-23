@@ -430,6 +430,7 @@ class ValidationReport:
 \\usepackage{fancyhdr}
 \\setlist{nosep}
 \\usepackage[most]{tcolorbox}
+\\usepackage{lastpage}
 
 % Define a new tcolorbox
 \\newtcolorbox{mycolorbox}{
@@ -453,9 +454,22 @@ class ValidationReport:
     citecolor=mygreen,
 }
 
+% Define footer with pagination
+\\fancypagestyle{main}{
+    \\fancyhf{}
+    \\fancyfoot[C]{Page \\thepage\\ of \\pageref{LastPage}}
+    \\renewcommand{\\headrulewidth}{0pt}
+    \\renewcommand{\\footrulewidth}{0pt}
+}
+
 \\begin{document}
 
 \\input{frontpage.tex}
+
+% Reactivate pagination
+\\newpage
+\\pagestyle{main}
+\\pagenumbering{arabic}
 
 \\input{context.tex}
 \\clearpage
@@ -577,6 +591,7 @@ Manual interpretation is needed. Not included as evaluable item in 'Summarized o
         # Add first part of the frontpage.tex file 
         toWrite=\
 """
+\\pagenumbering{gobble}
 \\pagestyle{empty}
 \\begin{center}
     \\parbox[c][\\textheight][t]{\\textwidth}{
