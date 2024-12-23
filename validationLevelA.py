@@ -536,7 +536,7 @@ def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protI
             os.makedirs(EMDB_entries_path, exist_ok=True)
             with open(os.path.join(EMDB_entries_path, 'EMDB_fail_fitted.txt'), 'a') as output:
                 if EMDB_ID_NUM:
-                    output.writelines(f'{EMDB_ID_NUM}\n')
+                    output.writelines(f'EMD-{EMDB_ID_NUM}\n')
                 else:
                     output.writelines('Unkown\n')
             ##############################################################################
@@ -549,14 +549,17 @@ def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protI
             os.makedirs(EMDB_entries_path, exist_ok=True)
             with open(os.path.join(EMDB_entries_path, 'EMDB_new_fitted.txt'), 'a') as output:
                 if EMDB_ID_NUM:
-                    output.writelines(f'{EMDB_ID_NUM}\n')
+                    output.writelines(f'EMD-{EMDB_ID_NUM}\n')
                 else:
                     output.writelines('Unkown\n')
             ##############################################################################
 
             return True, protPhenix, dataPhenix, protAtom
 
-def getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ):
+def checkFittedManually():
+    pass
+
+def getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ, fnMap):
     
     sampling = protImportMap.outputVolume.getSamplingRate()
 
@@ -1631,9 +1634,8 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
             fitted, protPhenix, dataPhenix, protAtom = checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, unique_list_origins, priority=priority)
             
             if protPhenix is not None and protPhenix.isFailed(): # protPhenix = None when phenix finished properly but any new origin was found. For those cases, we do not want to execute manual checks (it is only useful when phenix fails).
-                print("Start checking manually whether map and model are fitted or not...")
-                #TODO: add function to do manual checks
-
+                print("Starting to check manually whether map and model are fitted or not...")
+                #TODO: add function to do manual checks          
             if fitted is False: # Avoid execcuting level A if map and model are not fitted
                 report.write(ERROR_MESSAGE_CHECK_FITTED_FAILED)
                 return protAtom
