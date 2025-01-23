@@ -616,6 +616,11 @@ is between 0 and 300 \AA$^2$.
         report.writeSummary("0.d B-factor analysis", secLabel, NOT_APPLY_MESSAGE)
         report.write(NOT_APPY_NO_RESOLUTION + STATUS_NOT_APPLY)
         return None
+    if resolution>8:
+        toWrite = NOT_APPLY_WORSE_RESOLUTION % 8 + STATUS_NOT_APPLY
+        report.write(toWrite)
+        report.writeSummary("0.d B-factor analysis", secLabel, NOT_APPLY_MESSAGE)
+        return
 
     fnIn = os.path.join(project.getPath(), map.getFileName())
     if fnIn.endswith(".mrc"):
