@@ -884,7 +884,7 @@ local magnitude and phase term using the spiral transform.\\\\
     report.write(msg)
 
     if not resolution:
-        report.writeSummary("0.e Local B-factor", secLabel, NOT_APPLY_MESSAGE)
+        report.writeSummary("0.f Local B-factor", secLabel, NOT_APPLY_MESSAGE)
         report.write(NOT_APPY_NO_RESOLUTION + STATUS_NOT_APPLY)
         return None
 
