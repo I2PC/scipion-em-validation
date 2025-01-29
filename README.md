@@ -11,19 +11,19 @@ This scheme has been implemented in a website https://biocomp.cnb.csic.es/EMVali
 IMPORTANT: --isTest flag is meant to avoid storing intermediate data in /data/ScipionUserDataToRetrieve and avoid cleaning scipion project
 
 ### All entries for a specific level
-- scipion3 python tools/EMDBlauncher.py --launchAll --level=0 -n=5744 --startEntry=1 > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
-- scipion3 python tools/EMDBlauncher.py --launchAll --level=0 -n=5744 --startEntry=1 --isTest > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
+- scipion3 python -u tools/EMDBlauncher.py --launchAll --level=0 -n=5744 --startEntry=1 > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
+- scipion3 python -u tools/EMDBlauncher.py --launchAll --level=0 -n=5744 --startEntry=1 --isTest > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
 
 IMPORTANT: --isTest flag is meant to avoid storing intermediate data in /data/ScipionUserDataToRetrieve and avoid cleaning scipion project
 
 ### Random set of entries for a specific level
-- scipion3 python tools/EMDBlauncher.py --launchAll --level=0,1,A --random 10 > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
-- scipion3 python tools/EMDBlauncher.py --launchAll --level=0,1,A --random 10 --isTest > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
+- scipion3 python -u tools/EMDBlauncher.py --launchAll --level=0,1,A --random 10 > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
+- scipion3 python -u tools/EMDBlauncher.py --launchAll --level=0,1,A --random 10 --isTest > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
 
 IMPORTANT: --isTest flag is meant to avoid storing intermediate data in /data/ScipionUserDataToRetrieve and avoid cleaning scipion project
 
 ### Entries from a list of a specific level
-- scipion3 python tools/EMDBlauncher.py --launchList --inputList /home/EMDB/entries/level0+1_n50_first_batch.txt level=0,1 > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
-- scipion3 python tools/EMDBlauncher.py --launchList --inputList /home/EMDB/entries/level0+1_n50_first_batch.txt level=0,1 --isTest > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
+- scipion3 python -u tools/EMDBlauncher.py --launchList --inputList /home/EMDB/entries/level0+1_n50_first_batch.txt level=0,1 > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
+- scipion3 python -u tools/EMDBlauncher.py --launchList --inputList /home/EMDB/entries/level0+1_n50_first_batch.txt level=0,1 --isTest > "/home/EMDB/logLauncher/$(date +'%Y-%m-%d_%H-%M').txt" 2>&1
 
 IMPORTANT: --isTest flag is meant to avoid storing intermediate data in /data/ScipionUserDataToRetrieve and avoid cleaning scipion project
