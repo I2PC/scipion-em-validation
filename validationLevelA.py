@@ -985,6 +985,12 @@ have a Gaussian shape.\\\\
         # if there is not precalculated data or failed to retrieve it
         print('- Could not get data for', pdbdb_Id)
         print('-- Proceed to calculate it localy')
+
+        if resolution>5:
+            report.writeSummary("A.e MapQ", secLabel, NOT_APPLY_MESSAGE)
+            report.write(NOT_APPLY_WORSE_RESOLUTION % 5 + STATUS_NOT_APPLY)
+            return None
+
         Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
                                                 'ProtMapQ', doRaise=True)
         prot = project.newProtocol(Prot,
