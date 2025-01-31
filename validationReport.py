@@ -431,6 +431,7 @@ class ValidationReport:
 \\setlist{nosep}
 \\usepackage[most]{tcolorbox}
 \\usepackage{lastpage}
+\\usepackage{refcount}
 
 % Define a new tcolorbox
 \\newtcolorbox{mycolorbox}{
@@ -457,7 +458,7 @@ class ValidationReport:
 % Define footer with pagination
 \\fancypagestyle{main}{
     \\fancyhf{}
-    \\fancyfoot[C]{Page \\thepage\\ of \\pageref{LastPage}}
+    \\fancyfoot[C]{Page \\thepage\\ of \\getpagerefnumber{LastPage}}
     \\renewcommand{\\headrulewidth}{0pt}
     \\renewcommand{\\footrulewidth}{0pt}
 }
