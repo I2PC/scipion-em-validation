@@ -240,7 +240,7 @@ behavior. If they have, this is typically due to the presence of a mask in real 
                         ['log10(SSNR)','0'], invertXLabels=True)
     
     saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'SSNRresolution', 1/fSSNR if fSSNR else fSSNR, ['\u212B', 'The resolution according to the SSNR. SSNRresolution = None means that SSNR does not cross the 1 threshold'])
-    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'f', f.tolist(), ['\u212B\u207B\u00B9', 'frecuency data in SSNR plot'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'f', f, ['\u212B\u207B\u00B9', 'frecuency data in SSNR plot'])
     saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'logRadialSSNR', logRadialSSNR.tolist(), ['', 'logRadialSSNR data in SSNR plot'])
     saveIntermediateData(report.getReportDir(), 'globalResolution', True, 'SSNRPlot', fnSSNR, 'Plot that shows the SSNR and the 1 threshold')
 
