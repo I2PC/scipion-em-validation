@@ -226,7 +226,6 @@ behavior. If they have, this is typically due to the presence of a mask in real 
     radialSSNR=radial_profile(VSSNR)
     N = int(VSSNR.shape[0]/2)
     Ts = protImportMap1.outputVolume.getSamplingRate()
-    f=np.arange(0,N)*2*Ts/VSSNR.shape[0]
     logRadialSSNR = np.log10(radialSSNR[0:N]-1)
 
     fSSNR=findFirstCross(f,logRadialSSNR,0,'lesser')
