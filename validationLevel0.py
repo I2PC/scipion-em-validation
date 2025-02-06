@@ -1191,7 +1191,7 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
     testWarnings = False
     if hand>0.5 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The volume seems to be flipped.}}")
-    if hand>0.4 or testWarnings:
+    if (hand>0.4 and hand<0.6) or testWarnings:
         warnings.append("{\\color{red} \\textbf{The orientation of the volume is uncertain.}}")
     msg = \
 """\\textbf{Automatic criteria}: The validation is OK if the deep hand score is smaller than 0.5.
