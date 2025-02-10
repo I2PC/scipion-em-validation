@@ -1,6 +1,6 @@
 [QUEUE]
 # Do you want to use Slurm?
-USE_SLURM = True
+USE_SLURM = False
 # GPU ID to be used when Slurm is set up and you do want to skip it
 GPU_ID_SKIP_SLURM = 7
 # Queue names
@@ -13,7 +13,7 @@ MAX_MEM_TO_USE = 60000
 MAX_VOXELS = 1500
 
 [INTERMEDIATE_DATA]
-STORE_INTERMEDIATE_DATA = True
+STORE_INTERMEDIATE_DATA = False
 CLEAN_ORIGINAL_DATA = False
 DEST_PATH = /data/ScipionUserDataToRetrieve/projects
 
