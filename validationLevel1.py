@@ -1201,7 +1201,7 @@ This method (see this \\href{%s}{link} for more details) analyzes the FSC in dif
                                 objLabel=label,
                                 provideHalfMaps=True,
                                 applyMask=True,
-                                useGpu=True,
+                                useGpu=False,
                                 hpFilter=200,
                                 numThr=0)
     prot.inputVolume.set(protImportMap.outputVolume)
