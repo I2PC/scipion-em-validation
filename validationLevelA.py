@@ -118,6 +118,52 @@ def moveOriginTo(newOrigin, handler):
         coords = atom.get_coord()
         atom.coord = coords + np.asarray(newOrigin) - np.asarray(centerMass)
 
+def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
+    # Checking if there are residues defined as N (undefined) which will cause errors and need to be eliminated
+    command = f"awk '{{ if ($6 == \"N\") print }}' {FNMODEL}"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    if result.stdout:
+        print("There are residues with label_comp_id = N")
+        print('Proceeding to delete them...')
+        ############ LANZAR AQUÍ UN WARNING PARA ESTO
+    # Eliminate hetero atoms to reduce potential errors
+    print(f'fnmodel: {FNMODEL}')
+    command = f"grep 'HETATM' {FNMODEL} | awk '{{print $3, $4}}' | sort | uniq -c"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    # Check if there's any output
+    if result.stdout:
+        print('Hetero atoms were found, starting to delete them...')
+        # prot = project.newProtocol(
+        #     pwplugin.Domain.importFromPlugin('pwemchem.protocols', 'ProtChemPrepareReceptor', doRaise=True),
+        #     objLabel='eliminating HETATM',
+        #     inputAtomStruct=protAtom.outputPdb,
+        #     waters=False)
+        prot = project.newProtocol(ProtChemPrepareReceptor,
+                                   objLabel='eliminating HETATM',
+                                   inputAtomStruct=protAtom.outputPdb,
+                                   waters=False,
+                                   usePDBFixer=True,
+                                   extraClean=True
+                                   )
+    else:
+        print("No HETATM found.")
+        print("Using PDB Fixer only...")
+        prot = project.newProtocol(ProtChemPrepareReceptor,
+                                   objLabel='eliminating HETATM',
+                                   inputAtomStruct=protAtom.outputPdb,
+                                   waters=False,
+                                   HETATM=False,
+                                   usePDBFixer=True,
+                                   extraClean=True
+                                   )
+    if useSlurm:
+        sendToSlurm(prot, priority=True if priority else False)
+    project.launchProtocol(prot)
+    waitUntilFinishes(project, prot)
+    protAtom = prot
+
+    return protAtom
+
 def phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
                                             'PhenixProtRunValidationCryoEM', doRaise=True)
