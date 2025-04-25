@@ -517,7 +517,7 @@ def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protI
 
     if protPhenix.isFailed():
         print("Phenix protocol failed while checking if map and model are fitted.")
-        return None, protPhenix, dataPhenix, protAtom, pdbdb_Id, False
+        return None, protPhenix, dataPhenix, protAtom, pdbdb_Id
 
     if protPhenix.isAborted():
         print(PRINT_PROTOCOL_ABORTED + ": " + NAME_PHENIX)
