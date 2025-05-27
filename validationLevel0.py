@@ -1249,8 +1249,8 @@ Resolution estimated by user: %s \\\\
           "In these views there should not be many artifacts or noise blobs around the map.\\\\ \\\\" \
           "\\textbf{Results}:\\\\"\
           "See Fig. \\ref{fig:isoInput}.\\\\"
-    # report.isoSurfaces("isoInput", msg, "Isosurface at threshold=%f."%threshold,
-    #                    fnImportMap, threshold, "fig:isoInput")
+    report.isoSurfaces("isoInput", msg, "Isosurface at threshold=%f."%threshold,
+                       fnImportMap, threshold, "fig:isoInput")
 
     fnHardMask = os.path.join(project.getPath(),protCreateHardMask.outputMask.getFileName())
     msg = "\\underline{\\textbf{Orthogonal slices of maximum variance of the mask with hard borders}}\\\\"\
