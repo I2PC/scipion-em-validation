@@ -516,11 +516,11 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
 
 
     Ts = protImportMap.outputVolume.getSamplingRate()
-    # report.colorIsoSurfaces("", "Local resolution according to Blocres.", "fig:blocresColor",
-    #                         project, "blocresViewer",
-    #                         fnMaskedMap, Ts,
-    #                         os.path.join(project.getPath(), prot._getExtraPath("resolutionMap.map")),
-    #                         Rpercentiles[0], Rpercentiles[-1])
+    report.colorIsoSurfaces("", "Local resolution according to Blocres.", "fig:blocresColor",
+                            project, "blocresViewer",
+                            fnMaskedMap, Ts,
+                            os.path.join(project.getPath(), prot._getExtraPath("resolutionMap.map")),
+                            Rpercentiles[0], Rpercentiles[-1])
     saveIntermediateData(report.getReportDir(), 'deepRes', True, 'blocResViewer',
                          [os.path.join(report.getReportDir(), 'blocresViewer1.jpg'),
                           os.path.join(report.getReportDir(), 'blocresViewer2.jpg'),
@@ -671,10 +671,10 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
 
 
         Ts = protImportMap.outputVolume.getSamplingRate()
-        # report.colorIsoSurfaces("", "Local resolution according to Resmap.", "fig:resmapColor",
-        #                         project, "resmapViewer",
-        #                         fnMaskedMap, Ts,
-        #                         fnResMap, Rpercentiles[0], Rpercentiles[-1])
+        report.colorIsoSurfaces("", "Local resolution according to Resmap.", "fig:resmapColor",
+                                project, "resmapViewer",
+                                fnMaskedMap, Ts,
+                                fnResMap, Rpercentiles[0], Rpercentiles[-1])
         saveIntermediateData(report.getReportDir(), 'resMap', True, 'resMapViewer',
                              [os.path.join(report.getReportDir(), 'resmapViewer1.jpg'),
                               os.path.join(report.getReportDir(), 'resmapViewer2.jpg'),
@@ -817,9 +817,9 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
     saveIntermediateData(report.getReportDir(), 'monoRes', True, 'monoResHist', fnHistMonoRes, 'monoRes histogram')
 
 
-    # report.colorIsoSurfaces("", "Local resolution according to Monores.", "fig:monoresColor",
-    #                         project, "monoresViewer", fnMaskedMap,
-    #                         Ts, prot._getExtraPath("monoresResolutionChimera.mrc"), Rpercentiles[0], Rpercentiles[-1])
+    report.colorIsoSurfaces("", "Local resolution according to Monores.", "fig:monoresColor",
+                            project, "monoresViewer", fnMaskedMap,
+                            Ts, prot._getExtraPath("monoresResolutionChimera.mrc"), Rpercentiles[0], Rpercentiles[-1])
     saveIntermediateData(report.getReportDir(), 'monoRes', True, 'monoResViewer',
                          [os.path.join(report.getReportDir(), 'monoresViewer1.jpg'),
                           os.path.join(report.getReportDir(), 'monoresViewer2.jpg'),

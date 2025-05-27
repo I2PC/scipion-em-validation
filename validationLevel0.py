@@ -833,12 +833,12 @@ Fig. \\ref{fig:deepresColor} shows some representative views of the local resolu
     saveIntermediateData(report.getReportDir(), 'deepRes', True, 'deepResHist', fnHist, 'deepRes histogram')
 
     Ts = 1 # Res volume and original volume are at different scales
-    # report.colorIsoSurfaces("", "Local resolution according to DeepRes.", "fig:deepresColor",
-    #                         project, "deepresViewer",
-    #                         os.path.join(project.getPath(), prot._getExtraPath("originalVolume.vol")),
-    #                         Ts,
-    #                         os.path.join(project.getPath(), prot._getExtraPath("chimera_resolution.vol")),
-    #                         Rpercentiles[0], Rpercentiles[-1])
+    report.colorIsoSurfaces("", "Local resolution according to DeepRes.", "fig:deepresColor",
+                            project, "deepresViewer",
+                            os.path.join(project.getPath(), prot._getExtraPath("originalVolume.vol")),
+                            Ts,
+                            os.path.join(project.getPath(), prot._getExtraPath("chimera_resolution.vol")),
+                            Rpercentiles[0], Rpercentiles[-1])
     saveIntermediateData(report.getReportDir(), 'deepRes', True, 'deepResViewer',
                          [os.path.join(report.getReportDir(), 'deepresViewer1.jpg'),
                           os.path.join(report.getReportDir(), 'deepresViewer2.jpg'),
@@ -969,10 +969,10 @@ Fig. \\ref{fig:locBfactorColor} shows some representative views of the local B-f
     saveIntermediateData(report.getReportDir(), 'locBfactor', True, 'locBfactorHist', fnHist, 'locBfactor histogram')
 
     Ts = map.getSamplingRate()
-    # report.colorIsoSurfaces("", "Local B-factor according to LocBfactor.", "fig:locBfactorColor",
-    #                         project, "locBfactorViewer",
-    #                         fnResizedMaskedMap, Ts,
-    #                         fnBfactor, Bpercentiles[0], Bpercentiles[-1])
+    report.colorIsoSurfaces("", "Local B-factor according to LocBfactor.", "fig:locBfactorColor",
+                            project, "locBfactorViewer",
+                            fnResizedMaskedMap, Ts,
+                            fnBfactor, Bpercentiles[0], Bpercentiles[-1])
     saveIntermediateData(report.getReportDir(), 'locBfactor', True, 'locBfactorViewer',
                          [os.path.join(report.getReportDir(), 'locBfactorViewer1.jpg'),
                           os.path.join(report.getReportDir(), 'locBfactorViewer2.jpg'),
@@ -1097,10 +1097,10 @@ Fig. \\ref{fig:locOccupancyColor} shows some representative views of the local o
     saveIntermediateData(report.getReportDir(), 'locOccupancy', True, 'locOccupancyHist', fnHist, 'locOccupancy histogram')
 
     Ts = map.getSamplingRate()
-    # report.colorIsoSurfaces("", "Local occupancy according to LocOccupancy.", "fig:locOccupancyColor",
-    #                         project, "locOccupancyViewer",
-    #                         fnResizedMaskedMap, Ts,
-    #                         fnOccupancy, Bpercentiles[0], Bpercentiles[-1])
+    report.colorIsoSurfaces("", "Local occupancy according to LocOccupancy.", "fig:locOccupancyColor",
+                            project, "locOccupancyViewer",
+                            fnResizedMaskedMap, Ts,
+                            fnOccupancy, Bpercentiles[0], Bpercentiles[-1])
     saveIntermediateData(report.getReportDir(), 'locOccupancy', True, 'locOccupancyViewer',
                          [os.path.join(report.getReportDir(), 'locOccupancyViewer1.jpg'),
                           os.path.join(report.getReportDir(), 'locOccupancyViewer2.jpg'),
