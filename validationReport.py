@@ -181,7 +181,7 @@ exit
     fh.close()
 
     from chimera import Plugin
-    args = "--nogui --offscreen chimeraScript.cxc"
+    args = "chimeraScript.cxc"
     Plugin.runChimeraProgram(Plugin.getProgram(), args, cwd=fnWorkingDir)
     #cleanPath(fnTmp)
 
