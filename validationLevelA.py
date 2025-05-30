@@ -837,6 +837,24 @@ is %4.2f \\AA. Fig. \\ref{fig:modelRMSD} shows the atomic model colored by RMSD.
                              secLabel)
 
 def guinierModel(project, report, protImportMap, protConvert, resolution, priority=False):
+    secLabel = "sec:bfactorModel"
+
+    # Encabezado (subsección + etiqueta)
+    msg = """\\subsection{Level A.d Map-Model Guinier analysis}
+    \\label{%s}
+    """ % secLabel
+    report.write(msg)
+
+    if not resolution:
+        report.writeSummary("A.d Map-Model Guinier analysis", secLabel, NOT_APPLY_MESSAGE)
+        report.write(NOT_APPY_NO_RESOLUTION + STATUS_NOT_APPLY)
+        return None
+    if resolution>8:
+        toWrite = NOT_APPLY_WORSE_RESOLUTION % 8 + STATUS_NOT_APPLY
+        report.write(toWrite)
+        report.writeSummary("A.d Map-Model Guinier analysis", secLabel, NOT_APPLY_MESSAGE)
+        return
+
     map = protImportMap.outputVolume
     Ts = map.getSamplingRate()
 
@@ -873,11 +891,8 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
     reportMultiplePlots(dinv2, [lnFAtom, lnFMapp], '1/Resolution^2 (1/A^2)', 'log Structure factor', fnPlot,
                         ['Atomic model', 'Experimental map'])
 
-    secLabel = "sec:bfactorModel"
     msg = \
-"""\\subsection{Level A.d Map-Model Guinier analysis}
-\\label{%s}
-\\textbf{Explanation:}\\\\
+"""\\textbf{Explanation:}\\\\
 We compared the Guinier plot (see this \\href{%s}{link} for more details) of the atomic model and the experimental map. We made the mean
 of both profiles to be equal (and equal to the mean of the atomic model) to make sure that they had comparable scales. 
 \\\\
@@ -894,7 +909,7 @@ Fourier transform) of the atom model and the experimental map. The correlation b
     \\label{fig:BfactorModel}
 \\end{figure}
 
-""" % (secLabel, BFACTOR_GUINIER_DOI, R, fnPlot)
+""" % (BFACTOR_GUINIER_DOI, R, fnPlot)
     report.write(msg)
 
     warnings = []
