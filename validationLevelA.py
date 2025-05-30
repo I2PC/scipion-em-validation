@@ -1167,13 +1167,19 @@ else:
     if not has_precalculated_data:
         fnCifMapQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_MapQ_score.cif"))
         # make sure the output mapq file is correct
-        with open(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id))) as cif:
+        # Retrieving file path
+        cif_dir = os.path.join(project.getPath(), prot._getExtraPath(""))
+        # Buscar el archivo .cif
+        cif_files = glob.glob(os.path.join(cif_dir, "*.cif"))
+        cif_file = cif_files[0]
+        print(f'cif files: {cif_file}')
+        with open(cif_file) as cif:
             cifData = cif.read()
         cifData = cifData.replace('residues', 'atoms')
-        with open(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id)), 'w') as cif:
+        with open(cif_file, 'w') as cif:
             cif.write(cifData)
 
-        replaceOcuppancyWithAttribute(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id)), "MapQ_Score",
+        replaceOcuppancyWithAttribute(os.path.join(project.getPath(), cif_file), "MapQ_Score",
                                       fnCifMapQ)
         report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", fnCifMapQ, "fig:mapq", bfactor=False,
                            occupancy=True, rainbow=False, legendMin=-1, legendMax=1)
