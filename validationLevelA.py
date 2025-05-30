@@ -193,7 +193,11 @@ dataOut["cc_mask"]=data.model_vs_data.cc.cc_mask
 dataOut["cc_box"]=data.model_vs_data.cc.cc_box
 dataOut["cc_peaks"]=data.model_vs_data.cc.cc_peaks
 dataOut["cc_volume"]=data.model_vs_data.cc.cc_volume
-dataOut["cc_main_chain"]=data.model_vs_data.cc.cc_main_chain.cc
+try:
+    dataOut["cc_main_chain"]=data.model_vs_data.cc.cc_main_chain.cc
+except:
+    pass
+
 try:
     dataOut["cc_side_chain"]=data.model_vs_data.cc.cc_side_chain.cc
 except:
@@ -234,27 +238,34 @@ dataOut['d_model_b0_unmasked']=data.data.unmasked.d_model_b0
 dataOut['*dFSCmodel_0_unmasked']=data.data.unmasked.d_fsc_model_0
 dataOut['*dFSCmodel_0.143_unmasked']=data.data.unmasked.d_fsc_model_0143
 dataOut['*dFSCmodel_0.5_unmasked']=data.data.unmasked.d_fsc_model_05
-
+    
 # FSCs -------------------------------------------------------------
-if data.data.masked.fsc_curve_model.fsc is not None:
-    fsc_model_map_masked = []
-    d_inv_model_map_masked = []
-    for item in data.data.masked.fsc_curve_model.fsc:
-        fsc_model_map_masked.append(item)
-    dataOut['FSC_Model_Map_Masked'] = fsc_model_map_masked
-    for item in data.data.masked.fsc_curve_model.d_inv:
-        d_inv_model_map_masked.append(item)
-    dataOut['d_inv_Model_Map_Masked'] = d_inv_model_map_masked
-if data.data.unmasked.fsc_curve_model.fsc is not None:
-    fsc_model_map_unmasked = []
-    d_inv_model_map_unmasked = []
-    for item in data.data.unmasked.fsc_curve_model.fsc:
-        fsc_model_map_unmasked.append(item)
-    dataOut['FSC_Model_Map_Unmasked'] = fsc_model_map_unmasked
-    for item in data.data.unmasked.fsc_curve_model.d_inv:
-        d_inv_model_map_unmasked.append(item)
-    dataOut['d_inv_Model_Map_Unmasked'] = d_inv_model_map_unmasked
-        
+try:
+    if data.data.masked.fsc_curve_model.fsc:
+        fsc_model_map_masked = []
+        d_inv_model_map_masked = []
+        for item in data.data.masked.fsc_curve_model.fsc:
+            fsc_model_map_masked.append(item)
+        dataOut['FSC_Model_Map_Masked'] = fsc_model_map_masked
+        for item in data.data.masked.fsc_curve_model.d_inv:
+            d_inv_model_map_masked.append(item)
+        dataOut['d_inv_Model_Map_Masked'] = d_inv_model_map_masked
+except:
+    pass
+
+try:
+    if data.data.unmasked.fsc_curve_model.fsc:
+        fsc_model_map_unmasked = []
+        d_inv_model_map_unmasked = []
+        for item in data.data.unmasked.fsc_curve_model.fsc:
+            fsc_model_map_unmasked.append(item)
+        dataOut['FSC_Model_Map_Unmasked'] = fsc_model_map_unmasked
+        for item in data.data.unmasked.fsc_curve_model.d_inv:
+            d_inv_model_map_unmasked.append(item)
+        dataOut['d_inv_Model_Map_Unmasked'] = d_inv_model_map_unmasked
+except:
+    pass
+            
 fh = open("%s",'wb')
 pickle.dump(dataOut,fh)
 fh.close()
@@ -345,9 +356,9 @@ CC (mask) = & %5.3f\\\\
 CC (box) = & %5.3f\\\\
 CC (volume) = & %5.3f\\\\
 CC (peaks) = & %5.3f\\\\
-CC (main chain) = & %5.3f\\\\
-"""%(data['mask_smoothing_radius'], data['cc_mask'],data['cc_box'],data['cc_volume'],data['cc_peaks'],
-     data['cc_main_chain'])
+"""%(data['mask_smoothing_radius'], data['cc_mask'],data['cc_box'],data['cc_volume'],data['cc_peaks'])
+    if 'cc_main_chain' in data:
+        msg += "CC (main chain) = & %5.3f\\\\ \n" % data['cc_main_chain']
     if 'cc_side_chain' in data:
         msg+="CC (side chain) = & %5.3f\\\\ \n"%data['cc_side_chain']
     msg+="\\end{tabular}\n\\\\\n"
@@ -404,40 +415,46 @@ of residues whose correlation is below 0.5 is %4.1f \\%%.
     saveIntermediateData(report.fnReportDir, "phenix", True, "ccModelHist.png", fnCCHist, 'Histogram of the cross-correlation between the map and model evaluated for all residues')
     saveIntermediateData(report.fnReportDir, "phenix", False, "percentageResidues05", badResidues, ['%', 'The percentage of residues whose correlation is below 0.5'])
 
-    # Resolutions
-    msg+=\
-"""
-\\underline{Resolutions estimated from the model}:\\\\
-\\begin{center}
-\\begin{tabular}{rcc}
-    \\textbf{Resolution} (\\AA) & \\textbf{Masked} & \\textbf{Unmasked} \\\\
-    d99 & %4.1f & %4.1f \\\\
-    d\_model & %4.1f & %4.1f \\\\
-    d\_model (B-factor=0) & %4.1f & %4.1f \\\\
-    FSC\_model=0 & %4.1f & %4.1f \\\\
-    FSC\_model=0.143 & %4.1f & %4.1f \\\\
-    FSC\_model=0.5 & %4.1f & %4.1f \\\\
-\\end{tabular}
-\\end{center}
+    msg = """
+    \\underline{Resolutions estimated from the model}:\\\\
+    \\begin{center}
+    \\begin{tabular}{rcc}
+        \\textbf{Resolution} (\\AA) & \\textbf{Masked} & \\textbf{Unmasked} \\\\
+        d99 & %4.1f & %4.1f \\\\
+    """ % (data['*d99_full_masked'], data['*d99_full_unmasked'])
 
-"""%(data['*d99_full_masked'],data['*d99_full_unmasked'],
-     data['*dmodel_masked'],data['*dmodel_unmasked'],
-     data['d_model_b0_masked'],data['d_model_b0_unmasked'],
-     data['*dFSCmodel_0_masked'],data['*dFSCmodel_0_unmasked'],
-     data['*dFSCmodel_0.143_masked'],data['*dFSCmodel_0.143_unmasked'],
-     data['*dFSCmodel_0.5_masked'],data['*dFSCmodel_0.5_unmasked'])
+    # Añadir filas condicionales
+    if data['*dmodel_masked'] is not None and data['*dmodel_unmasked'] is not None:
+        msg += "    d\\_model & %4.1f & %4.1f \\\\\n" % (data['*dmodel_masked'], data['*dmodel_unmasked'])
+    if data['d_model_b0_masked'] is not None and data['d_model_b0_unmasked'] is not None:
+        msg += "    d\\_model (B-factor=0) & %4.1f & %4.1f \\\\\n" % (data['d_model_b0_masked'],
+                                                                      data['d_model_b0_unmasked'])
+    if data['*dFSCmodel_0_masked'] is not None and data['*dFSCmodel_0_unmasked'] is not None:
+        msg += "    FSC\\_model=0 & %4.1f & %4.1f \\\\\n" % (data['*dFSCmodel_0_masked'], data['*dFSCmodel_0_unmasked'])
+    if data['*dFSCmodel_0.143_masked'] is not None and data['*dFSCmodel_0.143_unmasked'] is not None:
+        msg += "    FSC\\_model=0.143 & %4.1f & %4.1f \\\\\n" % (data['*dFSCmodel_0.143_masked'],
+                                                                 data['*dFSCmodel_0.143_unmasked'])
+    if data['*dFSCmodel_0.5_masked'] is not None and data['*dFSCmodel_0.5_unmasked'] is not None:
+        msg += "    FSC\\_model=0.5 & %4.1f & %4.1f \\\\\n" % (data['*dFSCmodel_0.5_masked'],
+                                                               data['*dFSCmodel_0.5_unmasked'])
 
-    msg += \
-"""
-\\underline{Overall isotropic B factor}:\\\\
-\\begin{center}
-\\begin{tabular}{rcc}
-    \\textbf{B factor} & \\textbf{Masked} & \\textbf{Unmasked} \\\\
-    Overall B-iso & %4.1f & %4.1f \\\\
-\\end{tabular}
-\\end{center}
+    # Cerrar la tabla y el entorno center
+    msg += """\\end{tabular}
+    \\end{center}
+    """
 
-""" % (data["overall_b_iso_masked"], data["overall_b_iso_unmasked"])
+    if data["overall_b_iso_masked"] is not None and data["overall_b_iso_unmasked"] is not None:
+        msg += \
+    """
+    \\underline{Overall isotropic B factor}:\\\\
+    \\begin{center}
+    \\begin{tabular}{rcc}
+        \\textbf{B factor} & \\textbf{Masked} & \\textbf{Unmasked} \\\\
+        Overall B-iso & %4.1f & %4.1f \\\\
+    \\end{tabular}
+    \\end{center}
+    
+    """ % (data["overall_b_iso_masked"], data["overall_b_iso_unmasked"])
 
     if 'FSC_Model_Map_Masked' in data and 'FSC_Model_Map_Unmasked' in data:
         fnFSCModel = os.path.join(report.getReportDir(),"fscModel.png")
@@ -458,16 +475,19 @@ of residues whose correlation is below 0.5 is %4.1f \\%%.
 \\end{figure}
 
 """%fnFSCModel
+
+        saveIntermediateData(report.fnReportDir, "phenix", True, "fscModel.png", fnFSCModel, 'Plot that shows FSC between the input map and model with and without a mask constructed from the model')
+
     report.write(msg)
-
-    saveIntermediateData(report.fnReportDir, "phenix", True, "fscModel.png", fnFSCModel, 'Plot that shows FSC between the input map and model with and without a mask constructed from the model')
-
     warnings = []
     testWarnings = False
     if badResidues > 10 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The percentage of residues that have a cross-correlation below 0.5 " \
                         "is %4.1f, that is larger than 10\\%%}}" % badResidues)
-    if resolution<0.8*data['*dFSCmodel_0.5_masked'] or testWarnings:
+    if data['*dFSCmodel_0.5_masked'] is None:
+        warnings.append("{\\color{red} \\textbf{The model-map FSC resolution value (FSC=0.5) is missing. "
+                        "Skipping consistency check with the user-reported resolution.}}")
+    elif resolution<0.8*data['*dFSCmodel_0.5_masked'] or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %4.1f \\AA, is significantly " \
                         "smaller than the resolution estimated between map and model (FSC=0.5), %4.1f \\AA}}" %\
                         (resolution,data['*dFSCmodel_0.5_masked']))
