@@ -1628,13 +1628,10 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
             cc_mask_threshold = 0.3
             fitted, protPhenix, dataPhenix, fittedProtAtom, pdbdb_Id = checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, priority=priority)
 
-            # if protPhenix is not None and protPhenix.isFailed(): # protPhenix = None when phenix finished properly but any new origin was found. For those cases, we do not want to execute manual checks (it is only useful when phenix fails).
-            #     print("Starting to check manually whether map and model are fitted or not...")
-            #     #: add function to do manual checks
-            # if fitted is False: # Avoid execcuting level A if map and model are not fitted
-            #     report.write(ERROR_MESSAGE_CHECK_FITTED_FAILED)
-            #     return protAtom
-            if fitted is None:
+            if fitted is False: # Avoid executing level A if map and model are not fitted
+                report.write(ERROR_MESSAGE_CHECK_FITTED_FAILED)
+                return protAtom
+            elif fitted is None:
                 print("Fitting protocol failed")
             else: # Continue executing level A
                 protConvert = convertPDB(project, report, protImportMap, fittedProtAtom, priority=priority)
