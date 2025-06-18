@@ -712,14 +712,19 @@ This Validation Report Service uses Scipion (see this \\href{%s}{link} for more 
 
     def abstractResolution(self, resolution):
         if len(self.resolutionEstimates)>0:
-            msg="\n\n\\vspace{0.5cm}The average resolution of the map estimated by various methods goes from %4.1f\\AA~to %4.1f\\AA~ with an "\
-                "average of %4.1f\\AA."%\
-                (np.min(self.resolutionEstimates), np.max(self.resolutionEstimates), np.mean(self.resolutionEstimates))
+            validResolutionEstimates = [x for x in self.resolutionEstimates if x is not None]
+            if len(validResolutionEstimates)==1:
+                msg="\n\n\\vspace{0.5cm}The average resolution of the map estimated is %4.1f\\AA~."%\
+                (validResolutionEstimates[0])
+            else:
+                msg="\n\n\\vspace{0.5cm}The average resolution of the map estimated by various methods goes from %4.1f\\AA~to %4.1f\\AA~with an "\
+                    "average of %4.1f\\AA."%\
+                    (np.min(validResolutionEstimates), np.max(validResolutionEstimates), np.mean(validResolutionEstimates))
             if not resolution:
                 msg+=" The resolution was not reported by the user."
             else:
                 msg+=" The resolution reported by the user was %4.1f\\AA." % (resolution)
-                if resolution<0.8*np.mean(self.resolutionEstimates):
+                if resolution<0.8*np.mean(validResolutionEstimates):
                     msg+=" The resolution reported may be overestimated."
             msg+="\n\n\\vspace{0.5cm}"
             self.writeAbstract(msg)
