@@ -429,6 +429,9 @@ else:
     if IS_EMDB_ENTRY:
         FNMAP = os.path.join(project.getPath(), protImportMapChecker.outputVolume.getFileName())
         MAPCOORDX, MAPCOORDY, MAPCOORDZ = protImportMapChecker.outputVolume.getShiftsFromOrigin()
+        MAPCOORDX = -1 * MAPCOORDX
+        MAPCOORDY = -1 * MAPCOORDY
+        MAPCOORDZ = -1 * MAPCOORDZ
         if '1' in levels:
             half_maps = EMDButils.download_emdb_halfmaps(EMDB_ID_NUM, protImportMapChecker._getExtraPath())
             fnMap1 = half_maps[0].replace('.gz', '')
