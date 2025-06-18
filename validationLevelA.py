@@ -120,18 +120,14 @@ def moveOriginTo(newOrigin, handler):
 
 def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
     # Checking if there are residues defined as N (undefined) which will cause errors and need to be eliminated
-    command = f"awk '{{ if ($6 == \"N\") print }}' {FNMODEL}"
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    if result.stdout:
-        print("There are residues with label_comp_id = N")
-        print('Proceeding to delete them...')
-        ############ LANZAR AQUÍ UN WARNING PARA ESTO
+    command_N_residues = f"awk '{{ if ($6 == \"N\") print }}' {FNMODEL}"
+    result_N_residues = subprocess.run(command_N_residues, shell=True, capture_output=True, text=True)
+
     # Eliminate hetero atoms to reduce potential errors
-    print(f'fnmodel: {FNMODEL}')
-    command = f"grep 'HETATM' {FNMODEL} | awk '{{print $3, $4}}' | sort | uniq -c"
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    command_hetatm = f"grep 'HETATM' {FNMODEL} | awk '{{print $3, $4}}' | sort | uniq -c"
+    result_hetatm = subprocess.run(command_hetatm, shell=True, capture_output=True, text=True)
     # Check if there's any output
-    if result.stdout:
+    if result_hetatm.stdout:
         print('Hetero atoms were found, starting to delete them...')
         # prot = project.newProtocol(
         #     pwplugin.Domain.importFromPlugin('pwemchem.protocols', 'ProtChemPrepareReceptor', doRaise=True),
@@ -162,7 +158,15 @@ def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
     waitUntilFinishes(project, prot)
     protAtom = prot
 
-    return protAtom
+    # Adding warning if N or hetatm where deletedd
+    if result_N_residues.stdout and result_hetatm.stdout: # if there are undefinied residues they are identified as hetero atoms (no need for a section only for undefined residues)
+        message = 'There are undefined residues (label\\_comp\\_id = N) and also hetero atoms which were deleted in order to perform this analysis.\n\n'
+    elif result_hetatm.stdout:
+        message = 'There are hetero atoms which were deleted in other to perform this analysis.\n\n'
+    else:
+        message = ''
+
+    return protAtom, message
 
 def phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
@@ -287,7 +291,7 @@ fh.close()
     return prot, data
 
 
-def phenixReporting(project, report, resolution, prot, data):
+def phenixReporting(project, report, resolution, prot, data, message):
 
     secLabel = "sec:phenix"
     msg = \
@@ -344,8 +348,9 @@ quality of the map.
         report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
+    if message:
+        report.write(message)
 
-    # CC
     msg =\
 """To avoid ringing in Fourier space a smooth mask with a radius of %5.1f \\AA~has been applied.  \\\\
 \\underline{Overall correlation coefficients}: \\\\
@@ -1623,8 +1628,10 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
         if not skipAnalysis:
             report.writeSection(section, secLabel)
 
+            # ELiminate HETATM if there are any and use pdb fixer
+            protAtom, message = eliminatwe_HETATM(FNMODEL, project, priority, protAtom)
+
             # Check if map and model are fitted with phenix. If phenix fails, check it manually.
-            # cc_mask_threshold = 0.8
             cc_mask_threshold = 0.3
             fitted, protPhenix, dataPhenix, fittedProtAtom, pdbdb_Id = checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, priority=priority)
 
@@ -1636,7 +1643,7 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
             else: # Continue executing level A
                 protConvert = convertPDB(project, report, protImportMap, fittedProtAtom, priority=priority)
                 if protConvert is not None:
-                    phenixReporting(project, report, resolution, protPhenix, dataPhenix)
+                    phenixReporting(project, report, resolution, protPhenix, dataPhenix, message)
                     fscq(project, report, protImportMap, fittedProtAtom, protConvert, protCreateSoftMask, fnMaskedMapDict['fnSoftMaskedMap'], priority=priority)
                     if doMultimodel:
                         multimodel(project, report, protImportMap, fittedProtAtom, resolution, priority=priority)
