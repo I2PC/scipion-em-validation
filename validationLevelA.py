@@ -1071,7 +1071,10 @@ have a Gaussian shape.\\\\
                 if 'ATOM' in line:
                     line = re.sub(' +', ' ', line)
                     values = line.split(' ')
-                    mapq_scores.append(float(values[15]))
+                    try:
+                        mapq_scores.append(float(values[15]))
+                    except ValueError:
+                        continue
     else:
         ASH = AtomicStructHandler()
 
@@ -1219,7 +1222,6 @@ else:
         # Buscar el archivo .cif
         cif_files = glob.glob(os.path.join(cif_dir, "*.cif"))
         cif_file = cif_files[0]
-        print(f'cif files: {cif_file}')
         with open(cif_file) as cif:
             cifData = cif.read()
         cifData = cifData.replace('residues', 'atoms')
@@ -1240,8 +1242,10 @@ else:
                 if 'ATOM' in line:
                     line = re.sub(' +', ' ', line)
                     values = line.split(' ')
-                    qscores[values[1]] = values[15]
-
+                    try:
+                        qscores[values[1]] = float(values[15])
+                    except ValueError:
+                        continue
         attributeFile = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS.defattr')
         with open(attributeFile, 'a') as af:
             af.write('attribute: qscores\nrecipient: atoms\n')
