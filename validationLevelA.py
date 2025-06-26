@@ -520,11 +520,6 @@ resolution estimated between the map and model at FSC=0.5.
         report.writeAbstract("According to phenix, it seems that there might be some mismatch between the map "\
                              "and its model (see Sec. \\ref{%s}). "%secLabel)
 
-def phenix(project, report, protImportMap, protAtom, resolution, priority=False):
-    label = "A.a Phenix"
-    protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority)
-    phenixReporting(project, report, resolution, protPhenix, dataPhenix)
-
 def dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
                                             'PhenixProtRunDockInMap', doRaise=True)
@@ -538,6 +533,29 @@ def dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=F
     waitUntilFinishes(project, prot)
     return prot
 
+def fitWithChimeraX(project, protImportMap, protAtom, priority=False):
+    extraCommands = ""
+    extraCommands += "fitmap #3 in #2\n"
+    extraCommands += "scipionwrite #3 prefix fitted_\n"
+    extraCommands += "exit\n"
+
+    args = {'extraCommands': extraCommands,
+            'inputVolume': protImportMap.outputVolume,
+            'pdbFileToBeRefined': protAtom.outputPdb
+            }
+    Prot = pwplugin.Domain.importFromPlugin('chimera.protocols',
+                                                          'ChimeraProtOperate',
+                                                          doRaise=True)
+    prot = project.newProtocol(Prot, **args)
+    if useSlurm:
+        sendToSlurm(prot, priority=True if priority else False)
+    project.launchProtocol(prot)
+    waitUntilFinishes(project, prot)
+    PDB_output = eval("prot.fitted_Atom_struct__3_%06d"
+                      % prot.getObjId())
+    prot.outputPdb = PDB_output
+    return prot
+
 def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, priority=False):
 
     label = "A.a Phenix"
@@ -546,7 +564,17 @@ def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protI
 
     if protPhenix.isFailed():
         print("Phenix protocol failed while checking if map and model are fitted.")
-        return None, protPhenix, dataPhenix, protAtom, pdbdb_Id
+        # If stderr starts with 'Sorry: Input map is all zero after boxing...', we have to do a dock in map
+        logs_path = protPhenix._getLogsPath()
+        log_stderr = os.path.join(logs_path, 'run.stderr')
+        with open(log_stderr, 'r') as f:
+            stderr_first_line = f.readline().strip()
+        if stderr_first_line.startswith('Sorry: Input map is all zero after boxing...'):
+            protAtom = dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=False)
+            protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, label,
+                                                     priority)
+        else:
+            return None, protPhenix, dataPhenix, protAtom, pdbdb_Id
 
     if protPhenix.isAborted():
         print(PRINT_PROTOCOL_ABORTED + ": " + NAME_PHENIX)
@@ -554,19 +582,29 @@ def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protI
         report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return None, protPhenix, dataPhenix, protAtom, pdbdb_Id
 
-    print(f'------------ cc_mask in dataPhenix is: {dataPhenix["cc_mask"]}')
-    if dataPhenix["cc_mask"] > cc_mask_threshold:
+    cc_mask_value = dataPhenix["cc_mask"]
+    print(f'------------ cc_mask in dataPhenix is: {cc_mask_value}')
+    if cc_mask_value > cc_mask_threshold:
         print('----------------------- dataPhenix["cc_mask"] > cc_mask_threshold')
         report.write(PROPERLY_FITTED)
         return True, protPhenix, dataPhenix, protAtom, pdbdb_Id
 
-    elif dataPhenix["cc_mask"] <= cc_mask_threshold:
+    elif cc_mask_value <= cc_mask_threshold:
         print('----------------------- dataPhenix["cc_mask"] <= cc_mask_threshold')
-        new_protAtom = dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=False)
-        print('----------------------- Dock in map done')
-        protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, new_protAtom, resolution, label, priority)
-        report.write(MANUALLY_FITTED)
-        return True, protPhenix, dataPhenix, new_protAtom, pdbdb_Id
+        # 1. Dock in map with Phenix
+        dockin_protAtom = dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=False)
+        # 2. Fit in map with ChimeraX
+        if dockin_protAtom.isFailed():
+            protChimera = fitWithChimeraX(project, protImportMap, protAtom, priority=False)
+        else:
+            protChimera = fitWithChimeraX(project, protImportMap, dockin_protAtom, priority=False)
+        # 3. Phenix validation
+        protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protChimera, resolution, label, priority)
+        if protPhenix.isFailed() or dataPhenix["cc_mask"] <= cc_mask_threshold:
+            return False, protPhenix, dataPhenix, protAtom, pdbdb_Id
+        elif dataPhenix["cc_mask"] > cc_mask_threshold:
+            report.write(MANUALLY_FITTED)
+            return True, protPhenix, dataPhenix, protChimera, pdbdb_Id
 
 def convertPDB(project, report, protImportMap, protAtom, priority=False):
 
@@ -1640,7 +1678,8 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
             fitted, protPhenix, dataPhenix, fittedProtAtom, pdbdb_Id = checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, priority=priority)
 
             if fitted is False: # Avoid executing level A if map and model are not fitted
-                report.write(ERROR_MESSAGE_CHECK_FITTED_FAILED)
+                report.writeSummary(section, secLabel, NOT_APPLY_MESSAGE)
+                report.write(NOT_MANUALLY_FITTED)
                 return protAtom
             elif fitted is None:
                 print("Fitting protocol failed")
