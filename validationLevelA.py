@@ -139,6 +139,8 @@ def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
                                    inputAtomStruct=protAtom.outputPdb,
                                    waters=False,
                                    usePDBFixer=True,
+                                   addAtoms=3,
+                                   addRes=False,
                                    extraClean=True
                                    )
     else:
@@ -150,6 +152,8 @@ def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
                                    waters=False,
                                    HETATM=False,
                                    usePDBFixer=True,
+                                   addAtoms=3,
+                                   addRes=False,
                                    extraClean=True
                                    )
     if useSlurm:
