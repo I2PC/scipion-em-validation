@@ -126,17 +126,13 @@ def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
     # Eliminate hetero atoms to reduce potential errors
     command_hetatm = f"grep 'HETATM' {FNMODEL} | awk '{{print $3, $4}}' | sort | uniq -c"
     result_hetatm = subprocess.run(command_hetatm, shell=True, capture_output=True, text=True)
-    # Check if there's any output
+    # Check if there's any output and eliminate them
+    Prot = pwplugin.Domain.importFromPlugin('pwchem.protocols',
+                                            'ProtChemPrepareReceptor', doRaise=True)
     if result_hetatm.stdout:
         print('Hetero atoms were found, starting to delete them...')
-        # prot = project.newProtocol(
-        #     pwplugin.Domain.importFromPlugin('pwemchem.protocols', 'ProtChemPrepareReceptor', doRaise=True),
-        #     objLabel='eliminating HETATM',
-        #     inputAtomStruct=protAtom.outputPdb,
-        #     waters=False)
-        prot = project.newProtocol(ProtChemPrepareReceptor,
+        prot = project.newProtocol(Prot,
                                    objLabel='eliminating HETATM',
-                                   inputAtomStruct=protAtom.outputPdb,
                                    waters=False,
                                    usePDBFixer=True,
                                    addAtoms=3,
@@ -146,9 +142,8 @@ def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
     else:
         print("No HETATM found.")
         print("Using PDB Fixer only...")
-        prot = project.newProtocol(ProtChemPrepareReceptor,
+        prot = project.newProtocol(Prot,
                                    objLabel='eliminating HETATM',
-                                   inputAtomStruct=protAtom.outputPdb,
                                    waters=False,
                                    HETATM=False,
                                    usePDBFixer=True,
@@ -156,21 +151,22 @@ def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
                                    addRes=False,
                                    extraClean=True
                                    )
+    prot.inputAtomStruct.set(protAtom.outputPdb)
     if useSlurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
-    protAtom = prot
+    prot.outputPdb = prot.outputStructure
 
-    # Adding warning if N or hetatm where deletedd
-    if result_N_residues.stdout and result_hetatm.stdout: # if there are undefinied residues they are identified as hetero atoms (no need for a section only for undefined residues)
+    # Adding warning if N or hetatm where deleted
+    if result_N_residues.stdout and result_hetatm.stdout: # if there are undefined residues they are identified as hetero atoms (no need for a section only for undefined residues)
         message = 'There are undefined residues (label\\_comp\\_id = N) and also hetero atoms which were deleted in order to perform this analysis.\n\n'
     elif result_hetatm.stdout:
         message = 'There are hetero atoms which were deleted in other to perform this analysis.\n\n'
     else:
         message = ''
 
-    return protAtom, message
+    return prot, message
 
 def phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
