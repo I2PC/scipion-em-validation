@@ -1286,17 +1286,20 @@ else:
 
     BperHomogeneous = isHomogeneous(Bpercentiles[0], Bpercentiles[-1], eps=0.1)
 
+    # threshold for median Q-score (Pintilie paper)
+    qscore_threshold = round(-0.1861*resolution + 1.1224 - 3*(0.2/6), 2)
+
     if BperHomogeneous:
         warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
                         "be some program issues analyzing the data.}}")
 
-    if Bpercentiles[2]<0.1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The median Q-score is less than 0.1.}}")
-    msg = \
-"""\\textbf{Automatic criteria}: The validation is OK if the median Q-score is larger than 0.1.
-\\\\
+    if Bpercentiles[2]<qscore_threshold or testWarnings:
+        warnings.append(f"{{\\color{{red}} \\textbf{{The median Q-score is less than {qscore_threshold}.}}}}")
 
-"""
+    msg = f"""\\textbf{{Automatic criteria}}: The validation is OK if the median Q-score is larger than {qscore_threshold}, which is the threshold for the resolution of {resolution} Å.
+    \\\\
+    
+    """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "A.e MapQ", secLabel)
     if len(warnings)>0:
