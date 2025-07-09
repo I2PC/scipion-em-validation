@@ -879,7 +879,7 @@ is %4.2f \\AA. Fig. \\ref{fig:modelRMSD} shows the atomic model colored by RMSD.
         report.writeAbstract("It seems that the model is too ambiguous (see Sec. \\ref{%s}). "%\
                              secLabel)
 
-def guinierModel(project, report, protImportMap, protConvert, resolution, priority=False):
+def guinierModel(project, report, protImportMap, protConvert, protCreateHardMask, resolution, priority=False):
     secLabel = "sec:bfactorModel"
 
     # Encabezado (subsección + etiqueta)
@@ -901,7 +901,31 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
     map = protImportMap.outputVolume
     Ts = map.getSamplingRate()
 
-    fnAtom = protConvert.outputVolume.getFileName()
+    # Create 3D mask
+    protCreateModelMask = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
+                                                inputVolume=protConvert.outputVolume,
+                                                threshold=0.1,
+                                                doMorphological=True)
+    protCreateModelMask.setObjLabel('model mask')
+    if useSlurm:
+        sendToSlurm(protCreateModelMask, priority=True if priority else False)
+    project.launchProtocol(protCreateModelMask)
+    waitUntilFinishes(project, protCreateModelMask)
+
+    # Adjust volumes
+    protAdjustVols = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols', 'XmippProtVolAdjust', doRaise=True),
+                                         vol1=map,
+                                         vol2=protConvert.outputVolume,
+                                         mask1=protCreateHardMask.outputMask,
+                                         mask2=protCreateModelMask.outputMask)
+    protAdjustVols.setObjLabel('adjust map and model volumes')
+    if useSlurm:
+        sendToSlurm(protAdjustVols, priority=True if priority else False)
+    project.launchProtocol(protAdjustVols)
+    waitUntilFinishes(project, protAdjustVols)
+
+    fnAtom = protAdjustVols.outputVolume.getFileName()
+
     fnOut = os.path.join(report.getReportDir(), "sharpenedModel.mrc")
     args = "-i %s -o %s --sampling %f --maxres %s --auto"%(fnAtom, fnOut, Ts, resolution)
 
@@ -1646,7 +1670,7 @@ Atomic model: %s \\\\
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
     return False
 
-def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False):
+def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False):
     
     secLabel = "sec:AAnalysis"
     section = "Level A Analysis"
@@ -1690,7 +1714,7 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
                     fscq(project, report, protImportMap, fittedProtAtom, protConvert, protCreateSoftMask, fnMaskedMapDict['fnSoftMaskedMap'], priority=priority)
                     if doMultimodel:
                         multimodel(project, report, protImportMap, fittedProtAtom, resolution, priority=priority)
-                    guinierModel(project, report, protImportMap, protConvert, resolution, priority=priority)
+                    guinierModel(project, report, protImportMap, protConvert, protCreateHardMask, resolution, priority=priority)
                     mapq(project, report, protImportMap, fittedProtAtom, resolution, pdbdb_Id, priority=priority)
                     emringer(project, report, protImportForPhenix, fittedProtAtom, priority=priority)
                     daq(project, report, protImportMap, protAtom, resolution, pdbdb_Id, priority=priority)
