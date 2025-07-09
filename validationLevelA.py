@@ -1433,8 +1433,9 @@ sequence of the protein chains.
     warnings = []
     testWarnings = False
     if dataDict["EMRinger Score"] <1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The EMRinger score is smaller than 1, it is %4.3f.}}"%\
-                        dataDict["EMRinger Score"])
+        warnings.append("{\\color{red} \\textbf{The EMRinger score is smaller than 1 for %d\\%% of the amino acids.}}" % \
+                        (dataDict["EMRinger Score"] * 100))
+
     if dataDict["Max Zscore"] <1 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The maximum Zscore is smaller than 1, it is %4.3f.}}"%\
                         dataDict["Max Zscore"])
