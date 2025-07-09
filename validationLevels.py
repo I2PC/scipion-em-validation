@@ -396,26 +396,26 @@ os.chdir(fnProjectDir)
 if IS_EMDB_ENTRY:
     protImportMapChecker = project.newProtocol(
         pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-        objLabel='check format - import map from EMDB',
         importFrom=IMPORT_FROM_EMDB,
         emdbId=EMDB_ID_NUM)
+    protImportMapChecker.setObjLabel('check format - import map from EMDB')
 else:
     fnDir, fnBase = os.path.split(FNMAP)
     if MAPCOORDX is not None and MAPCOORDY is not None and MAPCOORDZ is not None:
         protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-                                                   objLabel='check format - import map',
                                                    filesPath=os.path.join(fnDir,FNMAP),
                                                    samplingRate=TS,
                                                    setOrigCoord=True,
                                                    x=MAPCOORDX,
                                                    y=MAPCOORDY,
                                                    z=MAPCOORDZ)
+        protImportMapChecker.setObjLabel('check format - import map')
     else:
         protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-                                                   objLabel='check format - import map',
                                                    filesPath=os.path.join(fnDir, FNMAP),
                                                    samplingRate=TS,
                                                    setOrigCoord=False)
+        protImportMapChecker.setObjLabel('check format - import map')
 if useSlurm:
     sendToSlurm(protImportMapChecker, priority=False if IS_EMDB_ENTRY else True)
 project.launchProtocol(protImportMapChecker)
@@ -444,12 +444,12 @@ else:
 
     # check if we can have a proper mask with the threshold specified
     protCreateMaskChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
-                                                objLabel='check proper mask',
                                                 inputVolume=protImportMapChecker.outputVolume,
                                                 threshold=MAPTHRESHOLD,
                                                 doBig=True,
                                                 doMorphological=True,
                                                 elementSize=math.ceil(2/TS)) # Dilation by 2A
+    protCreateMaskChecker.setObjLabel('check proper mask')
     if useSlurm:
         sendToSlurm(protCreateMaskChecker, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protCreateMaskChecker)
@@ -466,7 +466,6 @@ if "1" in levels:
     fnDir, fnBase = os.path.split(FNMAP1)
     if MAPCOORDX is not None and MAPCOORDY is not None and MAPCOORDZ is not None:
         protImportMap1Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-                                                    objLabel='check format - import half1',
                                                     filesPath=fnDir,
                                                     filesPattern=FNMAP1,
                                                     samplingRate=TS,
@@ -474,13 +473,14 @@ if "1" in levels:
                                                     x=MAPCOORDX,
                                                     y=MAPCOORDY,
                                                     z=MAPCOORDZ)
+        protImportMap1Checker.setObjLabel('check format - import half1')
     else:
         protImportMap1Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-                                                    objLabel='check format - import half1',
                                                     filesPath=fnDir,
                                                     filesPattern=FNMAP1,
                                                     samplingRate=TS,
                                                     setOrigCoord=False)
+        protImportMap1Checker.setObjLabel('check format - import half1')
     if useSlurm:
         sendToSlurm(protImportMap1Checker, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protImportMap1Checker)
@@ -493,7 +493,6 @@ if "1" in levels:
     fnDir, fnBase = os.path.split(FNMAP2)
     if MAPCOORDX is not None and MAPCOORDY is not None and MAPCOORDZ is not None:
         protImportMap2Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-                                                    objLabel='check format - import half2',
                                                     filesPath=fnDir,
                                                     filesPattern=FNMAP2,
                                                     samplingRate=TS,
@@ -501,13 +500,14 @@ if "1" in levels:
                                                     x=MAPCOORDX,
                                                     y=MAPCOORDY,
                                                     z=MAPCOORDZ)
+        protImportMap1Checker.setObjLabel('check format - import half2')
     else:
         protImportMap2Checker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-                                                    objLabel='check format - import half2',
                                                     filesPath=fnDir,
                                                     filesPattern=FNMAP2,
                                                     samplingRate=TS,
                                                     setOrigCoord=False)
+        protImportMap1Checker.setObjLabel('check format - import half2')
     if useSlurm:
         sendToSlurm(protImportMap2Checker, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protImportMap2Checker)
@@ -519,9 +519,9 @@ if "1" in levels:
 if "2" in levels:
     # Check 'avgs' arg
     protImportAvgsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportAverages', doRaise=True),
-                                                objLabel='check format - import averages',
                                                 filesPath=FNAVGS,
                                                 samplingRate=TSAVG)
+    protImportAvgsChecker.setObjLabel('check format - import averages')
     if useSlurm:
         sendToSlurm(protImportAvgsChecker)
     project.launchProtocol(protImportAvgsChecker)
@@ -533,12 +533,12 @@ if "2" in levels:
 if "3" in levels:
     # Check 'particles' arg
     protImportParticlesChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportParticles', doRaise=True),
-                                                     objLabel='check format - import particles',
                                                      filesPath=FNPARTICLES,
                                                      samplingRate=TSPARTICLES,
                                                      voltage=KV,
                                                      sphericalAberration=CS,
                                                      amplitudeContrast=Q0)
+    protImportParticlesChecker.setObjLabel('check format - import particles')
     if FNPARTICLES.endswith(".sqlite"):
         protImportParticlesChecker.importFrom.set(protImportParticlesChecker.IMPORT_FROM_SCIPION)
         protImportParticlesChecker.sqliteFile.set(FNPARTICLES)
@@ -560,11 +560,11 @@ if "3" in levels:
 if "5" in levels:
     # Check 'micrographs' arg
     protImportMicrographsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportMicrographs', doRaise=True),
-                                     objLabel='check format - import mics',
                                      samplingRate=TSMIC,
                                      voltage=KV,
                                      sphericalAberration=CS,
                                      amplitudeContrast=Q0)
+    protImportMicrographsChecker.setObjLabel('check format - import mics')
     if MICPATTERN.endswith(".sqlite"):
         protImportMicrographsChecker.importFrom.set(protImportMicrographsChecker.IMPORT_FROM_SCIPION)
         protImportMicrographsChecker.sqliteFile.set(MICPATTERN)
@@ -610,9 +610,9 @@ if "A" in levels and not protImportMapChecker.isFailed():
 
     if not writeAtomicModelFailed:
         protImportAtomicModelChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportPdb', doRaise=True),
-                                                        objLabel='check format - import atomic',
                                                         inputPdbData=1,
                                                         pdbFile=fnPdb)
+        protImportAtomicModelChecker.setObjLabel('check format - import atomic')
         protImportAtomicModelChecker.inputVolume.set(protImportMapChecker.outputVolume)
         if useSlurm:
             sendToSlurm(protImportAtomicModelChecker, priority=False if IS_EMDB_ENTRY else True)
@@ -628,8 +628,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
     # 'xlm'
     if "A" in levels and not writeAtomicModelFailed and not protImportAtomicModelChecker.isFailed():  #TODO: add  ... and XLM is not None:
         protImportXLMChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xlmtools.protocols', 'ProtWLM', doRaise=True),
-                                                   objLabel="check format - XLM",
                                                    xlList=XLM)
+        protImportXLMChecker.setObjLabel("check format - XLM")
         protImportXLMChecker.pdbs.set([protImportAtomicModelChecker.outputPdb])
         if useSlurm:
             sendToSlurm(protImportXLMChecker)
@@ -643,12 +643,12 @@ if "O" in levels and not protImportMapChecker.isFailed():
     # 'sax'
     #TODO: Add 'if SAXS is not None:'
     protCreateMask = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
-                                         objLabel='check format - create mask',
                                          inputVolume=protImportMapChecker.outputVolume,
                                          threshold=MAPTHRESHOLD,
                                          doBig=True,
                                          doMorphological=True,
                                          elementSize=math.ceil(2/TS)) # Dilation by 2A
+    protCreateMask.setObjLabel('check format - create mask')
     if useSlurm:
         sendToSlurm(protCreateMask)
     project.launchProtocol(protCreateMask)
@@ -657,9 +657,9 @@ if "O" in levels and not protImportMapChecker.isFailed():
 
 
     protPseudo = project.newProtocol(pwplugin.Domain.importFromPlugin('continuousflex.protocols', 'FlexProtConvertToPseudoAtoms', doRaise=True),
-                                     objLabel="check format - convert Map to Pseudo",
                                      maskMode=2,
                                      pseudoAtomRadius=1.5)
+    protPseudo.setObjLabel("check format - convert Map to Pseudo")
     protPseudo.inputStructure.set(protImportMapChecker.outputVolume)
     protPseudo.volumeMask.set(protCreateMask.outputMask)
     if useSlurm:
@@ -672,8 +672,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
 
     protImportSaxsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('atsas.protocols',
                                                                                  'AtsasProtConvertPdbToSAXS', doRaise=True),
-                                                objLabel="check format - SAXS",
                                                 experimentalSAXS=SAXS)
+    protImportSaxsChecker.setObjLabel("check format - SAXS")
     protImportSaxsChecker.inputStructure.set(protPseudo.outputPdb)
     if useSlurm:
         sendToSlurm(protImportSaxsChecker)
@@ -684,13 +684,13 @@ if "O" in levels and not protImportMapChecker.isFailed():
     # 'untiltedMic' and 'tiltedMic'
     #TODO: Add 'if not [x for x in (UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS) if x is None]: # Checks that none of the variables are None'
     protImportTiltPairsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportMicrographsTiltPairs', doRaise=True),
-                                                     objLabel="check format - import tilt pairs",
                                                      patternUntilted=UNTILTEDMIC,
                                                      patternTilted=TILTEDMIC,
                                                      voltage=TILTKV,
                                                      ampContrast=TILTQ0,
                                                      sphericalAberration=TILTCS,
                                                      samplingRate=TILTTS)
+    protImportTiltPairsChecker.setObjLabel("check format - import tilt pairs")
     if useSlurm:
         sendToSlurm(protImportTiltPairsChecker)
     project.launchProtocol(protImportTiltPairsChecker)
@@ -707,10 +707,10 @@ if "O" in levels and not protImportMapChecker.isFailed():
     dMap = x * Ts
     boxSize = int(dMap / TILTTS)
     protImportCoordsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportCoordinatesPairs', doRaise=True),
-                                                  objLabel="check format - import paired coordinates",
                                                   patternUntilted=UNTILTEDCOORDS,
                                                   patternTilted=TILTEDCOORDS,
                                                   boxSize=boxSize)
+    protImportCoordsChecker.setObjLabel("check format - import paired coordinates")
     if UNTILTEDCOORDS.endswith('.json'):
         protImportCoordsChecker.importFrom.set(1)
     protImportCoordsChecker.inputMicrographsTiltedPair.set(protImportTiltPairsChecker.outputMicrographsTiltPair)

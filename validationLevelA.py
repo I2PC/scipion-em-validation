@@ -71,19 +71,19 @@ def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ, pr
 
     if mapCoordX is not None and mapCoordY is not None and mapCoordZ is not None:
         prot = project.newProtocol(Prot,
-                                   objLabel=label,
                                    filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
                                    samplingRate=protImportMap.outputVolume.getSamplingRate(),
                                    setOrigCoord=True,
                                    x=mapCoordX,
                                    y=mapCoordY,
                                    z=mapCoordZ)
+        prot.setObjLabel(label)
     else:
         prot = project.newProtocol(Prot,
-                                   objLabel=label,
                                    filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
                                    samplingRate=protImportMap.outputVolume.getSamplingRate(),
                                    setOrigCoord=False)
+        prot.setObjLabel(label)
     if useSlurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
@@ -95,9 +95,9 @@ def importModel(project, report, label, protImportMap, fnPdb, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportPdb', doRaise=True)
     protImport = project.newProtocol(Prot,
-                                     objLabel=label,
                                      inputPdbData=1,
                                      pdbFile=fnPdb)
+    protImport.setObjLabel(label)
     protImport.inputVolume.set(protImportMap.outputVolume)
     if useSlurm:
         sendToSlurm(protImport, priority=True if priority else False)
@@ -132,18 +132,17 @@ def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
     if result_hetatm.stdout:
         print('Hetero atoms were found, starting to delete them...')
         prot = project.newProtocol(Prot,
-                                   objLabel='eliminating HETATM',
                                    waters=False,
                                    usePDBFixer=True,
                                    addAtoms=3,
                                    addRes=False,
                                    extraClean=True
                                    )
+        prot.setObjLabel('eliminating HETATM')
     else:
         print("No HETATM found.")
         print("Using PDB Fixer only...")
         prot = project.newProtocol(Prot,
-                                   objLabel='eliminating HETATM',
                                    waters=False,
                                    HETATM=False,
                                    usePDBFixer=True,
@@ -151,6 +150,7 @@ def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
                                    addRes=False,
                                    extraClean=True
                                    )
+        prot.setObjLabel('eliminating HETATM')
     prot.inputAtomStruct.set(protAtom.outputPdb)
     if useSlurm:
         sendToSlurm(prot, priority=True if priority else False)
@@ -172,8 +172,8 @@ def phenixExecution(project, report, protImportMap, protAtom, resolution, label,
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
                                             'PhenixProtRunValidationCryoEM', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel=label,
                                resolution=max(resolution,3.0))
+    prot.setObjLabel(label)
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
     if useSlurm:
@@ -607,11 +607,11 @@ def convertPDB(project, report, protImportMap, protAtom, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtConvertPdb', doRaise=True)
     protConvert = project.newProtocol(Prot,
-                                      objLabel="Convert Pdb to map",
                                       inputPdbData=1,
                                       sampling=protImportMap.outputVolume.getSamplingRate(),
                                       vol=True,
                                       centerPdb=False)
+    protConvert.setObjLabel("Convert Pdb to map")
     protConvert.pdbObj.set(protAtom.outputPdb)
     protConvert.volObj.set(protImportMap.outputVolume)
     if useSlurm:
@@ -673,9 +673,9 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtValFit', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel="A.b FSC-Q",
                                inputPDBObj=protAtom.outputPdb,
                                numberOfThreads=N_THREADS)
+    prot.setObjLabel("A.b FSC-Q")
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.pdbMap.set(protConvert.outputVolume)
     prot.inputMask.set(protCreateSoftMask.outputMask)
@@ -783,11 +783,11 @@ the different local resolutions or local heterogeneity.\\\\
     Prot = pwplugin.Domain.importFromPlugin('rosetta.protocols',
                                             'ProtRosettaGenerateStructures', doRaise=True)
     prot1  = project.newProtocol(Prot,
-                                 objLabel="A.c Multimodel ambiguity",
                                  inputStructure=protAtom.outputPdb,
                                  inputVolume=protImportMap.outputVolume,
                                  resolution=resolution,
                                  numMods=2)
+    prot1.setObjLabel("A.c Multimodel ambiguity")
     if useSlurm:
         sendToSlurm(prot1, GPU=True, priority=True if priority else False)
     project.launchProtocol(prot1)
@@ -809,8 +809,8 @@ the different local resolutions or local heterogeneity.\\\\
     Prot = pwplugin.Domain.importFromPlugin('atomstructutils.protocols',
                                             'ProtRMSDAtomStructs', doRaise=True)
     prot2 = project.newProtocol(Prot,
-                                objLabel="A.c RMSD",
                                 inputStructureSet=prot1.outputAtomStructs)
+    prot2.setObjLabel("A.c RMSD")
     if useSlurm:
         sendToSlurm(prot2, priority=True if priority else False)
     project.launchProtocol(prot2)
@@ -1023,10 +1023,10 @@ have a Gaussian shape.\\\\
         Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
                                                 'ProtMapQ', doRaise=True)
         prot = project.newProtocol(Prot,
-                                objLabel="A.e MapQ",
                                 inputVol=protImportMap.outputVolume,
                                 pdbs=[protAtom.outputPdb],
                                 mapRes=resolution)
+        prot.setObjLabel("A.e MapQ")
         if useSlurm:
             sendToSlurm(prot, priority=True if priority else False)
         project.launchProtocol(prot)
@@ -1306,8 +1306,8 @@ that may need improvement.
 
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
                                             'PhenixProtRunEMRinger', doRaise=True)
-    prot = project.newProtocol(Prot,
-                               objLabel="A.f EMRinger")
+    prot = project.newProtocol(Prot)
+    prot.setObjLabel('A.f EMRinger')
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
     if useSlurm:
@@ -1482,8 +1482,8 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         Prot = pwplugin.Domain.importFromPlugin('kiharalab.protocols',
                                                 'ProtDAQValidation', doRaise=True)
         prot = project.newProtocol(Prot,
-                                objLabel="A.g DAQ",
                                 stride=3)
+        prot.setObjLabel("A.g DAQ")
         prot.inputVolume.set(protImportMap.outputVolume)
         prot.inputAtomStruct.set(protAtom.outputPdb)
         if useSlurm:
