@@ -266,13 +266,15 @@ def reportPlot(x,y, xlabel, ylabel, fnOut, yscale="linear",grid=True, plotType="
     plt.savefig(fnOut, bbox_inches='tight')
     plt.close('all')
 
-def reportHistogram(y, ylabel, fnOut):
+def reportHistogram(y, ylabel, fnOut, xlim=None):
     matplotlib.use('Agg')
     plt.figure()
     plt.hist(y, bins=25)
     plt.grid(True)
     plt.xlabel(ylabel)
     plt.ylabel("Count")
+    if xlim:
+        plt.xlim(xlim)
     plt.savefig(fnOut, bbox_inches='tight')
     plt.close('all')
 

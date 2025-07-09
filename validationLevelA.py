@@ -1557,7 +1557,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
                     daqValues.append(float(value))
 
         fnDAQHist = os.path.join(report.getReportDir(),"daqHist.png")
-        reportHistogram(daqValues,"DAQ", fnDAQHist)
+        reportHistogram(daqValues,"DAQ", fnDAQHist, xlim=(-2, 2))
         Dpercentiles = np.percentile(daqValues, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
         saveIntermediateData(report.getReportDir(), 'DAQ', False, 'DAQHistData', daqValues, ['', 'DAQ values to create histogram'])
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQHist', fnDAQHist, 'DAQ histogram')
