@@ -1309,7 +1309,7 @@ else:
     if len(warnings)>0:
         report.writeAbstract("There seems to be a problem with its MapQ scores (see Sec. \\ref{%s}). "%secLabel)
 
-def emringer(project, report, protImportMap, protAtom, priority=False):
+def emringer(project, report, protImportMap, protAtom, resolution, priority=False):
 
     secLabel = "sec:emringer"
     msg = \
@@ -1428,7 +1428,7 @@ optimal threshold.
     msg+=\
 """The following plots show the rolling window EMRinger analysis of the different chains to distinguish regions 
 of improved model quality. This analysis was performed on rolling sliding 21-residue windows along the primary 
-sequence of the protein chains.
+sequence of the protein chains. If straight lines are observed in the plots, this is likely due to the absence of side chains in those residues.
 
 """
     for chain in sorted(dataDict['_chains']):
