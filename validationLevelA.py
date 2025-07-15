@@ -354,7 +354,6 @@ quality of the map.
     msg =\
 """To avoid ringing in Fourier space a smooth mask with a radius of %5.1f \\AA~has been applied.  \\\\
 \\underline{Overall correlation coefficients}: \\\\
-\\\\
 \\begin{center}
 \\begin{tabular}{rc}
 CC (mask) = & %5.3f\\\\
@@ -416,6 +415,7 @@ of residues whose correlation is below 0.5 is %4.1f \\%%.
 \\end{figure}
 
 """%(badResidues, fnCCHist)
+    report.write(msg)
 
     saveIntermediateData(report.fnReportDir, "phenix", True, "ccModelHist.png", fnCCHist, 'Histogram of the cross-correlation between the map and model evaluated for all residues')
     saveIntermediateData(report.fnReportDir, "phenix", False, "percentageResidues05", badResidues, ['%', 'The percentage of residues whose correlation is below 0.5'])
