@@ -951,6 +951,10 @@ def guinierModel(project, report, protImportMap, protConvert, protCreateHardMask
     _, lnFAtom, _ = readGuinier(fnOut + ".guinier")
     lnFMapp = lnFMap+(np.mean(lnFAtom)-np.mean(lnFMap))
 
+    # eliminate first position to avoid errors in correlation calculation
+    lnFAtom = lnFAtom[1:]
+    lnFMapp = lnFMapp[1:]
+    dinv2 = dinv2[1:]
     R = np.corrcoef(lnFMapp, lnFAtom)
     R=R[0,1]
 
