@@ -1331,6 +1331,11 @@ that may need improvement.
 """ % (secLabel, EMRINGER_DOI)
     report.write(msg)
 
+    if resolution > 5:
+        report.writeSummary("A.f EMRinger", secLabel, NOT_APPLY_MESSAGE)
+        report.write(NOT_APPLY_WORSE_RESOLUTION % 5 + STATUS_NOT_APPLY)
+        return None
+
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
                                             'PhenixProtRunEMRinger', doRaise=True)
     prot = project.newProtocol(Prot)
@@ -1720,7 +1725,7 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
                         multimodel(project, report, protImportMap, fittedProtAtom, resolution, priority=priority)
                     guinierModel(project, report, protImportMap, protConvert, protCreateHardMask, resolution, priority=priority)
                     mapq(project, report, protImportMap, fittedProtAtom, resolution, pdbdb_Id, priority=priority)
-                    emringer(project, report, protImportForPhenix, fittedProtAtom, priority=priority)
+                    emringer(project, report, protImportForPhenix, fittedProtAtom, resolution, priority=priority)
                     daq(project, report, protImportMap, protAtom, resolution, pdbdb_Id, priority=priority)
 
     return protAtom
