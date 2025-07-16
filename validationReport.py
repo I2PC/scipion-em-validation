@@ -234,8 +234,9 @@ run(session, 'exit')
     fhCmd.close()
 
     from chimera import Plugin
-    args = "--script %s"%cmdFile
-    Plugin.runChimeraProgram(Plugin.getProgram(), args, cwd=fnWorkingDir)
+    args = f"--script {cmdFile}" if useVirtualDisplay else f" --nogui --offscreen --script {cmdFile}"
+    Plugin.runChimeraProgram("xvfb-run -a " + Plugin.getProgram() if useVirtualDisplay else Plugin.getProgram(),
+                             args, cwd=fnWorkingDir)
 
 def formatInv(value, pos):
     """ Format function for Matplotlib formatter. """
