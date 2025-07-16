@@ -25,6 +25,7 @@ config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 maxMemToUse = config['CHIMERA'].getint('MAX_MEM_TO_USE')
 maxVoxelsToOpen = config['CHIMERA'].getint('MAX_VOXELS')
+useVirtualDisplay = config['CHIMERA'].getboolean('USE_VIRTUAL_DISPLAY')
 STORE_INTERMEDIATE_DATA = config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
 intermediateDataFinalPath = config['INTERMEDIATE_DATA'].get('DEST_PATH')
 cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
@@ -181,8 +182,9 @@ exit
     fh.close()
 
     from chimera import Plugin
-    args = "chimeraScript.cxc"
-    Plugin.runChimeraProgram(Plugin.getProgram(), args, cwd=fnWorkingDir)
+    args = " chimeraScript.cxc" if useVirtualDisplay else " --nogui --offscreen chimeraScript.cxc"
+    Plugin.runChimeraProgram("xvfb-run -a " + Plugin.getProgram() if useVirtualDisplay else Plugin.getProgram(),
+                             args, cwd=fnWorkingDir)
     #cleanPath(fnTmp)
 
 def generateChimeraColorView(fnWorkingDir, project, fnRoot, fnMap, Ts, fnColor, minVal, maxVal):
