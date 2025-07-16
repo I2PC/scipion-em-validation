@@ -110,7 +110,7 @@ ERROR_MESSAGE_NOT_CLASSES = "{\\color{red} \\textbf{ERROR: Cannot find the outpu
 ERROR_MESSAGE_EMPTY_VOL = "{\\color{red} \\textbf{ERROR: The volume is empty.}}\\\\ \n\n"
 ERROR_MESSAGE_NO_RESULTS = "{\\color{red} \\textbf{ERROR: The protocol did not produce any result.}}\\\\ \n\n"
 ERROR_MESSAGE_ABORTED = "{\\color{red} \\textbf{ERROR: The protocol could not be finished because it was manually aborted.}}\\\\ \n\n"
-ERROR_MESSAGE_CHECK_FITTED_FAILED = "{\\color{red} \\textbf{The protocol to check whether the model and map are aligned has failed. Since we cannot check if they are properly aligned, some problems or bad results may occur when running the Level A analysis due to misalignment.}}\\\\ \n\n"
+# ERROR_MESSAGE_CHECK_FITTED_FAILED = "{\\color{red} \\textbf{The protocol to check whether the model and map are aligned has failed. Since we cannot check if they are properly aligned, some problems or bad results may occur when running the Level A analysis due to misalignment.}}\\\\ \n\n"
 
 NOT_APPY_NO_RESOLUTION = "{\\color{brown} This method cannot be applied to maps with no resolution reported.}\\\\ \n\n"
 NOT_APPLY_BETTER_RESOLUTION = "{\\color{brown} This method cannot be applied to maps with a resolution better than %d\\AA.}\\\\ \n\n"
@@ -119,9 +119,6 @@ NOT_APPLY_WORSE_RESOLUTION = "{\\color{brown} This method cannot be applied to m
 
 SUMMARY_WARNINGS_TITLE = "\\textbf{\\underline{Summary of the warnings across sections.}}\\\\ \n\n\n"
 PROPERLY_FITTED = "Map and model seem to be properly aligned."
-FITTED_NEW_ORIGIN = "Map and model do not seem to be properly aligned. However, we found an origin of coordinates for which there is a better alignment. All level A analyses from here will take %s as the origin of coordinates."
-NOT_FOUND_NEW_FITTED = "Map and model do not seem to be properly aligned. However, we have not found any origin of coordinates that allows a good alignment. Level A analyses will be skipped."
-
-
-
-
+MANUALLY_FITTED = "Map and model do not seem to be properly aligned. However, model was manually fitted to the map to perform further level A analyses."
+# FITTED_NEW_ORIGIN = "Map and model do not seem to be properly aligned. However, we found an origin of coordinates for which there is a better alignment. All level A analyses from here will take %s as the origin of coordinates."
+# NOT_FOUND_NEW_FITTED = "Map and model do not seem to be properly aligned. However, we have not found any origin of coordinates that allows a good alignment. Level A analyses will be skipped."

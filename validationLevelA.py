@@ -450,141 +450,48 @@ def phenix(project, report, protImportMap, protAtom, resolution, priority=False)
     protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority)
     phenixReporting(project, report, resolution, protPhenix, dataPhenix)
 
-def searchFittedInOriginListWithPhenix(unique_list_origins, original_cc_mask, project, report, protImportMap, FNMODEL, resolution, cc_mask_threshold, priority=False):
-    h = AtomicStructHandler()
-    h.read(FNMODEL)
-    new_cc_mask_dict = {}
-    for origin in unique_list_origins:
+def dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=False):
+    Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
+                                            'PhenixProtRunDockInMap', doRaise=True)
+    prot = project.newProtocol(Prot,
+                               resolution=max(resolution, 3.0))
+    prot.inputVolume1.set(protImportMap.outputVolume)
+    prot.inputStructure.set(protAtom.outputPdb)
+    if useSlurm:
+        sendToSlurm(prot, priority=True if priority else False)
+    project.launchProtocol(prot)
+    waitUntilFinishes(project, prot)
+    return prot
 
-        origin_dict = {}
-
-        originStr = '-'.join(map(str, origin))
-        modelName = os.path.splitext(os.path.basename(FNMODEL))[0]
-        modelNewName = f"{modelName}_{originStr}.cif"
-        newFnModel = os.path.join(report.getReportDir(), modelNewName)
-
-        moveOriginTo(origin, h)
-        h.writeAsCif(newFnModel)
-        newProtAtom = importModel(project, report, f"Import atomic - origin {originStr}", protImportMap, newFnModel, priority=priority)
-        protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, newProtAtom, resolution, f"Phenix search fitted - origin {originStr}", priority)
-
-        if protPhenix.isFailed():
-            print(f"Phenix protocol failed while checking new origin {originStr}")
-        elif protPhenix.isAborted():
-            print(f"Phenix protocol was aborted while checking new origin {originStr}")
-        else:
-            importProtId = newProtAtom.getObjId()
-            phenixProtId = protPhenix.getObjId()
-
-            origin_dict["cc_mask"] = dataPhenix["cc_mask"]
-            origin_dict["import_prot_id"] = importProtId
-            origin_dict["phenix_prot_id"] = phenixProtId
-
-            new_cc_mask_dict[originStr] = origin_dict
-
-    # Get greatest cc_mask that is also greater than cc_mask original and beyond cc_mask_threshold (that normally is 0.5)
-    greatest_cc_mask = None
-    greatest_cc_mask_key = None
-    
-    for key, sub_dict in new_cc_mask_dict.items():
-        new_cc_mask = sub_dict.get("cc_mask", None)
-        if new_cc_mask is not None and new_cc_mask > original_cc_mask and new_cc_mask > cc_mask_threshold:
-            if greatest_cc_mask is None or new_cc_mask > greatest_cc_mask:
-                greatest_cc_mask = new_cc_mask
-                greatest_cc_mask_key = key
-
-    if greatest_cc_mask:
-        newOrigin = greatest_cc_mask_key.split("-")
-
-        # Get import and phenix protocol for new origin
-        newImportProtId = new_cc_mask_dict[greatest_cc_mask_key]["import_prot_id"]
-        newImportProt = project.getProtocol(int(newImportProtId), fromRuns=True)
-
-        newPhenixProtId = new_cc_mask_dict[greatest_cc_mask_key]["phenix_prot_id"]
-        newPhenixProt = project.getProtocol(int(newPhenixProtId), fromRuns=True)
-
-        return newImportProt, newPhenixProt, dataPhenix, newOrigin
-    else:
-        return None, None, None, None
-
-def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, unique_list_origins, priority=False):
+def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, priority=False):
 
     label = "A.a Phenix"
     protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority)
+    pdbdb_Id = getFilename(str(protAtom.outputPdb._filename), withExt=False)
 
     if protPhenix.isFailed():
         print("Phenix protocol failed while checking if map and model are fitted.")
-        return None, protPhenix, dataPhenix, protAtom
+        return None, protPhenix, dataPhenix, protAtom, pdbdb_Id, False
 
     if protPhenix.isAborted():
         print(PRINT_PROTOCOL_ABORTED + ": " + NAME_PHENIX)
         report.writeSummary(section, secLabel, ERROR_ABORTED_MESSAGE)
         report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
-        return None, protPhenix, dataPhenix, protAtom
+        return None, protPhenix, dataPhenix, protAtom, pdbdb_Id
 
+    print(f'------------ cc_mask in dataPhenix is: {dataPhenix["cc_mask"]}')
     if dataPhenix["cc_mask"] > cc_mask_threshold:
+        print('----------------------- dataPhenix["cc_mask"] > cc_mask_threshold')
         report.write(PROPERLY_FITTED)
-        return True, protPhenix, dataPhenix, protAtom
-       
-    elif dataPhenix["cc_mask"] <= cc_mask_threshold: 
-        protAtom, protPhenix, dataPhenix, newOrigin = searchFittedInOriginListWithPhenix(unique_list_origins, dataPhenix["cc_mask"], project, report, protImportMap, FNMODEL, resolution, cc_mask_threshold, priority=priority)
+        return True, protPhenix, dataPhenix, protAtom, pdbdb_Id
 
-        if protAtom is None and protPhenix is None:
-            report.write(NOT_FOUND_NEW_FITTED)
-
-            ######TODO: this part is for debugging. Remove when finishing debugging.######
-            os.makedirs(EMDB_entries_path, exist_ok=True)
-            with open(os.path.join(EMDB_entries_path, 'EMDB_fail_fitted.txt'), 'a') as output:
-                if EMDB_ID_NUM:
-                    output.writelines(f'EMD-{EMDB_ID_NUM}\n')
-                else:
-                    output.writelines('Unkown\n')
-            ##############################################################################
-
-            return False, protPhenix, dataPhenix, protAtom
-        else:
-            report.write(FITTED_NEW_ORIGIN % ', '.join(newOrigin))
-
-            ######TODO: this part is for debugging. Remove when finishing debugging.######
-            os.makedirs(EMDB_entries_path, exist_ok=True)
-            with open(os.path.join(EMDB_entries_path, 'EMDB_new_fitted.txt'), 'a') as output:
-                if EMDB_ID_NUM:
-                    output.writelines(f'EMD-{EMDB_ID_NUM}\n')
-                else:
-                    output.writelines('Unkown\n')
-            ##############################################################################
-
-            return True, protPhenix, dataPhenix, protAtom
-
-def checkFittedManually():
-    pass
-
-def getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ, fnMap):
-    
-    sampling = protImportMap.outputVolume.getSamplingRate()
-
-    ## Origin in center of the box
-    x, y, z = protImportMap.outputVolume.getDimensions()
-    xA = x * sampling / 2
-    yA = y * sampling / 2
-    zA = z * sampling / 2
-
-    ## Origin from header
-    ccp4header = emconv.Ccp4Header(protImportMap.outputVolume.getFileName(), readHeader=True)
-    origin_header = np.array(ccp4header.getOrigin())
-    x_header = origin_header[0]
-    y_header = origin_header[1]
-    z_header = origin_header[2]
-
-    list_origins = [[x_header, y_header, z_header], [safeNeg(x_header), safeNeg(y_header), safeNeg(z_header)], [0,0,0], [xA, yA, zA], [safeNeg(xA), safeNeg(yA), safeNeg(zA)], [mapCoordX, mapCoordY, mapCoordZ], [safeNeg(mapCoordX), safeNeg(mapCoordY), safeNeg(mapCoordZ)]] 
-    
-    # Filter sublists and avoid those that include None values
-    filtered_list_origins = [lst for lst in list_origins if all(elem is not None for elem in lst)]
-
-    # Create list of unique aublists
-    unique_list_origins = [list(x) for x in set(tuple(x) for x in filtered_list_origins)]
-
-    return unique_list_origins
+    elif dataPhenix["cc_mask"] <= cc_mask_threshold:
+        print('----------------------- dataPhenix["cc_mask"] <= cc_mask_threshold')
+        new_protAtom = dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=False)
+        print('----------------------- Dock in map done')
+        protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, new_protAtom, resolution, label, priority)
+        report.write(MANUALLY_FITTED)
+        return True, protPhenix, dataPhenix, new_protAtom, pdbdb_Id
 
 def convertPDB(project, report, protImportMap, protAtom, priority=False):
 
@@ -874,7 +781,6 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
     scipionHome = getScipionHome()
     scipion3 = os.path.join(scipionHome, 'scipion3')
     cmd = '%s run xmipp_volume_correct_bfactor %s' % (scipion3, args)
-
     if not useSlurm:
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
         p.wait()
@@ -946,7 +852,7 @@ than 0.5.
     saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'sharpenedModel.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedModel.mrc.guinier'), 'sharpenedModel.mrc.guinier file which contain the data to create the guinier plot')
     saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'guinierPlot', fnPlot, 'guinier plot for Map-Model Guinier Analysis')
 
-def mapq(project, report, protImportMap, protAtom, resolution, priority=False):
+def mapq(project, report, protImportMap, protAtom, resolution, pdbdb_Id, priority=False):
 
     secLabel = "sec:mapq"
     msg = \
@@ -965,7 +871,6 @@ have a Gaussian shape.\\\\
     # check if we have the precomputed data
     # https://3dbionotes.cnb.csic.es/bws/api/emv/7xzz/mapq/
     emdb_Id = getFilename(str(protImportMap.filesPath), withExt=False)
-    pdbdb_Id = getFilename(str(protAtom.outputPdb._filename), withExt=False)
     print("Get MapQ scores from 3DBionotes-WS for %s" % pdbdb_Id)
     has_precalculated_data = False
     cif_data = getFileFromWS(pdbdb_Id, 'mapq')
@@ -1394,7 +1299,7 @@ sequence of the protein chains.
 
     saveIntermediateData(report.getReportDir(), 'EMRinger', True, '_emringer_plots', _emringer_plots, '_emringer_plots files')
 
-def daq(project, report, protImportMap, protAtom, resolution, priority=False):
+def daq(project, report, protImportMap, protAtom, resolution, pdbdb_Id, priority=False):
 
     secLabel = "sec:daq"
     msg = \
@@ -1415,7 +1320,6 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     # check if we have the precomputed data
     # https://3dbionotes.cnb.csic.es/bws/api/emv/7xzz/daq/
     emdb_Id = getFilename(str(protImportMap.filesPath), withExt=False)
-    pdbdb_Id = getFilename(str(protAtom.outputPdb._filename), withExt=False)
     print("Get DAQ scores from 3DBionotes-WS for %s" % pdbdb_Id)
     has_precalculated_data = False
     json_data = getScoresFromWS(pdbdb_Id, 'daq')
@@ -1632,29 +1536,29 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
         if not skipAnalysis:
             report.writeSection(section, secLabel)
 
-            # Get list of origin to coordinates to test in case map and model are not fitted
-            unique_list_origins = getListOfNewOrigins(protImportMap, mapCoordX, mapCoordY, mapCoordZ)
-
             # Check if map and model are fitted with phenix. If phenix fails, check it manually.
-            cc_mask_threshold = 0.8
-            fitted, protPhenix, dataPhenix, protAtom = checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, unique_list_origins, priority=priority)
-            
-            if protPhenix is not None and protPhenix.isFailed(): # protPhenix = None when phenix finished properly but any new origin was found. For those cases, we do not want to execute manual checks (it is only useful when phenix fails).
-                print("Starting to check manually whether map and model are fitted or not...")
-                #TODO: add function to do manual checks          
-            if fitted is False: # Avoid execcuting level A if map and model are not fitted
-                report.write(ERROR_MESSAGE_CHECK_FITTED_FAILED)
-                return protAtom
+            # cc_mask_threshold = 0.8
+            cc_mask_threshold = 0.3
+            fitted, protPhenix, dataPhenix, fittedProtAtom, pdbdb_Id = checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, priority=priority)
+
+            # if protPhenix is not None and protPhenix.isFailed(): # protPhenix = None when phenix finished properly but any new origin was found. For those cases, we do not want to execute manual checks (it is only useful when phenix fails).
+            #     print("Starting to check manually whether map and model are fitted or not...")
+            #     #: add function to do manual checks
+            # if fitted is False: # Avoid execcuting level A if map and model are not fitted
+            #     report.write(ERROR_MESSAGE_CHECK_FITTED_FAILED)
+            #     return protAtom
+            if fitted is None:
+                print("Fitting protocol failed")
             else: # Continue executing level A
-                protConvert = convertPDB(project, report, protImportMap, protAtom, priority=priority)
+                protConvert = convertPDB(project, report, protImportMap, fittedProtAtom, priority=priority)
                 if protConvert is not None:
                     phenixReporting(project, report, resolution, protPhenix, dataPhenix)
-                    fscq(project, report, protImportMap, protAtom, protConvert, protCreateSoftMask, fnMaskedMapDict['fnSoftMaskedMap'], priority=priority)
+                    fscq(project, report, protImportMap, fittedProtAtom, protConvert, protCreateSoftMask, fnMaskedMapDict['fnSoftMaskedMap'], priority=priority)
                     if doMultimodel:
-                        multimodel(project, report, protImportMap, protAtom, resolution, priority=priority)
+                        multimodel(project, report, protImportMap, fittedProtAtom, resolution, priority=priority)
                     guinierModel(project, report, protImportMap, protConvert, resolution, priority=priority)
-                    mapq(project, report, protImportMap, protAtom, resolution, priority=priority)
-                    emringer(project, report, protImportForPhenix, protAtom, priority=priority)
-                    daq(project, report, protImportMap, protAtom, resolution, priority=priority)
+                    mapq(project, report, protImportMap, fittedProtAtom, resolution, pdbdb_Id, priority=priority)
+                    emringer(project, report, protImportForPhenix, fittedProtAtom, priority=priority)
+                    daq(project, report, protImportMap, protAtom, resolution, pdbdb_Id, priority=priority)
 
     return protAtom

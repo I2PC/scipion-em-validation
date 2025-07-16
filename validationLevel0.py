@@ -310,8 +310,8 @@ depends on the CTF) on each side to make sure that the CTF can be appropriately 
 
     msg=\
 """\\textbf{Automatic criteria}: The validation is OK if 1) the decentering and center of mass less than 20\\% of the map 
-dimensions in all directions, and 2) the extra space on each direction is more than 20\\% of the map dimensions. For local
-and focused refinement, or similar, warnings are expected. 
+dimensions in all directions, and 2) the extra space on each direction is more than 20\\% of the map dimensions. For local reconstruction, 
+focused refinement, or similar, warnings are expected.
 \\\\
     
     """
