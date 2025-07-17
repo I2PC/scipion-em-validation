@@ -1438,12 +1438,11 @@ sequence of the protein chains. If straight lines are observed in the plots, thi
     msg+="\n"
 
     report.write(msg)
-
     warnings = []
     testWarnings = False
     if dataDict["EMRinger Score"] <1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The EMRinger score is smaller than 1 for %d\\%% of the amino acids.}}" % \
-                        (dataDict["EMRinger Score"] * 100))
+        warnings.append("{\\color{red} \\textbf{The EMRinger score is smaller than 1, it is %4.3f.}}" % \
+                        (dataDict["EMRinger Score"]))
 
     if dataDict["Max Zscore"] <1 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The maximum Zscore is smaller than 1, it is %4.3f.}}"%\
