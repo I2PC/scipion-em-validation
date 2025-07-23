@@ -19,6 +19,7 @@ scipionProjects_path = config['SCIPION'].get('SCIPIONPROJECTS_PATH')
 scipion_launcher = config['SCIPION'].get('SCIPION_LAUNCHER')
 validation_server_launcher = config['EM-VALIDATION'].get('VALIDATION_SERVER_LAUNCHER')
 CLEAN_ORIGINAL_DATA = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
+num_concurrent_launches = config['OTHER'].get('NUM_CONCURRENT_LAUNCHES')
 
 def connect_to_ddbb():
     connection = mysql.connector.connect(host='localhost', user='vrs', password='', database='vrs')
@@ -171,7 +172,7 @@ def launch(levels, n_entries, isTest, start_entry=1, random=False):
         cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, doLevels, "--isTest" if isTest else ""))
         output_files.append(os.path.join(log_folder, entry))
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_concurrent_launches) as executor:
         for cmd, output_file, entry in zip(cmds, output_files, emdb_entries):
             executor.submit(launcher, entry, cmd, output_file, doLevels, isTest)
             sleep(60)
