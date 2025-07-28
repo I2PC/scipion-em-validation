@@ -11,29 +11,29 @@ N_TASKS = 10
 [CHIMERA]
 MAX_MEM_TO_USE = 60000
 MAX_VOXELS = 1500
-USE_VIRTUAL_DISPLAY = True
+USE_VIRTUAL_DISPLAY = False
 VIRTUAL_DISPLAY_PORT = 99
 
 [INTERMEDIATE_DATA]
-STORE_INTERMEDIATE_DATA = False
+STORE_INTERMEDIATE_DATA = True
 CLEAN_ORIGINAL_DATA = False
-DEST_PATH = /data/ScipionUserDataToRetrieve/projects
+DEST_PATH = /home/mzoch/data/vrsIntermediateData/projects
 
 [MAPQ]
-MAPQ_PATH = /home/vrs/scipion3/software/em/chimera-1.16/mapq/
-CHIMERA_PROGRAM_PATH = /home/vrs/scipion3/software/em/chimera-1.16/chimera/bin/chimera
+MAPQ_PATH = /home/mzoch/scipion3/software/em/chimera-1.16/mapq/
+CHIMERA_PROGRAM_PATH = /home/mzoch/scipion3/software/em/chimera-1.16/chimera/bin/chimera
 
 [EM-VALIDATION]
-VALIDATION_TOOLS_PATH = /home/vrs/scipion3/plugins/scipion-em-validation/tools/
-VALIDATION_SERVER_LAUNCHER = /home/vrs/scipion3/plugins/scipion-em-validation/validationLevels.py
+VALIDATION_TOOLS_PATH = /home/mzoch/scipion3/plugins/scipion-em-validation/tools/
+VALIDATION_SERVER_LAUNCHER = /home/mzoch/scipion3/plugins/scipion-em-validation/validationLevels.py
 
 [EMDB]
 ENTRIES_PATH = /home/vrs/EMDB/entries
 LOG_PATH = /home/vrs/EMDB/logs
 
 [SCIPION]
-SCIPIONPROJECTS_PATH = /home/vrs/ScipionUserData/projects
-SCIPION_LAUNCHER = /home/vrs/scipion3/scipion3
+SCIPIONPROJECTS_PATH = /home/mzoch/ScipionUserData/projects
+SCIPION_LAUNCHER = /home/mzoch/scipion3/scipion3
 N_THREADS = 10
 
 [OTHER]
