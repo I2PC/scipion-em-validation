@@ -20,12 +20,12 @@ CLEAN_ORIGINAL_DATA = False
 DEST_PATH = /data/ScipionUserDataToRetrieve/projects
 
 [MAPQ]
-MAPQ_PATH = /home/vrs/scipion3/software/em/chimera-1.16/mapq/
-CHIMERA_PROGRAM_PATH = /home/vrs/scipion3/software/em/chimera-1.16/chimera/bin/chimera
+MAPQ_PATH = /scipion/software/em/chimera-1.16/mapq/
+CHIMERA_PROGRAM_PATH = /scipion/software/em/chimera-1.16/chimera/bin/chimera
 
 [EM-VALIDATION]
-VALIDATION_TOOLS_PATH = /home/vrs/scipion3/plugins/scipion-em-validation/tools/
-VALIDATION_SERVER_LAUNCHER = /home/vrs/scipion3/plugins/scipion-em-validation/validationLevels.py
+VALIDATION_TOOLS_PATH = /scipion/scipion-em-validation/tools/
+VALIDATION_SERVER_LAUNCHER = /scipion/scipion-em-validation/validationLevels.py
 
 [EMDB]
 ENTRIES_PATH = /home/vrs/EMDB/entries
