@@ -804,7 +804,7 @@ else:  # go ahead
     if "1" in levels:
         from validationLevel1 import level1
         level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protImportMap,
-               protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=True, priority=False if IS_EMDB_ENTRY else True)
+               protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False if IS_EMDB_ENTRY else True)
 
     # Level 2
     if "2" in levels:
@@ -836,7 +836,7 @@ else:  # go ahead
     if "A" in levels:
         from validationLevelA import levelA
         protAtom = levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, MAPRESOLUTION, doMultimodel,
-                          MAPCOORDX, MAPCOORDY, MAPCOORDZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=True, priority=False if IS_EMDB_ENTRY else True)
+                          MAPCOORDX, MAPCOORDY, MAPCOORDZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False if IS_EMDB_ENTRY else True)
     else:
         protAtom = None
 
@@ -890,5 +890,26 @@ else:  # go ahead
 
     # Convert results to BWS compatible format
     print("Convert results to 3DBionotes format ...")
-    convert_to_bws("XmippProtDeepRes", "EMD-41510", project_root=project.getPath(),
-                   volume="deepRes_resolution_originalSize.vol")
+    try:
+        convert_to_bws("XmippProtDeepRes", project_root=project.getPath(),
+                       volume="deepRes_resolution_originalSize.vol")
+    except ValueError as e:
+        print(f"Failed to save DeepRes: {e}")
+
+    try:
+        convert_to_bws("XmippProtMonoRes", project_root=project.getPath(),
+                       volume="monoresResolutionMap.mrc")
+    except ValueError as e:
+        print(f"Failed to save MonoRes: {e}")
+
+    try:
+        convert_to_bws("BsoftProtBlocres", project_root=project.getPath(),
+                       volume="resolutionMap.map")
+    except ValueError as e:
+        print(f"Failed to save BlocRes: {e}")
+
+    try:
+        convert_to_bws("XmippProtValFit", project_root=project.getPath(),
+                       volume="diferencia.map")
+    except ValueError as e:
+        print(f"Failed to save FSC-Q: {e}")
