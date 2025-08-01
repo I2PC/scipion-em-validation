@@ -585,13 +585,14 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
     fnMask = os.path.join(project.getPath(),protMask.outputMask.getFileName())
     args = "--doBenchMarking --noguiSplit %s %s --vxSize=%f  --maskVol=%s"%(fnVol1, fnVol2, Ts, fnMask)
     print("Running: %s %s" % (resmap, args))
-    cmd = f'{containerized_launcher_path if containerized else ""} {resmap} {args}'
 
     if not use_slurm:
+        cmd = f'{resmap} {args}'
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
         p.wait()
         sleep(120)
     else:
+        cmd = f'{containerized_launcher_path if containerized else ""} {resmap} {args}'
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
         slurmScriptPath = createScriptForSlurm('resmap_' + str(randomInt), report.getReportDir(), cmd, nTasks=int(n_tasks), priority=priority)
         # send job to queue
