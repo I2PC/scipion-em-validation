@@ -56,6 +56,8 @@ config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
 n_tasks = get_env_int('QUEUE_N_TASKS') or config['QUEUE'].getint('N_TASKS')
 n_threads = get_env_int('SCIPION_N_THREADS') or config['SCIPION'].getint('N_THREADS')
+containerized = get_env_bool('SCIPION_CONTAINERIZED') or config['SCIPION'].getboolean('CONTAINERIZED')
+containerized_launcher_path = os.getenv('SCIPION_CONTAINER_LAUNCHER_PATH') or config['SCIPION'].getboolean('CONTAINER_LAUNCHER_PATH')
 
 def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -583,7 +585,7 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
     fnMask = os.path.join(project.getPath(),protMask.outputMask.getFileName())
     args = "--doBenchMarking --noguiSplit %s %s --vxSize=%f  --maskVol=%s"%(fnVol1, fnVol2, Ts, fnMask)
     print("Running: %s %s" % (resmap, args))
-    cmd = '%s %s' % (resmap, args)
+    cmd = f'{containerized_launcher_path if containerized else ""} {resmap} {args}'
 
     if not use_slurm:
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
