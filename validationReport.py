@@ -43,10 +43,6 @@ max_mem_to_use = get_env_int('CHIMERA_MAX_MEM_TO_USE') or config['CHIMERA'].geti
 max_voxels_to_open = get_env_int('CHIMERA_MAX_VOXELS') or config['CHIMERA'].getint('MAX_VOXELS')
 use_virtual_display = get_env_bool('CHIMERA_USE_VIRTUAL_DISPLAY') or config['CHIMERA'].getboolean('USE_VIRTUAL_DISPLAY')
 virtual_display_port = get_env_int('CHIMERA_VIRTUAL_DISPLAY_PORT') or config['CHIMERA'].getint('VIRTUAL_DISPLAY_PORT')
-store_intermediate_data = get_env_bool('INTERMEDIATE_DATA_STORE_INTERMEDIATE_DATA') or config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
-intermediate_data_final_path = os.getenv('INTERMEDIATE_DATA_DEST_PATH') or config['INTERMEDIATE_DATA'].get('DEST_PATH')
-clean_original_data = get_env_bool('INTERMEDIATE_DATA_CLEAN_ORIGINAL_DATA') or config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
-
 
 def safeNeg(value):
     return -value if value is not None else None
@@ -1028,7 +1024,7 @@ This Validation Report Service uses Scipion (see this \\href{%s}{link} for more 
 """
         self.write(toWrite)
 
-    def closeReport(self, resolution, isTest):
+    def closeReport(self, resolution, is_test, store_intermediate_data, intermediate_data_final_path):
 
         toWrite = "\\end{document}\n"
         self.fh.write(toWrite)
@@ -1067,8 +1063,10 @@ This Validation Report Service uses Scipion (see this \\href{%s}{link} for more 
                        stderr=subprocess.STDOUT)
         os.chdir(self.fnProjectDir)
 
+
+
         # If the VRS launch is a test do not store intermediate date
-        if isTest:
+        if is_test:
             store_intermediate_data = False
 
         if store_intermediate_data:

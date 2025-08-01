@@ -49,6 +49,8 @@ from tools.utils import saveIntermediateData
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
+store_intermediate_data = get_env_bool('INTERMEDIATE_DATA_STORE_INTERMEDIATE_DATA') or config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
+intermediate_data_final_path = os.getenv('INTERMEDIATE_DATA_DEST_PATH') or config['INTERMEDIATE_DATA'].get('DEST_PATH')
 
 class OutOfChainsError(Exception): #TODO: remove it when updating pwem repo
     pass
@@ -826,4 +828,4 @@ else: # go ahead
         with open(os.path.join(fnProjectDir, 'validationReport', 'workflow.json'), 'w') as f:
             f.write(json.dumps(list(protDicts.values()), indent=4, separators=(',', ': ')))
 
-    report.closeReport(MAPRESOLUTION, IS_TEST)
+    report.closeReport(MAPRESOLUTION, IS_TEST, store_intermediate_data, intermediate_data_final_path)
