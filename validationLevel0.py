@@ -38,7 +38,7 @@ from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
 from pwem import emlib
 from validationReport import readMap, readGuinier, latexEnumerate, calculateSha256, reportPlot, reportMultiplePlots,\
-    reportHistogram, isHomogeneous
+    reportHistogram, isHomogeneous, get_env_bool, get_env_int
 
 import xmipp3
 
@@ -49,7 +49,6 @@ import configparser
 from tools.utils import saveIntermediateData
 
 from resources.constants import *
-from validationLevels import get_env_bool, get_env_int
 
 # used by the ProtImportVolumes protocol, volumes will be downloaded from EMDB
 IMPORT_FROM_EMDB = 1
@@ -58,6 +57,8 @@ config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
 n_threads = get_env_int('SCIPION_N_THREADS') or config['SCIPION'].getint('N_THREADS')
+containerized = get_env_bool('SCIPION_CONTAINERIZED') or config['SCIPION'].getboolean('CONTAINERIZED')
+containerized_launcher_path = os.getenv('SCIPION_CONTAINER_LAUNCHER_PATH') or config['SCIPION'].getboolean('CONTAINER_LAUNCHER_PATH')
 
 def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -630,8 +631,8 @@ is between 0 and 300 \AA$^2$.
     args = "-i %s -o %s --sampling %f --maxres %s --auto"%(fnIn, fnOut, Ts, resolution)
 
     scipionHome = getScipionHome()
-    scipion3 = os.path.join(scipionHome,'scipion3')
-    cmd = '%s run xmipp_volume_correct_bfactor %s'%(scipion3, args)
+    scipion3 = os.path.join(scipionHome, 'scipion3')
+    cmd = f'{containerized_launcher_path if containerized else scipion3} xmipp_volume_correct_bfactor {args}'
 
     if not use_slurm:
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)

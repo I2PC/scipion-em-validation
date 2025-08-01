@@ -20,7 +20,22 @@ import xmipp3
 
 import configparser
 from resources.constants import *
-from validationLevels import get_env_bool, get_env_int
+
+def get_env_bool(var_name, default=None):
+    val = os.getenv(var_name)
+    if val is None:
+        return default
+    if val.strip().lower() in ('1', 'true', 'yes', 'on'):
+        return True
+    elif val.strip().lower() in ('0', 'false', 'no', 'off'):
+        return False
+
+def get_env_int(var_name, default=None):
+    val = os.getenv(var_name)
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return default
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))

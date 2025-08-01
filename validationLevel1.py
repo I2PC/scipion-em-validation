@@ -40,7 +40,7 @@ import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPattern, cleanPath
 from pwem.emlib.image import ImageHandler
 from validationReport import readMap, calculateSha256, CDFFromHistogram, CDFpercentile, reportPlot, \
-    radialPlot, reportMultiplePlots, reportHistogram, isHomogeneous
+    radialPlot, reportMultiplePlots, reportHistogram, isHomogeneous, get_env_bool, get_env_int
 import xmipp3
 
 from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished
@@ -50,7 +50,6 @@ import configparser
 from tools.utils import saveIntermediateData
 
 from resources.constants import *
-from validationLevels import get_env_bool, get_env_int
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))

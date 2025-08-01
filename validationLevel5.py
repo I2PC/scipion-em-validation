@@ -28,13 +28,12 @@ import os
 
 import pyworkflow.plugin as pwplugin
 
-from validationReport import plotMicrograph
+from validationReport import plotMicrograph, get_env_bool
 from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
 import configparser
 
 from resources.constants import *
-from validationLevels import get_env_bool
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))

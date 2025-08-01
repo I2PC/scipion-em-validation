@@ -45,7 +45,7 @@ from pwem.viewers.viewer_localres import replaceOcuppancyWithAttribute, makeResi
 import pwem.convert.atom_struct
 import xmipp3
 
-from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot, isHomogeneous, safeNeg
+from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot, isHomogeneous, safeNeg, get_env_bool, get_env_int
 from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished
 
 import configparser
@@ -54,7 +54,6 @@ from tools.utils import saveIntermediateData, getFilename, getScoresFromWS, getF
 from tools.emv_utils import convert_2_json
 
 from resources.constants import *
-from validationLevels import get_env_bool, get_env_int
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))

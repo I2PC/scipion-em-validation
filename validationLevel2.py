@@ -32,14 +32,13 @@ from pyworkflow.utils.path import cleanPath
 from xmipp3.convert import writeSetOfParticles
 import xmipp3
 
-from validationReport import reportHistogram
+from validationReport import reportHistogram, get_env_bool
 
 from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
 import configparser
 
 from resources.constants import *
-from validationLevels import get_env_bool
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))

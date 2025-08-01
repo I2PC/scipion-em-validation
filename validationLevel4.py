@@ -32,13 +32,12 @@ import scipy
 import pyworkflow.plugin as pwplugin
 import xmipp3
 
-from validationReport import reportHistogram, reportPlot, reportMultiplePlots
+from validationReport import reportHistogram, reportPlot, reportMultiplePlots, get_env_bool, get_env_int
 from resourceManager import waitOutput, sendToSlurm, skipSlurm, waitUntilFinishes, waitOutputFile
 
 import configparser
 
 from resources.constants import *
-from validationLevels import get_env_bool, get_env_int
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))

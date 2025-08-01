@@ -31,14 +31,13 @@ import os
 
 import pyworkflow.plugin as pwplugin
 
-from validationReport import calculateSha256, reportMultiplePlots, radialPlot, reportHistogram
+from validationReport import calculateSha256, reportMultiplePlots, radialPlot, reportHistogram, get_env_bool
 
 from resourceManager import waitOutput, sendToSlurm, waitOutputFile, waitUntilFinishes
 
 import configparser
 
 from resources.constants import *
-from validationLevels import get_env_bool
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
