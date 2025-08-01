@@ -775,7 +775,7 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
     map = protImportMap.outputVolume
     Ts = map.getSamplingRate()
 
-    fnAtom = protConvert.outputVolume.getFileName()
+    fnAtom = os.path.join(project.getPath(), protConvert.outputVolume.getFileName())
     fnOut = os.path.join(report.getReportDir(), "sharpenedModel.mrc")
     args = "-i %s -o %s --sampling %f --maxres %s --auto"%(fnAtom, fnOut, Ts, resolution)
 
