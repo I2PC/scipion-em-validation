@@ -11,14 +11,16 @@ import sys
 import argparse
 import re
 
+from ..validationLevels import get_env_bool, get_env_int
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.yaml'))
-EMDB_entries_path = config['EMDB'].get('ENTRIES_PATH')
-log_folder = config['EMDB'].get('LOG_PATH')
-scipionProjects_path = config['SCIPION'].get('SCIPIONPROJECTS_PATH')
-scipion_launcher = config['SCIPION'].get('SCIPION_LAUNCHER')
-validation_server_launcher = config['EM-VALIDATION'].get('VALIDATION_SERVER_LAUNCHER')
-CLEAN_ORIGINAL_DATA = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
+EMDB_entries_path = os.getenv('EMDB_ENTRIES_PATH') or config['EMDB'].get('ENTRIES_PATH')
+log_folder = os.getenv('EMDB_LOG_PATH') or config['EMDB'].get('LOG_PATH')
+scipion_projects_path = os.getenv('SCIPION_SCIPIONPROJECTS_PATH') or config['SCIPION'].get('SCIPIONPROJECTS_PATH')
+scipion_launcher = os.getenv('SCIPION_SCIPION_LAUNCHER') or config['SCIPION'].get('SCIPION_LAUNCHER')
+validation_server_launcher = os.getenv('EM_VALIDATION_VALIDATION_SERVER_LAUNCHER') or config['EM-VALIDATION'].get('VALIDATION_SERVER_LAUNCHER')
+clean_original_data = get_env_bool('INTERMEDIATE_DATA_CLEAN_ORIGINAL_DATA') or config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 
 def connect_to_ddbb():
     connection = mysql.connector.connect(host='localhost', user='vrs', password='', database='vrs')
@@ -68,7 +70,7 @@ def launcher(entry, cmd, log_file, levels, isTest):
             if stderr:
                 log_file.write(stderr)
 
-        reportPath = os.path.join(scipionProjects_path, entry, 'validationReport', 'report.pdf')
+        reportPath = os.path.join(scipion_projects_path, entry, 'validationReport', 'report.pdf')
         data = (1, int(datetime.now().timestamp()), 0 if process.returncode == 0 and os.path.exists(reportPath) else 1,
                 reportPath if process.returncode == 0 and os.path.exists(reportPath) else None,
                 stderr if process.returncode != 0 else None, entry, n_launchs+1)
@@ -83,13 +85,10 @@ def launcher(entry, cmd, log_file, levels, isTest):
 
         # If the VRS launch is a test do not clean original data
         if isTest:
-            cleanOriginalData = False
-        # In case, VRS launch is not a test, follow config.yaml rules
-        else:
-            cleanOriginalData = CLEAN_ORIGINAL_DATA
+            clean_original_data = False
 
-        if cleanOriginalData and process.returncode == 0 and os.path.exists(reportPath):
-            cmd = 'rm -rf %s' % os.path.join(scipionProjects_path, entry)
+        if clean_original_data and process.returncode == 0 and os.path.exists(reportPath):
+            cmd = 'rm -rf %s' % os.path.join(scipion_projects_path, entry)
             subprocess.run(cmd, shell=True)
     except Exception as e:
         print("Exception:", e)

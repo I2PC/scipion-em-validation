@@ -20,16 +20,17 @@ import xmipp3
 
 import configparser
 from resources.constants import *
+from validationLevels import get_env_bool, get_env_int
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
-maxMemToUse = config['CHIMERA'].getint('MAX_MEM_TO_USE')
-maxVoxelsToOpen = config['CHIMERA'].getint('MAX_VOXELS')
-useVirtualDisplay = config['CHIMERA'].getboolean('USE_VIRTUAL_DISPLAY')
-virtualDisplayPort = config['CHIMERA'].getint('VIRTUAL_DISPLAY_PORT')
-STORE_INTERMEDIATE_DATA = config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
-intermediateDataFinalPath = config['INTERMEDIATE_DATA'].get('DEST_PATH')
-cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
+max_mem_to_use = get_env_int('CHIMERA_MAX_MEM_TO_USE') or config['CHIMERA'].getint('MAX_MEM_TO_USE')
+max_voxels_to_open = get_env_int('CHIMERA_MAX_VOXELS') or config['CHIMERA'].getint('MAX_VOXELS')
+use_virtual_display = get_env_bool('CHIMERA_USE_VIRTUAL_DISPLAY') or config['CHIMERA'].getboolean('USE_VIRTUAL_DISPLAY')
+virtual_display_port = get_env_int('CHIMERA_VIRTUAL_DISPLAY_PORT') or config['CHIMERA'].getint('VIRTUAL_DISPLAY_PORT')
+store_intermediate_data = get_env_bool('INTERMEDIATE_DATA_STORE_INTERMEDIATE_DATA') or config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
+intermediate_data_final_path = os.getenv('INTERMEDIATE_DATA_DEST_PATH') or config['INTERMEDIATE_DATA'].get('DEST_PATH')
+clean_original_data = get_env_bool('INTERMEDIATE_DATA_CLEAN_ORIGINAL_DATA') or config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 
 
 def safeNeg(value):
@@ -133,7 +134,7 @@ set bgColor white
 volume dataCacheSize %d
 volume voxelLimitForOpen %d
 volume showPlane false
-""" % (maxMemToUse, maxVoxelsToOpen)
+""" % (max_mem_to_use, max_voxels_to_open)
     chimeraScript+=\
 """
 open %s
@@ -183,8 +184,8 @@ exit
     fh.close()
 
     from chimera import Plugin
-    args = " chimeraScript.cxc" if useVirtualDisplay else " --nogui --offscreen chimeraScript.cxc"
-    Plugin.runChimeraProgram(f"xvfb-run --server-num={virtualDisplayPort} " + Plugin.getProgram() if useVirtualDisplay else Plugin.getProgram(),
+    args = " chimeraScript.cxc" if use_virtual_display else " --nogui --offscreen chimeraScript.cxc"
+    Plugin.runChimeraProgram(f"xvfb-run --server-num={virtual_display_port} " + Plugin.getProgram() if use_virtual_display else Plugin.getProgram(),
                              args, cwd=fnWorkingDir)
     #cleanPath(fnTmp)
 
@@ -203,8 +204,8 @@ def generateChimeraColorView(fnWorkingDir, project, fnRoot, fnMap, Ts, fnColor, 
     fn3 = os.path.join(fnWorkingDir, fnRoot + "3.jpg")
 
     newLines = [
-        "run(session, 'volume dataCacheSize %d')\n" % maxMemToUse,
-        "run(session, 'volume voxelLimitForOpen %d')\n" % maxVoxelsToOpen,
+        "run(session, 'volume dataCacheSize %d')\n" % max_mem_to_use,
+        "run(session, 'volume voxelLimitForOpen %d')\n" % max_voxels_to_open,
         "run(session, 'volume showPlane false')\n"
     ]
     referenceLine = "run(session, 'set bgColor white')"
@@ -235,8 +236,8 @@ run(session, 'exit')
     fhCmd.close()
 
     from chimera import Plugin
-    args = f"--script {cmdFile}" if useVirtualDisplay else f" --nogui --offscreen --script {cmdFile}"
-    Plugin.runChimeraProgram(f"xvfb-run --server-num={virtualDisplayPort} " + Plugin.getProgram() if useVirtualDisplay else Plugin.getProgram(),
+    args = f"--script {cmdFile}" if use_virtual_display else f" --nogui --offscreen --script {cmdFile}"
+    Plugin.runChimeraProgram(f"xvfb-run --server-num={virtual_display_port} " + Plugin.getProgram() if use_virtual_display else Plugin.getProgram(),
                              args, cwd=fnWorkingDir)
 
 def formatInv(value, pos):
@@ -1053,10 +1054,7 @@ This Validation Report Service uses Scipion (see this \\href{%s}{link} for more 
 
         # If the VRS launch is a test do not store intermediate date
         if isTest:
-            doStoreIntermediateData = False
-        # In case, VRS launch is not a test, follow config.yaml rules
-        else:
-            doStoreIntermediateData = STORE_INTERMEDIATE_DATA
+            store_intermediate_data = False
 
-        if doStoreIntermediateData:
-            storeIntermediateData(self.fnReportDir, intermediateDataFinalPath)
+        if store_intermediate_data:
+            storeIntermediateData(self.fnReportDir, intermediate_data_final_path)

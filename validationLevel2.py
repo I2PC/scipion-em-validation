@@ -39,10 +39,11 @@ from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 import configparser
 
 from resources.constants import *
+from validationLevels import get_env_bool
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
-useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
 
 def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -51,7 +52,7 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                objLabel=label,
                                filesPath=fnAvgs,
                                samplingRate=TsAvg)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImport)
     project.launchProtocol(protImport)
     #waitOutput(project, protImport, 'outputAverages')
@@ -79,7 +80,7 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                       windowOperation=1,
                                       windowSize=XdimAvgsp)
     protResize1.inputParticles.set(protImport.outputAverages)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protResize1)
     project.launchProtocol(protResize1)
     #waitOutput(project, protResize1, 'outputAverages')
@@ -93,7 +94,7 @@ def importAvgs(project, label, protImportMap, fnAvgs, TsAvg):
                                       windowOperation=1,
                                       windowSize=XdimMap)
     protResize2.inputParticles.set(protResize1.outputAverages)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protResize2)
     project.launchProtocol(protResize2)
     waitUntilFinishes(project, protResize2)
@@ -111,7 +112,7 @@ def compareReprojections(project, report, protImportMap, protAvgs, symmetry):
                                symmetryGroup=symmetry)
     prot.inputSet.set(protAvgs.outputAverages)
     prot.inputVolume.set(protImportMap.outputVolume)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'reprojections')

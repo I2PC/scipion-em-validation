@@ -54,15 +54,16 @@ from tools.utils import saveIntermediateData, getFilename, getScoresFromWS, getF
 from tools.emv_utils import convert_2_json
 
 from resources.constants import *
+from validationLevels import get_env_bool, get_env_int
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
-useSlurm = config['QUEUE'].getboolean('USE_SLURM')
-chimeraProgram = config['MAPQ'].get('CHIMERA_PROGRAM_PATH')
-mapq_path = config['MAPQ'].get('MAPQ_PATH')
-validation_tools_path = config['EM-VALIDATION'].get('VALIDATION_TOOLS_PATH')
-EMDB_entries_path = config['EMDB'].get('ENTRIES_PATH')
-N_THREADS = config['SCIPION'].get('N_THREADS')
+use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
+chimera_program = os.getenv('MAPQ_CHIMERA_PROGRAM_PATH') or config['MAPQ'].get('CHIMERA_PROGRAM_PATH')
+mapq_path = os.getenv('MAPQ_MAPQ_PATH') or config['MAPQ'].get('MAPQ_PATH')
+validation_tools_path = os.getenv('EM_VALIDATION_VALIDATION_TOOLS_PATH') or config['EM-VALIDATION'].get('VALIDATION_TOOLS_PATH')
+EMDB_entries_path = os.getenv('EMDB_ENTRIES_PATH') or config['EMDB'].get('ENTRIES_PATH')
+n_threads = get_env_int('SCIPION_N_THREADS') or config['SCIPION'].getint('N_THREADS')
 
 
 def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ, priority=False):
@@ -84,7 +85,7 @@ def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ, pr
                                    filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
                                    samplingRate=protImportMap.outputVolume.getSamplingRate(),
                                    setOrigCoord=False)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
@@ -99,7 +100,7 @@ def importModel(project, report, label, protImportMap, fnPdb, priority=False):
                                      inputPdbData=1,
                                      pdbFile=fnPdb)
     protImport.inputVolume.set(protImportMap.outputVolume)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImport, priority=True if priority else False)
     project.launchProtocol(protImport)
     #waitOutput(project, protImport, 'outputPdb')
@@ -126,7 +127,7 @@ def phenixExecution(project, report, protImportMap, protAtom, resolution, label,
                                resolution=max(resolution,3.0))
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
@@ -457,7 +458,7 @@ def dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=F
                                resolution=max(resolution, 3.0))
     prot.inputVolume1.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
@@ -505,7 +506,7 @@ def convertPDB(project, report, protImportMap, protAtom, priority=False):
                                       centerPdb=False)
     protConvert.pdbObj.set(protAtom.outputPdb)
     protConvert.volObj.set(protImportMap.outputVolume)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protConvert, priority=True if priority else False)
     project.launchProtocol(protConvert)
     #waitOutput(project, protConvert, 'outputVolume')
@@ -566,11 +567,11 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
     prot = project.newProtocol(Prot,
                                objLabel="A.b FSC-Q",
                                inputPDBObj=protAtom.outputPdb,
-                               numberOfThreads=N_THREADS)
+                               numberOfThreads=n_threads)
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.pdbMap.set(protConvert.outputVolume)
     prot.inputMask.set(protCreateSoftMask.outputMask)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputAtomStruct')
@@ -679,7 +680,7 @@ the different local resolutions or local heterogeneity.\\\\
                                  inputVolume=protImportMap.outputVolume,
                                  resolution=resolution,
                                  numMods=2)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot1, GPU=True, priority=True if priority else False)
     project.launchProtocol(prot1)
     #waitOutput(project, prot1, 'outputAtomStructs')
@@ -702,7 +703,7 @@ the different local resolutions or local heterogeneity.\\\\
     prot2 = project.newProtocol(Prot,
                                 objLabel="A.c RMSD",
                                 inputStructureSet=prot1.outputAtomStructs)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot2, priority=True if priority else False)
     project.launchProtocol(prot2)
     #waitOutput(project, prot2, 'outputAtomStructs')
@@ -781,7 +782,7 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
     scipionHome = getScipionHome()
     scipion3 = os.path.join(scipionHome, 'scipion3')
     cmd = '%s run xmipp_volume_correct_bfactor %s' % (scipion3, args)
-    if not useSlurm:
+    if not use_slurm:
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
         p.wait()
         sleep(120)
@@ -796,7 +797,7 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
                 break
         sleep(120)
 
-    dinv2, lnFMap, _ = readGuinier(os.path.join(report.getReportDir() if not useSlurm else os.path.dirname(slurmScriptPath), 'sharpenedMap.mrc') + '.guinier')
+    dinv2, lnFMap, _ = readGuinier(os.path.join(report.getReportDir() if not use_slurm else os.path.dirname(slurmScriptPath), 'sharpenedMap.mrc') + '.guinier')
     _, lnFAtom, _ = readGuinier(fnOut + ".guinier")
     lnFMapp = lnFMap+(np.mean(lnFAtom)-np.mean(lnFMap))
 
@@ -903,7 +904,7 @@ have a Gaussian shape.\\\\
                                 inputVol=protImportMap.outputVolume,
                                 pdbs=[protAtom.outputPdb],
                                 mapRes=resolution)
-        if useSlurm:
+        if use_slurm:
             sendToSlurm(prot, priority=True if priority else False)
         project.launchProtocol(prot)
         #waitOutput(project, prot, 'scoredStructures')
@@ -1038,8 +1039,8 @@ else:
         fhQStatsScript.close()
 
         args = "--nogui --script %s "%(fnQStatsScript)
-        print("Running: %s %s" % (chimeraProgram, args))
-        p = subprocess.Popen('%s %s' % (chimeraProgram, args), shell=True, stderr=subprocess.PIPE)
+        print("Running: %s %s" % (chimera_program, args))
+        p = subprocess.Popen('%s %s' % (chimera_program, args), shell=True, stderr=subprocess.PIPE)
         p.wait()
 
         files = glob.glob(os.path.join(report.getReportDir(), "*All.txt"))
@@ -1176,7 +1177,7 @@ that may need improvement.
                                objLabel="A.f EMRinger")
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'stringDataDict')
@@ -1352,7 +1353,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
                                 stride=3)
         prot.inputVolume.set(protImportMap.outputVolume)
         prot.inputAtomStruct.set(protAtom.outputPdb)
-        if useSlurm:
+        if use_slurm:
             sendToSlurm(prot, GPU=True, priority=True if priority else False)
         project.launchProtocol(prot)
         #waitOutput(project, prot, 'outputAtomStruct')
