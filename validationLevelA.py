@@ -63,7 +63,8 @@ mapq_path = os.getenv('MAPQ_MAPQ_PATH') or config['MAPQ'].get('MAPQ_PATH')
 validation_tools_path = os.getenv('EM_VALIDATION_VALIDATION_TOOLS_PATH') or config['EM-VALIDATION'].get('VALIDATION_TOOLS_PATH')
 EMDB_entries_path = os.getenv('EMDB_ENTRIES_PATH') or config['EMDB'].get('ENTRIES_PATH')
 n_threads = get_env_int('SCIPION_N_THREADS') or config['SCIPION'].getint('N_THREADS')
-
+containerized = get_env_bool('SCIPION_CONTAINERIZED') or config['SCIPION'].getboolean('CONTAINERIZED')
+containerized_launcher_path = os.getenv('SCIPION_CONTAINER_LAUNCHER_PATH') or config['SCIPION'].getboolean('CONTAINER_LAUNCHER_PATH')
 
 def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -780,7 +781,8 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
 
     scipionHome = getScipionHome()
     scipion3 = os.path.join(scipionHome, 'scipion3')
-    cmd = '%s run xmipp_volume_correct_bfactor %s' % (scipion3, args)
+    cmd = f'{containerized_launcher_path if containerized else scipion3} xmipp_volume_correct_bfactor {args}'
+
     if not use_slurm:
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
         p.wait()
