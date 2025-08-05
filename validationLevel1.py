@@ -54,7 +54,7 @@ from resources.constants import *
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
-n_tasks = get_env_int('QUEUE_N_TASKS') or config['QUEUE'].getint('N_TASKS')
+n_mpis = get_env_int('SCIPION_N_MPIS') or config['SCIPION'].getint('N_MPIS')
 n_threads = get_env_int('SCIPION_N_THREADS') or config['SCIPION'].getint('N_THREADS')
 containerized = get_env_bool('SCIPION_CONTAINERIZED') or config['SCIPION'].getboolean('CONTAINERIZED')
 containerized_launcher_path = os.getenv('SCIPION_CONTAINER_LAUNCHER_PATH') or config['SCIPION'].get('CONTAINER_LAUNCHER_PATH')
@@ -444,7 +444,7 @@ This method (see this \\href{%s}{link} for more details) computes a local Fourie
     prot.mask.set(protMask.outputMask)
 
     if use_slurm:
-        sendToSlurm(prot, nMPIs=10, priority=True if priority else False)
+        sendToSlurm(prot, nMPIs=n_mpis, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'resolution_Volume')
     waitUntilFinishes(project, prot)
@@ -594,7 +594,7 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
     else:
         cmd = f'{containerized_launcher_path if containerized else ""} {resmap} {args}'
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
-        slurmScriptPath = createScriptForSlurm('resmap_' + str(randomInt), report.getReportDir(), cmd, nTasks=int(n_tasks), priority=priority)
+        slurmScriptPath = createScriptForSlurm('resmap_' + str(randomInt), report.getReportDir(), cmd, nTasks=int(n_mpis), priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished
