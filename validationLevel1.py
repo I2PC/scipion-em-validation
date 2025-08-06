@@ -595,7 +595,10 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
         p.wait()
         sleep(120)
     else:
-        cmd = f'{containerized_launcher_path if containerized else ""}' + f'xvfb-run --server-num={virtual_display_port} if use_virtual_display else ""' + f'{resmap} {args}'
+        cmd = f'{containerized_launcher_path if containerized else ""}'
+        if use_virtual_display:
+            cmd += f' xvfb-run --server-num={virtual_display_port}'
+        cmd = f'{cmd} {resmap} {args}'
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
         slurmScriptPath = createScriptForSlurm('resmap_' + str(randomInt), report.getReportDir(), cmd, nTasks=int(n_mpis), priority=priority)
         # send job to queue
