@@ -58,6 +58,8 @@ n_mpis = get_env_int('SCIPION_N_MPIS') or config['SCIPION'].getint('N_MPIS')
 n_threads = get_env_int('SCIPION_N_THREADS') or config['SCIPION'].getint('N_THREADS')
 containerized = get_env_bool('SCIPION_CONTAINERIZED') or config['SCIPION'].getboolean('CONTAINERIZED')
 containerized_launcher_path = os.getenv('SCIPION_CONTAINER_LAUNCHER_PATH') or config['SCIPION'].get('CONTAINER_LAUNCHER_PATH')
+use_virtual_display = get_env_bool('CHIMERA_USE_VIRTUAL_DISPLAY') or config['CHIMERA'].getboolean('USE_VIRTUAL_DISPLAY')
+virtual_display_port = get_env_int('CHIMERA_VIRTUAL_DISPLAY_PORT') or config['CHIMERA'].getint('VIRTUAL_DISPLAY_PORT')
 
 def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -588,11 +590,12 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
 
     if not use_slurm:
         cmd = f'{resmap} {args}'
-        p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
+        p = subprocess.Popen(f'xvfb-run --server-num={virtual_display_port} {cmd}' if use_virtual_display else cmd, 
+                             shell=True, stderr=subprocess.PIPE)
         p.wait()
         sleep(120)
     else:
-        cmd = f'{containerized_launcher_path if containerized else ""} {resmap} {args}'
+        cmd = f'{containerized_launcher_path if containerized else ""}' + f'xvfb-run --server-num={virtual_display_port} if use_virtual_display else ""' + f'{resmap} {args}'
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
         slurmScriptPath = createScriptForSlurm('resmap_' + str(randomInt), report.getReportDir(), cmd, nTasks=int(n_mpis), priority=priority)
         # send job to queue
