@@ -38,7 +38,7 @@ from scipion.utils import getScipionHome
 import pyworkflow.plugin as pwplugin
 from pwem import emlib
 from validationReport import readMap, readGuinier, latexEnumerate, calculateSha256, reportPlot, reportMultiplePlots,\
-    reportHistogram, isHomogeneous
+    reportHistogram, isHomogeneous, get_env_bool, get_env_int
 
 import xmipp3
 
@@ -55,9 +55,10 @@ IMPORT_FROM_EMDB = 1
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
-useSlurm = config['QUEUE'].getboolean('USE_SLURM')
-gpuIdSkipSlurm = config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
-N_THREADS = config['SCIPION'].get('N_THREADS')
+use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
+n_threads = get_env_int('SCIPION_N_THREADS') or config['SCIPION'].getint('N_THREADS')
+containerized = get_env_bool('SCIPION_CONTAINERIZED') or config['SCIPION'].getboolean('CONTAINERIZED')
+containerized_launcher_path = os.getenv('SCIPION_CONTAINER_LAUNCHER_PATH') or config['SCIPION'].get('CONTAINER_LAUNCHER_PATH')
 
 def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -84,7 +85,7 @@ def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapC
         prot.half1map.set(fnMap1)
         prot.half2map.set(fnMap2)
 
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
@@ -107,7 +108,7 @@ def createMask(project, label, map, Ts, threshold, smooth=False, priority=False)
                                doSmooth=True if smooth else False,
                                sigmaConvolution=2.0 if smooth else None,
                                elementSize=math.ceil(2/Ts) if Ts else 1) # Dilation by 2A
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputMask')
@@ -160,7 +161,7 @@ def resizeMap(project, protMap, resolution, priority=False):
                                             resizeOption=2,
                                             resizeFactor=1)
     protResizeMap.inputVolumes.set(protMap.outputVolume)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protResizeMap, priority=True if priority else False)
     project.launchProtocol(protResizeMap)
     #waitOutput(project, protResizeMap, 'outputVol')
@@ -630,15 +631,16 @@ is between 0 and 300 \AA$^2$.
     args = "-i %s -o %s --sampling %f --maxres %s --auto"%(fnIn, fnOut, Ts, resolution)
 
     scipionHome = getScipionHome()
-    scipion3 = os.path.join(scipionHome,'scipion3')
-    cmd = '%s run xmipp_volume_correct_bfactor %s'%(scipion3, args)
+    scipion3 = os.path.join(scipionHome, 'scipion3')
 
-    if not useSlurm:
+    if not use_slurm:
+        cmd = f'{scipion3} xmipp_volume_correct_bfactor {args}'
         p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
         outputLines = p.stderr.read().decode('utf-8').split('\n')
         p.wait()
         sleep(120)
     else:
+        cmd = f'{containerized_launcher_path if containerized else scipion3} xmipp_volume_correct_bfactor {args}'
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
         slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_level0_' + str(randomInt), report.getReportDir(), cmd, priority=priority)
         # send job to queue
@@ -748,7 +750,7 @@ input map to the appearance of the atomic structures a local resolution label ca
                                objLabel=label,
                                inputVolume=map,
                                Mask=mask)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, GPU=True, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'resolution_Volume')
@@ -895,8 +897,8 @@ local magnitude and phase term using the spiral transform.\\\\
                                vol=map,
                                mask_in_molecule=mask,
                                max_res=resolution,
-                               numberOfThreads=N_THREADS)
-    if useSlurm:
+                               numberOfThreads=n_threads)
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'bmap')
@@ -1027,7 +1029,7 @@ LocOccupancy (see this \\href{%s}{link} for more details) estimates the occupanc
                                vol=map,
                                mask_in_molecule=mask,
                                max_res=resolution)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'omap')
@@ -1161,7 +1163,7 @@ calculates a value between 0 (correct hand) and 1 (incorrect hand) using a neura
                                objLabel=label,
                                inputVolume=map,
                                threshold=threshold)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputHand')

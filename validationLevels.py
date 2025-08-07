@@ -36,7 +36,7 @@ from pyworkflow.utils.path import makePath, copyFile, cleanPath
 import pyworkflow.utils as pwutils
 from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes
 from pwem.convert.atom_struct import AtomicStructHandler
-from validationReport import readMap
+from validationReport import readMap, get_env_bool
 import json
 from tools import EMDButils
 import xmipp3
@@ -45,9 +45,12 @@ import configparser
 
 from tools.utils import saveIntermediateData
 
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
-useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
+store_intermediate_data = get_env_bool('INTERMEDIATE_DATA_STORE_INTERMEDIATE_DATA') or config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
+intermediate_data_final_path = os.getenv('INTERMEDIATE_DATA_DEST_PATH') or config['INTERMEDIATE_DATA'].get('DEST_PATH')
 
 class OutOfChainsError(Exception): #TODO: remove it when updating pwem repo
     pass
@@ -416,7 +419,7 @@ else:
                                                    filesPath=os.path.join(fnDir, FNMAP),
                                                    samplingRate=TS,
                                                    setOrigCoord=False)
-if useSlurm:
+if use_slurm:
     sendToSlurm(protImportMapChecker, priority=False if IS_EMDB_ENTRY else True)
 project.launchProtocol(protImportMapChecker)
 #waitOutput(project, protImportMapChecker, 'outputVolume')
@@ -447,7 +450,7 @@ else:
                                                 doBig=True,
                                                 doMorphological=True,
                                                 elementSize=math.ceil(2/TS)) # Dilation by 2A
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protCreateMaskChecker, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protCreateMaskChecker)
     waitUntilFinishes(project, protCreateMaskChecker)
@@ -478,7 +481,7 @@ if "1" in levels:
                                                     filesPattern=FNMAP1,
                                                     samplingRate=TS,
                                                     setOrigCoord=False)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportMap1Checker, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protImportMap1Checker)
     #waitOutput(project, protImportMap1Checker, 'outputVolume')
@@ -505,7 +508,7 @@ if "1" in levels:
                                                     filesPattern=FNMAP2,
                                                     samplingRate=TS,
                                                     setOrigCoord=False)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportMap2Checker, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protImportMap2Checker)
     #waitOutput(project, protImportMap2Checker, 'outputVolume')
@@ -519,7 +522,7 @@ if "2" in levels:
                                                 objLabel='check format - import averages',
                                                 filesPath=FNAVGS,
                                                 samplingRate=TSAVG)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportAvgsChecker)
     project.launchProtocol(protImportAvgsChecker)
     #waitOutput(project, protImportAvgsChecker, 'outputAverages')
@@ -545,7 +548,7 @@ if "3" in levels:
     elif FNPARTICLES.endswith(".star"):
         protImportParticlesChecker.importFrom.set(protImportParticlesChecker.IMPORT_FROM_RELION)
         protImportParticlesChecker.starFile.set(FNPARTICLES)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportParticlesChecker)
     project.launchProtocol(protImportParticlesChecker)
     #waitOutput(project, protImportParticlesChecker, 'outputParticles')
@@ -567,7 +570,7 @@ if "5" in levels:
         protImportMicrographsChecker.sqliteFile.set(MICPATTERN)
     else:
         protImportMicrographsChecker.filesPattern.set(MICPATTERN)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportMicrographsChecker)
     project.launchProtocol(protImportMicrographsChecker)
     #waitOutput(project, protImportMicrographsChecker, 'outputMicrographs')
@@ -611,7 +614,7 @@ if "A" in levels and not protImportMapChecker.isFailed():
                                                         inputPdbData=1,
                                                         pdbFile=fnPdb)
         protImportAtomicModelChecker.inputVolume.set(protImportMapChecker.outputVolume)
-        if useSlurm:
+        if use_slurm:
             sendToSlurm(protImportAtomicModelChecker, priority=False if IS_EMDB_ENTRY else True)
         project.launchProtocol(protImportAtomicModelChecker)
         #waitOutput(project, protImportAtomicModelChecker, 'outputPdb')
@@ -628,7 +631,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                                    objLabel="check format - XLM",
                                                    xlList=XLM)
         protImportXLMChecker.pdbs.set([protImportAtomicModelChecker.outputPdb])
-        if useSlurm:
+        if use_slurm:
             sendToSlurm(protImportXLMChecker)
         project.launchProtocol(protImportXLMChecker)
         #waitOutput(project, protImportXLMChecker, 'crosslinkStruct_1')
@@ -646,7 +649,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                          doBig=True,
                                          doMorphological=True,
                                          elementSize=math.ceil(2/TS)) # Dilation by 2A
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protCreateMask)
     project.launchProtocol(protCreateMask)
     #waitOutput(project, protCreateMask, 'outputMask')
@@ -659,7 +662,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                      pseudoAtomRadius=1.5)
     protPseudo.inputStructure.set(protImportMapChecker.outputVolume)
     protPseudo.volumeMask.set(protCreateMask.outputMask)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protPseudo)
     project.launchProtocol(protPseudo)
     #waitOutput(project, protPseudo, 'outputVolume')
@@ -672,7 +675,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                                 objLabel="check format - SAXS",
                                                 experimentalSAXS=SAXS)
     protImportSaxsChecker.inputStructure.set(protPseudo.outputPdb)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportSaxsChecker)
     project.launchProtocol(protImportSaxsChecker)
     if protImportSaxsChecker.isFailed():
@@ -688,7 +691,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                                      ampContrast=TILTQ0,
                                                      sphericalAberration=TILTCS,
                                                      samplingRate=TILTTS)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportTiltPairsChecker)
     project.launchProtocol(protImportTiltPairsChecker)
     #waitOutput(project, protImportTiltPairsChecker, 'outputMicrographsTiltPair')
@@ -711,7 +714,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
     if UNTILTEDCOORDS.endswith('.json'):
         protImportCoordsChecker.importFrom.set(1)
     protImportCoordsChecker.inputMicrographsTiltedPair.set(protImportTiltPairsChecker.outputMicrographsTiltPair)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportCoordsChecker)
     project.launchProtocol(protImportCoordsChecker)
     #waitOutput(project, protImportCoordsChecker, 'outputCoordinatesTiltPair')
@@ -825,4 +828,4 @@ else: # go ahead
         with open(os.path.join(fnProjectDir, 'validationReport', 'workflow.json'), 'w') as f:
             f.write(json.dumps(list(protDicts.values()), indent=4, separators=(',', ': ')))
 
-    report.closeReport(MAPRESOLUTION, IS_TEST)
+    report.closeReport(MAPRESOLUTION, IS_TEST, store_intermediate_data, intermediate_data_final_path)

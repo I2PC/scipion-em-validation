@@ -21,16 +21,28 @@ import xmipp3
 import configparser
 from resources.constants import *
 
+def get_env_bool(var_name, default=None):
+    val = os.getenv(var_name)
+    if val is None:
+        return default
+    if val.strip().lower() in ('1', 'true', 'yes', 'on'):
+        return True
+    elif val.strip().lower() in ('0', 'false', 'no', 'off'):
+        return False
+
+def get_env_int(var_name, default=None):
+    val = os.getenv(var_name)
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return default
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
-maxMemToUse = config['CHIMERA'].getint('MAX_MEM_TO_USE')
-maxVoxelsToOpen = config['CHIMERA'].getint('MAX_VOXELS')
-useVirtualDisplay = config['CHIMERA'].getboolean('USE_VIRTUAL_DISPLAY')
-virtualDisplayPort = config['CHIMERA'].getint('VIRTUAL_DISPLAY_PORT')
-STORE_INTERMEDIATE_DATA = config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
-intermediateDataFinalPath = config['INTERMEDIATE_DATA'].get('DEST_PATH')
-cleanOriginalData = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
-
+max_mem_to_use = get_env_int('CHIMERA_MAX_MEM_TO_USE') or config['CHIMERA'].getint('MAX_MEM_TO_USE')
+max_voxels_to_open = get_env_int('CHIMERA_MAX_VOXELS') or config['CHIMERA'].getint('MAX_VOXELS')
+use_virtual_display = get_env_bool('CHIMERA_USE_VIRTUAL_DISPLAY') or config['CHIMERA'].getboolean('USE_VIRTUAL_DISPLAY')
+virtual_display_port = get_env_int('CHIMERA_VIRTUAL_DISPLAY_PORT') or config['CHIMERA'].getint('VIRTUAL_DISPLAY_PORT')
 
 def safeNeg(value):
     return -value if value is not None else None
@@ -133,7 +145,7 @@ set bgColor white
 volume dataCacheSize %d
 volume voxelLimitForOpen %d
 volume showPlane false
-""" % (maxMemToUse, maxVoxelsToOpen)
+""" % (max_mem_to_use, max_voxels_to_open)
     chimeraScript+=\
 """
 open %s
@@ -183,8 +195,8 @@ exit
     fh.close()
 
     from chimera import Plugin
-    args = " chimeraScript.cxc" if useVirtualDisplay else " --nogui --offscreen chimeraScript.cxc"
-    Plugin.runChimeraProgram(f"xvfb-run --server-num={virtualDisplayPort} " + Plugin.getProgram() if useVirtualDisplay else Plugin.getProgram(),
+    args = " chimeraScript.cxc" if use_virtual_display else " --nogui --offscreen chimeraScript.cxc"
+    Plugin.runChimeraProgram(f"xvfb-run --server-num={virtual_display_port} " + Plugin.getProgram() if use_virtual_display else Plugin.getProgram(),
                              args, cwd=fnWorkingDir)
     #cleanPath(fnTmp)
 
@@ -203,8 +215,8 @@ def generateChimeraColorView(fnWorkingDir, project, fnRoot, fnMap, Ts, fnColor, 
     fn3 = os.path.join(fnWorkingDir, fnRoot + "3.jpg")
 
     newLines = [
-        "run(session, 'volume dataCacheSize %d')\n" % maxMemToUse,
-        "run(session, 'volume voxelLimitForOpen %d')\n" % maxVoxelsToOpen,
+        "run(session, 'volume dataCacheSize %d')\n" % max_mem_to_use,
+        "run(session, 'volume voxelLimitForOpen %d')\n" % max_voxels_to_open,
         "run(session, 'volume showPlane false')\n"
     ]
     referenceLine = "run(session, 'set bgColor white')"
@@ -235,8 +247,8 @@ run(session, 'exit')
     fhCmd.close()
 
     from chimera import Plugin
-    args = f"--script {cmdFile}" if useVirtualDisplay else f" --nogui --offscreen --script {cmdFile}"
-    Plugin.runChimeraProgram(f"xvfb-run --server-num={virtualDisplayPort} " + Plugin.getProgram() if useVirtualDisplay else Plugin.getProgram(),
+    args = f"--script {cmdFile}" if use_virtual_display else f" --nogui --offscreen --script {cmdFile}"
+    Plugin.runChimeraProgram(f"xvfb-run --server-num={virtual_display_port} " + Plugin.getProgram() if use_virtual_display else Plugin.getProgram(),
                              args, cwd=fnWorkingDir)
 
 def formatInv(value, pos):
@@ -1012,7 +1024,7 @@ This Validation Report Service uses Scipion (see this \\href{%s}{link} for more 
 """
         self.write(toWrite)
 
-    def closeReport(self, resolution, isTest):
+    def closeReport(self, resolution, is_test, store_intermediate_data, intermediate_data_final_path):
 
         toWrite = "\\end{document}\n"
         self.fh.write(toWrite)
@@ -1051,12 +1063,11 @@ This Validation Report Service uses Scipion (see this \\href{%s}{link} for more 
                        stderr=subprocess.STDOUT)
         os.chdir(self.fnProjectDir)
 
-        # If the VRS launch is a test do not store intermediate date
-        if isTest:
-            doStoreIntermediateData = False
-        # In case, VRS launch is not a test, follow config.yaml rules
-        else:
-            doStoreIntermediateData = STORE_INTERMEDIATE_DATA
 
-        if doStoreIntermediateData:
-            storeIntermediateData(self.fnReportDir, intermediateDataFinalPath)
+
+        # If the VRS launch is a test do not store intermediate date
+        if is_test:
+            store_intermediate_data = False
+
+        if store_intermediate_data:
+            storeIntermediateData(self.fnReportDir, intermediate_data_final_path)

@@ -28,7 +28,7 @@ import os
 
 import pyworkflow.plugin as pwplugin
 
-from validationReport import plotMicrograph
+from validationReport import plotMicrograph, get_env_bool
 from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes
 
 import configparser
@@ -37,7 +37,7 @@ from resources.constants import *
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
-useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
 
 def importMicrographs(project, label, fnMics, TsMics, kV, Cs, Q0):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -53,7 +53,7 @@ def importMicrographs(project, label, fnMics, TsMics, kV, Cs, Q0):
         protImport.sqliteFile.set(fnMics)
     else:
         protImport.filesPattern.set(fnMics)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImport)
     project.launchProtocol(protImport)
     #waitOutput(project, protImport, 'outputMicrographs')
@@ -72,7 +72,7 @@ def extractCoords(project, label, protImportParticles, protMics):
                                objLabel=label)
     prot.inputParticles.set(protImportParticles.outputParticles)
     prot.inputMicrographs.set(protMics.outputMicrographs)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputCoordinates')
@@ -127,7 +127,7 @@ def micCleaner(project, report, label, protCoords):
                                threshold=0.9)
     prot.inputCoordinates.set(protCoords.outputCoordinates)
 
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, GPU=True)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputCoordinates_Auto_090')

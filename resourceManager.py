@@ -8,8 +8,8 @@ import configparser
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
-standard_queue = config['QUEUE'].get('STANDARD_QUEUE_NAME')
-priority_queue = config['QUEUE'].get('PRIORITY_QUEUE_NAME')
+standard_queue = os.getenv('QUEUE_STANDARD_QUEUE_NAME') or config['QUEUE'].get('STANDARD_QUEUE_NAME')
+priority_queue = os.getenv('QUEUE_PRIORITY_QUEUE_NAME') or config['QUEUE'].get('PRIORITY_QUEUE_NAME')
 
 #TODO: add function to set whether the user wants to use slurm or not
 
