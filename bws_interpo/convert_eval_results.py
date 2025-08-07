@@ -129,6 +129,7 @@ def convert(
                      emb_entry, pdb_entry, title=protocol
                      )
 
+        return path_bws
 
 # Example Usage:
 # DeepRes:

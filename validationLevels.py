@@ -884,30 +884,47 @@ else:  # go ahead
             f.write(json.dumps(list(protDicts.values()),
                     indent=4, separators=(',', ': ')))
 
+    if IS_EMDB_ENTRY:
+        # Convert results to BWS compatible format
+        print("Convert results to 3DBionotes format ...")
+        try:
+            deepres_json_path = convert_to_bws("XmippProtDeepRes", project_root=project.getPath(),
+                                               volume="deepRes_resolution_originalSize.vol")
+            if deepres_json_path:
+                saveIntermediateData(report.getReportDir(), 'deepRes', True,
+                                     'deepRes_resolution_json', deepres_json_path,
+                                     'deepRes resolutions in json format')
+        except ValueError as e:
+            print(f"Failed to save DeepRes: {e}")
+
+        try:
+            monores_json_path = convert_to_bws("XmippProtMonoRes", project_root=project.getPath(),
+                                               volume="monoresResolutionMap.mrc")
+            if monores_json_path:
+                saveIntermediateData(report.getReportDir(), 'monoRes', True,
+                                     'monoRes_resolution_json', monores_json_path,
+                                     'monoRes resolutions in json format')
+        except ValueError as e:
+            print(f"Failed to save MonoRes: {e}")
+
+        try:
+            blocres_json_path = convert_to_bws("BsoftProtBlocres", project_root=project.getPath(),
+                                               volume="resolutionMap.map")
+            if blocres_json_path:
+                saveIntermediateData(report.getReportDir(), 'blocRes', True,
+                                     'blocRes_resolution_json', blocres_json_path,
+                                     'blocRes resolutions in json format')
+        except ValueError as e:
+            print(f"Failed to save BlocRes: {e}")
+
+        try:
+            fscq_json_path = convert_to_bws("XmippProtValFit", project_root=project.getPath(),
+                                            volume="diferencia.map")
+            if fscq_json_path:
+                saveIntermediateData(report.getReportDir(), 'FSCQ', True,
+                                     'FSCQ_resolution_json', fscq_json_path,
+                                     'FSCQ resolutions in json format')
+        except ValueError as e:
+            print(f"Failed to save FSC-Q: {e}")
+
     report.closeReport(MAPRESOLUTION, IS_TEST, store_intermediate_data, intermediate_data_final_path)
-
-    # Convert results to BWS compatible format
-    print("Convert results to 3DBionotes format ...")
-    try:
-        convert_to_bws("XmippProtDeepRes", project_root=project.getPath(),
-                       volume="deepRes_resolution_originalSize.vol")
-    except ValueError as e:
-        print(f"Failed to save DeepRes: {e}")
-
-    try:
-        convert_to_bws("XmippProtMonoRes", project_root=project.getPath(),
-                       volume="monoresResolutionMap.mrc")
-    except ValueError as e:
-        print(f"Failed to save MonoRes: {e}")
-
-    try:
-        convert_to_bws("BsoftProtBlocres", project_root=project.getPath(),
-                       volume="resolutionMap.map")
-    except ValueError as e:
-        print(f"Failed to save BlocRes: {e}")
-
-    try:
-        convert_to_bws("XmippProtValFit", project_root=project.getPath(),
-                       volume="diferencia.map")
-    except ValueError as e:
-        print(f"Failed to save FSC-Q: {e}")
