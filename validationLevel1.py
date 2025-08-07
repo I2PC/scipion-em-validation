@@ -525,7 +525,7 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
                             fnMaskedMap, Ts,
                             os.path.join(project.getPath(), prot._getExtraPath("resolutionMap.map")),
                             Rpercentiles[0], Rpercentiles[-1])
-    saveIntermediateData(report.getReportDir(), 'deepRes', True, 'blocResViewer',
+    saveIntermediateData(report.getReportDir(), 'blocRes', True, 'blocResViewer',
                          [os.path.join(report.getReportDir(), 'blocresViewer1.jpg'),
                           os.path.join(report.getReportDir(), 'blocresViewer2.jpg'),
                           os.path.join(report.getReportDir(), 'blocresViewer3.jpg')], 'blocRes views')
