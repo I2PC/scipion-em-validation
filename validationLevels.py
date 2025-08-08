@@ -892,7 +892,7 @@ else:  # go ahead
                                                volume="deepRes_resolution_originalSize.vol")
             if deepres_json_path:
                 saveIntermediateData(report.getReportDir(), 'deepRes', True,
-                                     'deepRes_resolution_json', deepres_json_path,
+                                     'deepRes_resolution_json', str(deepres_json_path),
                                      'deepRes resolutions in json format')
         except ValueError as e:
             print(f"Failed to save DeepRes: {e}")
@@ -902,7 +902,7 @@ else:  # go ahead
                                                volume="monoresResolutionMap.mrc")
             if monores_json_path:
                 saveIntermediateData(report.getReportDir(), 'monoRes', True,
-                                     'monoRes_resolution_json', monores_json_path,
+                                     'monoRes_resolution_json', str(monores_json_path),
                                      'monoRes resolutions in json format')
         except ValueError as e:
             print(f"Failed to save MonoRes: {e}")
@@ -912,7 +912,7 @@ else:  # go ahead
                                                volume="resolutionMap.map")
             if blocres_json_path:
                 saveIntermediateData(report.getReportDir(), 'blocRes', True,
-                                     'blocRes_resolution_json', blocres_json_path,
+                                     'blocRes_resolution_json', str(blocres_json_path),
                                      'blocRes resolutions in json format')
         except ValueError as e:
             print(f"Failed to save BlocRes: {e}")
@@ -922,7 +922,7 @@ else:  # go ahead
                                             volume="diferencia.map")
             if fscq_json_path:
                 saveIntermediateData(report.getReportDir(), 'FSCQ', True,
-                                     'FSCQ_resolution_json', fscq_json_path,
+                                     'FSCQ_resolution_json', str(fscq_json_path),
                                      'FSCQ resolutions in json format')
         except ValueError as e:
             print(f"Failed to save FSC-Q: {e}")
