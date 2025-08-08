@@ -251,7 +251,7 @@ def main(argv):
 
     # Launch validation over all EMDB entries
     main_group.add_argument('--launchAll', '-la', help='launch validations over all EMDB entries', action='store_true')
-    parser.add_argument('--level', '-l', help='when --launchAll or launchList: which level launch', choices=['0', '0,A', '0,1', 'O,A,1'])
+    parser.add_argument('--level', '-l', help='when --launchAll or launchList: which level launch', choices=['0', '0,A', '0,1', '0,A,1'])
     parser.add_argument('--nEntries', '-n', type=int, help='when --launchAll: how many EMDB entries (i.e: 100)')
     subgroup.add_argument('--startEntry', '-start', type=int, help='when --launchAll: starting EMDB position entry from list (i.e:1)')
     subgroup.add_argument('--random', '-r', help='when --launchAll: select nEntries random entries from list', action='store_true')
