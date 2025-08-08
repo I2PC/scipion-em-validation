@@ -22,7 +22,7 @@ scipion_projects_path = os.getenv('SCIPION_SCIPIONPROJECTS_PATH') or config['SCI
 scipion_launcher = os.getenv('SCIPION_SCIPION_LAUNCHER') or config['SCIPION'].get('SCIPION_LAUNCHER')
 validation_server_launcher = os.getenv('EM_VALIDATION_VALIDATION_SERVER_LAUNCHER') or config['EM-VALIDATION'].get('VALIDATION_SERVER_LAUNCHER')
 clean_original_data = get_env_bool('INTERMEDIATE_DATA_CLEAN_ORIGINAL_DATA') or config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
-num_concurrent_launches = get_env_int('OTHER_NUM_CONCURRENT_LAUNCHES') or config['OTHER'].get('NUM_CONCURRENT_LAUNCHES')
+num_concurrent_launches = get_env_int('OTHER_NUM_CONCURRENT_LAUNCHES') or config['OTHER'].getint('NUM_CONCURRENT_LAUNCHES')
 
 def connect_to_ddbb():
     connection = mysql.connector.connect(host='localhost', user='vrs', password='', database='vrs')
