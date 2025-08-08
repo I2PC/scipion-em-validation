@@ -11,7 +11,7 @@ import sys
 import argparse
 import re
 
-from ..validationLevels import get_env_bool, get_env_int
+from ..validationReport import get_env_bool, get_env_int
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.yaml'))
