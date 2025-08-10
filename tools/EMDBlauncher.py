@@ -21,6 +21,7 @@ log_folder = os.getenv('EMDB_LOG_PATH') or config['EMDB'].get('LOG_PATH')
 scipion_projects_path = os.getenv('SCIPION_SCIPIONPROJECTS_PATH') or config['SCIPION'].get('SCIPIONPROJECTS_PATH')
 scipion_launcher = os.getenv('SCIPION_SCIPION_LAUNCHER') or config['SCIPION'].get('SCIPION_LAUNCHER')
 validation_server_launcher = os.getenv('EM_VALIDATION_VALIDATION_SERVER_LAUNCHER') or config['EM-VALIDATION'].get('VALIDATION_SERVER_LAUNCHER')
+CLEAN_ORIGINAL_DATA = get_env_bool('INTERMEDIATE_DATA_CLEAN_ORIGINAL_DATA') or config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
 num_concurrent_launches = get_env_int('OTHER_NUM_CONCURRENT_LAUNCHES') or config['OTHER'].getint('NUM_CONCURRENT_LAUNCHES')
 
 def connect_to_ddbb():
@@ -82,11 +83,16 @@ def launcher(entry, cmd, log_file, levels, isTest):
             data)
         connection.commit()
         connection.close()
-
         # remove scipion project
-        clean_original_data = get_env_bool('INTERMEDIATE_DATA_CLEAN_ORIGINAL_DATA') or config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
+
         # If the VRS launch is a test do not clean original data
-        if not isTest and clean_original_data and process.returncode == 0 and os.path.exists(reportPath):
+        if isTest:
+            cleanOriginalData = False
+        # In case, VRS launch is not a test, follow config.yaml rules
+        else:
+            cleanOriginalData = CLEAN_ORIGINAL_DATA
+
+        if cleanOriginalData and process.returncode == 0 and os.path.exists(reportPath):
             cmd = 'rm -rf %s' % os.path.join(scipion_projects_path, entry)
             subprocess.run(cmd, shell=True)
     except Exception as e:
