@@ -884,7 +884,7 @@ else:  # go ahead
             f.write(json.dumps(list(protDicts.values()),
                     indent=4, separators=(',', ': ')))
 
-    if IS_EMDB_ENTRY:
+    if IS_EMDB_ENTRY and "A" in levels:
         # Convert results to BWS compatible format
         print("Convert results to 3DBionotes format ...")
         try:
@@ -894,7 +894,7 @@ else:  # go ahead
                 saveIntermediateData(report.getReportDir(), 'deepRes', True,
                                      'deepRes_resolution_json', str(deepres_json_path),
                                      'deepRes resolutions in json format')
-        except ValueError as e:
+        except Exception as e:
             print(f"Failed to save DeepRes: {e}")
 
         try:
@@ -904,7 +904,7 @@ else:  # go ahead
                 saveIntermediateData(report.getReportDir(), 'monoRes', True,
                                      'monoRes_resolution_json', str(monores_json_path),
                                      'monoRes resolutions in json format')
-        except ValueError as e:
+        except Exception as e:
             print(f"Failed to save MonoRes: {e}")
 
         try:
@@ -914,7 +914,7 @@ else:  # go ahead
                 saveIntermediateData(report.getReportDir(), 'blocRes', True,
                                      'blocRes_resolution_json', str(blocres_json_path),
                                      'blocRes resolutions in json format')
-        except ValueError as e:
+        except Exception as e:
             print(f"Failed to save BlocRes: {e}")
 
         try:
@@ -924,7 +924,7 @@ else:  # go ahead
                 saveIntermediateData(report.getReportDir(), 'FSCQ', True,
                                      'FSCQ_resolution_json', str(fscq_json_path),
                                      'FSCQ resolutions in json format')
-        except ValueError as e:
+        except Exception as e:
             print(f"Failed to save FSC-Q: {e}")
 
     report.closeReport(MAPRESOLUTION, IS_TEST, store_intermediate_data, intermediate_data_final_path)
