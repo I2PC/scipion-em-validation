@@ -595,7 +595,7 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
         p.wait()
         sleep(120)
     else:
-        cmd = f'{containerized_launcher_path if containerized else ""}'
+        cmd = f'{"bash " + containerized_launcher_path if containerized else ""}'
         if use_virtual_display:
             cmd += f' xvfb-run --server-num={virtual_display_port}'
         cmd = f'{cmd} {resmap} {args}'

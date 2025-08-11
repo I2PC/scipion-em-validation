@@ -714,7 +714,7 @@ is between 0 and 300 \AA$^2$.
         p.wait()
         sleep(120)
     else:
-        cmd = f'{containerized_launcher_path if containerized else scipion3} xmipp_volume_correct_bfactor {args}'
+        cmd = f'{"bash " + containerized_launcher_path if containerized else scipion3} xmipp_volume_correct_bfactor {args}'
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
         slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_level0_' + str(
             randomInt), report.getReportDir(), cmd, priority=priority)
