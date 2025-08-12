@@ -10,7 +10,7 @@ config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 standard_queue = os.getenv('QUEUE_STANDARD_QUEUE_NAME') or config['QUEUE'].get('STANDARD_QUEUE_NAME')
 priority_queue = os.getenv('QUEUE_PRIORITY_QUEUE_NAME') or config['QUEUE'].get('PRIORITY_QUEUE_NAME')
-node_list = os.getenv('QUEUE_NODE_LIST').split(',') or config['QUEUE'].get('NODE_LIST', [])
+node_list = os.getenv('QUEUE_NODE_LIST').split(',') if os.getenv('QUEUE_NODE_LIST') else config['QUEUE'].get('NODE_LIST', [])
 
 #TODO: add function to set whether the user wants to use slurm or not
 
