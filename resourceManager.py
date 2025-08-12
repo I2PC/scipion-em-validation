@@ -10,7 +10,12 @@ config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 standard_queue = os.getenv('QUEUE_STANDARD_QUEUE_NAME') or config['QUEUE'].get('STANDARD_QUEUE_NAME')
 priority_queue = os.getenv('QUEUE_PRIORITY_QUEUE_NAME') or config['QUEUE'].get('PRIORITY_QUEUE_NAME')
-node_list = os.getenv('QUEUE_NODE_LIST').split(',') if os.getenv('QUEUE_NODE_LIST') else config['QUEUE'].get('NODE_LIST', [])
+if os.getenv('QUEUE_NODE_LIST'):
+  node_list = os.getenv('QUEUE_NODE_LIST')
+elif config['QUEUE'].getboolean('USE_SPECIFIC_NODES'):
+  node_list = config['QUEUE'].get('NODE_LIST')
+else:
+  node_list = None
 
 #TODO: add function to set whether the user wants to use slurm or not
 
@@ -121,7 +126,7 @@ def createScriptForSlurm(jobname, path, command, nTasks=1, cpusPerTask=1, memory
 %s""" % (jobname,
          os.path.join(path, jobname + '.job.out'),
          os.path.join(path, jobname + '.job.err'),
-         f'#SBATCH --nodelist={",".join(node_list)}' if len(node_list)>0 else '',
+         f'#SBATCH --nodelist={node_list}' if node_list else '',
          priority_queue if priority else standard_queue,
          hours, nTasks, cpusPerTask, memory, nGPUs, command)
   with open(os.path.join(path, jobname + '.sh'), 'w') as archivo:
