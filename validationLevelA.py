@@ -472,7 +472,7 @@ def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protI
 
     if protPhenix.isFailed():
         print("Phenix protocol failed while checking if map and model are fitted.")
-        return None, protPhenix, dataPhenix, protAtom, pdbdb_Id, False
+        return None, protPhenix, dataPhenix, protAtom, pdbdb_Id
 
     if protPhenix.isAborted():
         print(PRINT_PROTOCOL_ABORTED + ": " + NAME_PHENIX)
@@ -788,7 +788,7 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
         p.wait()
         sleep(120)
     else:
-        cmd = f'{containerized_launcher_path if containerized else scipion3} xmipp_volume_correct_bfactor {args}'
+        cmd = f'{"bash " + containerized_launcher_path if containerized else scipion3} xmipp_volume_correct_bfactor {args}'
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
         slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_levelA_' + str(randomInt), report.getReportDir(), cmd, priority=priority)
         # send job to queue

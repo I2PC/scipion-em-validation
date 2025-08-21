@@ -525,7 +525,7 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
                             fnMaskedMap, Ts,
                             os.path.join(project.getPath(), prot._getExtraPath("resolutionMap.map")),
                             Rpercentiles[0], Rpercentiles[-1])
-    saveIntermediateData(report.getReportDir(), 'deepRes', True, 'blocResViewer',
+    saveIntermediateData(report.getReportDir(), 'blocRes', True, 'blocResViewer',
                          [os.path.join(report.getReportDir(), 'blocresViewer1.jpg'),
                           os.path.join(report.getReportDir(), 'blocresViewer2.jpg'),
                           os.path.join(report.getReportDir(), 'blocresViewer3.jpg')], 'blocRes views')
@@ -595,7 +595,7 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
         p.wait()
         sleep(120)
     else:
-        cmd = f'{containerized_launcher_path if containerized else ""}'
+        cmd = f'{"bash " + containerized_launcher_path if containerized else ""}'
         if use_virtual_display:
             cmd += f' xvfb-run --server-num={virtual_display_port}'
         cmd = f'{cmd} {resmap} {args}'
