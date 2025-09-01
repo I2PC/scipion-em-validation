@@ -50,9 +50,12 @@ from bws_interpo.convert_eval_results import convert as convert_to_bws
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
-use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
-store_intermediate_data = get_env_bool('INTERMEDIATE_DATA_STORE_INTERMEDIATE_DATA') or config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
-intermediate_data_final_path = os.getenv('INTERMEDIATE_DATA_DEST_PATH') or config['INTERMEDIATE_DATA'].get('DEST_PATH')
+use_slurm = get_env_bool(
+    'QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
+store_intermediate_data = get_env_bool(
+    'INTERMEDIATE_DATA_STORE_INTERMEDIATE_DATA') or config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
+intermediate_data_final_path = os.getenv(
+    'INTERMEDIATE_DATA_DEST_PATH') or config['INTERMEDIATE_DATA'].get('DEST_PATH')
 
 
 class OutOfChainsError(Exception):  # TODO: remove it when updating pwem repo
@@ -211,7 +214,7 @@ JOB_DESCRIPTION = None
 EMDB_ID = None
 EMDB_ID_NUM = None
 PDB_ID = None
-IS_EMDB_ENTRY = False
+is_emdb_entry = False
 LEVELS = None
 PRIORITY_QUEUE = False
 
@@ -241,7 +244,7 @@ wrongInputs = {'errors': [], 'warnings': []}
 
 for arg in sys.argv:
     if arg.startswith('EMDBid='):
-        IS_EMDB_ENTRY = True
+        is_emdb_entry = True
         EMDB_ID = arg.split('EMDBid=')[1]
         EMDB_ID_NUM = EMDB_ID.replace("EMD-", "")
         PROJECT_NAME = EMDB_ID
@@ -250,7 +253,7 @@ for arg in sys.argv:
     if arg.startswith('--isTest'):
         IS_TEST = True
 
-if IS_EMDB_ENTRY:
+if is_emdb_entry:
     does_map_exist = EMDButils.does_map_exist(EMDB_ID_NUM)
     if does_map_exist[0]:
         TS, MAPTHRESHOLD, MAPRESOLUTION, map_metadata_response_code, map_metadata_response_text = EMDButils.get_map_metadata(
@@ -409,13 +412,14 @@ fnProjectDir = project.getPath()
 os.chdir(fnProjectDir)
 
 # check 'map' arg
-if IS_EMDB_ENTRY:
+if is_emdb_entry:
     protImportMapChecker = project.newProtocol(
         pwplugin.Domain.importFromPlugin(
             'pwem.protocols', 'ProtImportVolumes', doRaise=True),
         objLabel='check format - import map from EMDB',
         importFrom=IMPORT_FROM_EMDB,
         emdbId=EMDB_ID_NUM)
+
 else:
     fnDir, fnBase = os.path.split(FNMAP)
     if MAPCOORDX is not None and MAPCOORDY is not None and MAPCOORDZ is not None:
@@ -437,17 +441,18 @@ else:
                                                    setOrigCoord=False)
 
 if use_slurm:
-    sendToSlurm(protImportMapChecker, priority=False if IS_EMDB_ENTRY else True)
+    sendToSlurm(protImportMapChecker,
+                priority=False if is_emdb_entry else True)
 project.launchProtocol(protImportMapChecker)
 # waitOutput(project, protImportMapChecker, 'outputVolume')
 waitUntilFinishes(project, protImportMapChecker)
 if protImportMapChecker.isFailed():
-    error_value = EMDB_ID if IS_EMDB_ENTRY else os.path.basename(FNMAP)
+    error_value = EMDB_ID if is_emdb_entry else os.path.basename(FNMAP)
     wrongInputs['errors'].append(
         {'param': 'map', 'value': error_value, 'cause': 'There is a problem reading the volume map file'})
 
 else:
-    if IS_EMDB_ENTRY:
+    if is_emdb_entry:
         FNMAP = os.path.join(
             project.getPath(), protImportMapChecker.outputVolume.getFileName())
         MAPCOORDX, MAPCOORDY, MAPCOORDZ = protImportMapChecker.outputVolume.getShiftsFromOrigin()
@@ -472,10 +477,11 @@ else:
                                                 threshold=MAPTHRESHOLD,
                                                 doBig=True,
                                                 doMorphological=True,
-                                                elementSize=math.ceil(2/TS)) # Dilation by 2A
-    
+                                                elementSize=math.ceil(2/TS))  # Dilation by 2A
+
     if use_slurm:
-        sendToSlurm(protCreateMaskChecker, priority=False if IS_EMDB_ENTRY else True)
+        sendToSlurm(protCreateMaskChecker,
+                    priority=False if is_emdb_entry else True)
     project.launchProtocol(protCreateMaskChecker)
     waitUntilFinishes(project, protCreateMaskChecker)
 
@@ -507,7 +513,8 @@ if "1" in levels:
                                                     samplingRate=TS,
                                                     setOrigCoord=False)
     if use_slurm:
-        sendToSlurm(protImportMap1Checker, priority=False if IS_EMDB_ENTRY else True)
+        sendToSlurm(protImportMap1Checker,
+                    priority=False if is_emdb_entry else True)
     project.launchProtocol(protImportMap1Checker)
     # waitOutput(project, protImportMap1Checker, 'outputVolume')
     waitUntilFinishes(project, protImportMap1Checker)
@@ -535,7 +542,8 @@ if "1" in levels:
                                                     samplingRate=TS,
                                                     setOrigCoord=False)
     if use_slurm:
-        sendToSlurm(protImportMap2Checker, priority=False if IS_EMDB_ENTRY else True)
+        sendToSlurm(protImportMap2Checker,
+                    priority=False if is_emdb_entry else True)
     project.launchProtocol(protImportMap2Checker)
     # waitOutput(project, protImportMap2Checker, 'outputVolume')
     waitUntilFinishes(project, protImportMap2Checker)
@@ -613,7 +621,7 @@ if "5" in levels:
                                      'cause': 'There is a problem reading the micrographs file'})
 
 if "A" in levels and not protImportMapChecker.isFailed():
-    if IS_EMDB_ENTRY:
+    if is_emdb_entry:
         FNMODEL = EMDButils.download_atomicmodel(PDB_ID, project.getPath())
     # Check 'atomicModel' arg
     writeAtomicModelFailed = False
@@ -653,9 +661,11 @@ if "A" in levels and not protImportMapChecker.isFailed():
                                                            objLabel='check format - import atomic',
                                                            inputPdbData=1,
                                                            pdbFile=fnPdb)
-        protImportAtomicModelChecker.inputVolume.set(protImportMapChecker.outputVolume)
+        protImportAtomicModelChecker.inputVolume.set(
+            protImportMapChecker.outputVolume)
         if use_slurm:
-            sendToSlurm(protImportAtomicModelChecker, priority=False if IS_EMDB_ENTRY else True)
+            sendToSlurm(protImportAtomicModelChecker,
+                        priority=False if is_emdb_entry else True)
         project.launchProtocol(protImportAtomicModelChecker)
         # waitOutput(project, protImportAtomicModelChecker, 'outputPdb')
         waitUntilFinishes(project, protImportAtomicModelChecker)
@@ -691,7 +701,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                          threshold=MAPTHRESHOLD,
                                          doBig=True,
                                          doMorphological=True,
-                                         elementSize=math.ceil(2/TS)) # Dilation by 2A
+                                         elementSize=math.ceil(2/TS))  # Dilation by 2A
     if use_slurm:
         sendToSlurm(protCreateMask)
     project.launchProtocol(protCreateMask)
@@ -757,7 +767,8 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                                   boxSize=boxSize)
     if UNTILTEDCOORDS.endswith('.json'):
         protImportCoordsChecker.importFrom.set(1)
-    protImportCoordsChecker.inputMicrographsTiltedPair.set(protImportTiltPairsChecker.outputMicrographsTiltPair)
+    protImportCoordsChecker.inputMicrographsTiltedPair.set(
+        protImportTiltPairsChecker.outputMicrographsTiltPair)
     if use_slurm:
         sendToSlurm(protImportCoordsChecker)
     project.launchProtocol(protImportCoordsChecker)
@@ -769,7 +780,7 @@ if "O" in levels and not protImportMapChecker.isFailed():
         wrongInputs['errors'].append({'param': 'tiltedCoords', 'value': TILTEDCOORDS,
                                      'cause': 'There is a problem reading the tilted coords file'})
 
-report = ValidationReport(fnProjectDir, levels, IS_EMDB_ENTRY, EMDB_ID,
+report = ValidationReport(fnProjectDir, levels, is_emdb_entry, EMDB_ID,
                           FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION)
 
 with open(os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f:
@@ -796,13 +807,13 @@ else:  # go ahead
     # Level 0
     from validationLevel0 import level0
     protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, protCreateSoftMaskFromResizedMap, fnMaskedMapDict = level0(
-        project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis=False, priority=False if IS_EMDB_ENTRY else True)
+        project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis=False, priority=False if is_emdb_entry else True)
 
     # Level 1
     if "1" in levels:
         from validationLevel1 import level1
         level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protImportMap,
-               protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False if IS_EMDB_ENTRY else True)
+               protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False if is_emdb_entry else True)
 
     # Level 2
     if "2" in levels:
@@ -834,7 +845,7 @@ else:  # go ahead
     if "A" in levels:
         from validationLevelA import levelA
         protAtom = levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, MAPRESOLUTION, doMultimodel,
-                          MAPCOORDX, MAPCOORDY, MAPCOORDZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False if IS_EMDB_ENTRY else True)
+                          MAPCOORDX, MAPCOORDY, MAPCOORDZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False if is_emdb_entry else True)
     else:
         protAtom = None
 
@@ -884,47 +895,66 @@ else:  # go ahead
             f.write(json.dumps(list(protDicts.values()),
                     indent=4, separators=(',', ': ')))
 
-    if IS_EMDB_ENTRY and "A" in levels:
+    if is_emdb_entry and "A" in levels:
+        emdb_entry_identifier = f"EMD-{EMDB_ID_NUM}"
+
         # Convert results to BWS compatible format
         print("Convert results to 3DBionotes format ...")
         try:
-            deepres_json_path = convert_to_bws("XmippProtDeepRes", project_root=project.getPath(),
+            deepres_json_path = convert_to_bws("XmippProtDeepRes", emdb_entry_identifier, project_root=project.getPath(),
                                                volume="deepRes_resolution_originalSize.vol")
             if deepres_json_path:
                 saveIntermediateData(report.getReportDir(), 'deepRes', True,
-                                     'deepRes_resolution_json', str(deepres_json_path),
+                                     'deepRes_resolution_json', str(
+                                         deepres_json_path),
                                      'deepRes resolutions in json format')
         except Exception as e:
             print(f"Failed to save DeepRes: {e}")
 
         try:
-            monores_json_path = convert_to_bws("XmippProtMonoRes", project_root=project.getPath(),
+            monores_json_path = convert_to_bws("XmippProtMonoRes", emdb_entry_identifier, project_root=project.getPath(),
                                                volume="monoresResolutionMap.mrc")
             if monores_json_path:
                 saveIntermediateData(report.getReportDir(), 'monoRes', True,
-                                     'monoRes_resolution_json', str(monores_json_path),
+                                     'monoRes_resolution_json', str(
+                                         monores_json_path),
                                      'monoRes resolutions in json format')
         except Exception as e:
             print(f"Failed to save MonoRes: {e}")
 
         try:
-            blocres_json_path = convert_to_bws("BsoftProtBlocres", project_root=project.getPath(),
+            blocres_json_path = convert_to_bws("BsoftProtBlocres", emdb_entry_identifier, project_root=project.getPath(),
                                                volume="resolutionMap.map")
+
             if blocres_json_path:
                 saveIntermediateData(report.getReportDir(), 'blocRes', True,
-                                     'blocRes_resolution_json', str(blocres_json_path),
+                                     'blocRes_resolution_json', str(
+                                         blocres_json_path),
                                      'blocRes resolutions in json format')
         except Exception as e:
             print(f"Failed to save BlocRes: {e}")
 
         try:
-            fscq_json_path = convert_to_bws("XmippProtValFit", project_root=project.getPath(),
+            fscq_json_path = convert_to_bws("XmippProtValFit", emdb_entry_identifier, project_root=project.getPath(),
                                             volume="diferencia.map")
+
             if fscq_json_path:
                 saveIntermediateData(report.getReportDir(), 'FSCQ', True,
-                                     'FSCQ_resolution_json', str(fscq_json_path),
+                                     'FSCQ_resolution_json', str(
+                                         fscq_json_path),
                                      'FSCQ resolutions in json format')
         except Exception as e:
             print(f"Failed to save FSC-Q: {e}")
 
-    report.closeReport(MAPRESOLUTION, IS_TEST, store_intermediate_data, intermediate_data_final_path)
+        try:
+            mapq_json_path = convert_to_bws("ProtMapQ", emdb_entry_identifier, project_root=project.getPath(),
+                                            volume="map.mrc")
+            # if mapq_json_path:
+            #     saveIntermediateData(report.getReportDir(), 'Map-Q', True,
+            #                          'Map_q_resolution_json', str(fscq_json_path),
+            #                          'FSCQ resolutions in json format')
+        except Exception as e:
+            print(f"Failed to save Map-Q: {e}")
+
+    report.closeReport(MAPRESOLUTION, IS_TEST,
+                       store_intermediate_data, intermediate_data_final_path)
