@@ -74,5 +74,5 @@ def save_for_bws(input_path, output_path, emd_entry, pdb_entry, *, title):
             "chains": chains,
         }
 
-        with open(output_path, "w") as f:
+        with open(output_path, "x") as f:
             json.dump(outputs, f)

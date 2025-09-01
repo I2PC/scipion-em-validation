@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from .find_files import _find_file, find_dependency_filenames
 from functools import partial
+import warnings
 
 from .pdb import load_cif_as_pdb
 from .bws import save_for_bws
@@ -36,18 +37,22 @@ def fetch_files(protocol: str, *, project_root: os.PathLike, volume: str):
         label="Volume",
     )
 
-    (mask_filename,) = find_dependency_filenames(
-        project_root,
-        protocol=protocol,
-        query=["XmippProtCreateMask3D"],
-    )
+    try:
+        (mask_filename,) = find_dependency_filenames(
+            project_root,
+            protocol=protocol,
+            query=["XmippProtCreateMask3D"],
+        )
 
-    mask_path = _find_file(
-        project_root / "Runs" / mask_filename,
-        suffix="mrc",
-        pattern="(.*).mrc",
-        label="DeepRes mask",
-    )
+        mask_path = _find_file(
+            project_root / "Runs" / mask_filename,
+            suffix="mrc",
+            pattern="(.*).mrc",
+            label="mask",
+        )
+    except:
+        warnings.warn("Could ont find mask file", UserWarning)
+        mask_path = None
 
     structure_path = _find_file(project_root, suffix="cif", label="CIF file")
 
@@ -94,6 +99,9 @@ def convert(
 ):
 
     inputs = fetch_files(protocol, project_root=project_root, volume=volume)
+    print(inputs)
+
+    assert inputs.volume is not None
 
     structure = load_cif_as_pdb(inputs.structure)
     # structure = TempFileProxy.proxy_for_string(structure, file_ext="pdb")
@@ -129,6 +137,7 @@ def convert(
                      emb_entry, pdb_entry, title=protocol
                      )
 
+        print(f"BWS JSON file for {protocol} at: {path_bws}")
         return path_bws
 
 # Example Usage:
