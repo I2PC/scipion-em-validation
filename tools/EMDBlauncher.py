@@ -197,7 +197,7 @@ def launch_fails(isTest, exceptions=[]):
             output_files.append(os.path.join(log_folder, entry))
 
     if emdb_entries:
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_concurrent_launches) as executor:
             for cmd, output_file, entry, level in zip(cmds, output_files, emdb_entries, doLevels):
                 executor.submit(launcher, entry, cmd, output_file, level, isTest)
                 sleep(60)
@@ -232,7 +232,7 @@ def launch_list(input_list, doLevels, isTest):
             cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, doLevels, "--isTest" if isTest else ""))
             output_files.append(os.path.join(log_folder, entry))
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_concurrent_launches) as executor:
             for cmd, output_file, entry in zip(cmds, output_files, emdb_entries):
                 executor.submit(launcher, entry, cmd, output_file, doLevels, isTest)
                 sleep(60)
