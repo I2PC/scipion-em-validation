@@ -750,12 +750,12 @@ else: # go ahead
     # Create report
     # Level 0
     from validationLevel0 import level0
-    protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, protCreateSoftMaskFromResizedMap, fnMaskedMapDict = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False, priority=False if IS_EMDB_ENTRY else True)
+    protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, protCreateSoftMaskFromResizedMap, fnMaskedMapDict = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = True, priority=False if IS_EMDB_ENTRY else True)
 
     # Level 1
     if "1" in levels:
         from validationLevel1 import level1
-        level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protImportMap, protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis = False, priority=False if IS_EMDB_ENTRY else True)
+        level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protImportMap, protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis = True, priority=False if IS_EMDB_ENTRY else True)
 
     # Level 2
     if "2" in levels:
