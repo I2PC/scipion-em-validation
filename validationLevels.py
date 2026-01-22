@@ -588,13 +588,14 @@ if "A" in levels and not protImportMapChecker.isFailed():
         h.read(FNMODEL)
         try:  # Check if biopython can convert atomic file to PDB
             # Get structure ID
-            structure_id = os.path.basename(FNMODEL)
-            structure_id = structure_id[:4] if len(structure_id) > 4 else "1xxx"
-            pdbFile = '%s.pdb' % (structure_id)
+            # structure_id = os.path.basename(FNMODEL)
+            # structure_id = structure_id[:4] if len(structure_id) > 4 else "1xxx"
+            # pdbFile = '%s.cif' % (structure_id)
 
             # Get tmp pdb  from imput atomic model to work on
-            fnPdb = os.path.join(project.getTmpPath(), pdbFile) #TODO: save it in other folder
-            h.writeAsPdb(fnPdb)
+            # fnPdb = os.path.join(project.getTmpPath(), pdbFile) #TODO: save it in other folder
+            fnPdb = FNMODEL
+            # h.writeAsPdb(fnPdb)
         except OutOfChainsError:
             wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Atomic model file not valid. Some programs cannot handle it due to size: Too many chains to represent in PDB format'})
             writeAtomicModelFailed = True
