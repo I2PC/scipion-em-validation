@@ -1072,10 +1072,13 @@ have a Gaussian shape.\\\\
             return prot
 
         saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*.cif')))[0], 'cif file')
-        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map_All.txt')))[0], 'Q__map_All txt file')
-        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map.pdb', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.pdb')))[0], 'Q__map pdb file')
-
-        input_file = glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.pdb')))[0]
+        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All',
+                             glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.mrc_All.txt')))[0],
+                             'Q__map_All txt file')
+        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map.pdb',
+                             glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.mrc.pdb')))[0],
+                             'Q__map pdb file')
+        input_file = glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.mrc.pdb')))[0]
         # emd_26162_pdb_7txz_emv_mapq.json
         output_file = os.path.join(project.getPath(), prot._getExtraPath(), "%s_pdb_%s_emv_mapq.json" % (emdb_Id.lower().replace('-','_'), pdbdb_Id.lower()))
         json_file = convert_2_json(emdb_Id, pdbdb_Id, method='mapq', input_file=input_file, output_file=output_file)
