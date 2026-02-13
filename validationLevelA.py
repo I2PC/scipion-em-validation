@@ -72,19 +72,19 @@ def importMap(project, label, protImportMap, mapCoordX, mapCoordY, mapCoordZ, pr
 
     if mapCoordX is not None and mapCoordY is not None and mapCoordZ is not None:
         prot = project.newProtocol(Prot,
-                                   objLabel=label,
                                    filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
                                    samplingRate=protImportMap.outputVolume.getSamplingRate(),
                                    setOrigCoord=True,
                                    x=mapCoordX,
                                    y=mapCoordY,
                                    z=mapCoordZ)
+        prot.setObjLabel(label)
     else:
         prot = project.newProtocol(Prot,
-                                   objLabel=label,
                                    filesPath=os.path.join(project.getPath(),protImportMap.outputVolume.getFileName()),
                                    samplingRate=protImportMap.outputVolume.getSamplingRate(),
                                    setOrigCoord=False)
+        prot.setObjLabel(label)
     if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
@@ -96,9 +96,9 @@ def importModel(project, report, label, protImportMap, fnPdb, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportPdb', doRaise=True)
     protImport = project.newProtocol(Prot,
-                                     objLabel=label,
                                      inputPdbData=1,
                                      pdbFile=fnPdb)
+    protImport.setObjLabel(label)
     protImport.inputVolume.set(protImportMap.outputVolume)
     if use_slurm:
         sendToSlurm(protImport, priority=True if priority else False)
@@ -119,12 +119,62 @@ def moveOriginTo(newOrigin, handler):
         coords = atom.get_coord()
         atom.coord = coords + np.asarray(newOrigin) - np.asarray(centerMass)
 
+def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
+    # Checking if there are residues defined as N (undefined) which will cause errors and need to be eliminated
+    command_N_residues = f"awk '{{ if ($6 == \"N\") print }}' {FNMODEL}"
+    result_N_residues = subprocess.run(command_N_residues, shell=True, capture_output=True, text=True)
+
+    # Eliminate hetero atoms to reduce potential errors
+    command_hetatm = f"grep 'HETATM' {FNMODEL} | awk '{{print $3, $4}}' | sort | uniq -c"
+    result_hetatm = subprocess.run(command_hetatm, shell=True, capture_output=True, text=True)
+    # Check if there's any output and eliminate them
+    Prot = pwplugin.Domain.importFromPlugin('pwchem.protocols',
+                                            'ProtChemPrepareReceptor', doRaise=True)
+    if result_hetatm.stdout:
+        print('Hetero atoms were found, starting to delete them...')
+        prot = project.newProtocol(Prot,
+                                   waters=False,
+                                   usePDBFixer=True,
+                                   addAtoms=3,
+                                   addRes=False,
+                                   extraClean=True
+                                   )
+        prot.setObjLabel('eliminating HETATM')
+    else:
+        print("No HETATM found.")
+        print("Using PDB Fixer only...")
+        prot = project.newProtocol(Prot,
+                                   waters=False,
+                                   HETATM=False,
+                                   usePDBFixer=True,
+                                   addAtoms=3,
+                                   addRes=False,
+                                   extraClean=True
+                                   )
+        prot.setObjLabel('eliminating HETATM')
+    prot.inputAtomStruct.set(protAtom.outputPdb)
+    if useSlurm:
+        sendToSlurm(prot, priority=True if priority else False)
+    project.launchProtocol(prot)
+    waitUntilFinishes(project, prot)
+    prot.outputPdb = prot.outputStructure
+
+    # Adding warning if N or hetatm where deleted
+    if result_N_residues.stdout and result_hetatm.stdout: # if there are undefined residues they are identified as hetero atoms (no need for a section only for undefined residues)
+        message = 'There are undefined residues (label\\_comp\\_id = N) and also hetero atoms which were deleted in order to perform this analysis.\n\n'
+    elif result_hetatm.stdout:
+        message = 'There are hetero atoms which were deleted in other to perform this analysis.\n\n'
+    else:
+        message = ''
+
+    return prot, message
+
 def phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
                                             'PhenixProtRunValidationCryoEM', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel=label,
                                resolution=max(resolution,3.0))
+    prot.setObjLabel(label)
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
     if use_slurm:
@@ -148,7 +198,11 @@ dataOut["cc_mask"]=data.model_vs_data.cc.cc_mask
 dataOut["cc_box"]=data.model_vs_data.cc.cc_box
 dataOut["cc_peaks"]=data.model_vs_data.cc.cc_peaks
 dataOut["cc_volume"]=data.model_vs_data.cc.cc_volume
-dataOut["cc_main_chain"]=data.model_vs_data.cc.cc_main_chain.cc
+try:
+    dataOut["cc_main_chain"]=data.model_vs_data.cc.cc_main_chain.cc
+except:
+    pass
+
 try:
     dataOut["cc_side_chain"]=data.model_vs_data.cc.cc_side_chain.cc
 except:
@@ -189,27 +243,34 @@ dataOut['d_model_b0_unmasked']=data.data.unmasked.d_model_b0
 dataOut['*dFSCmodel_0_unmasked']=data.data.unmasked.d_fsc_model_0
 dataOut['*dFSCmodel_0.143_unmasked']=data.data.unmasked.d_fsc_model_0143
 dataOut['*dFSCmodel_0.5_unmasked']=data.data.unmasked.d_fsc_model_05
-
+    
 # FSCs -------------------------------------------------------------
-if data.data.masked.fsc_curve_model.fsc is not None:
-    fsc_model_map_masked = []
-    d_inv_model_map_masked = []
-    for item in data.data.masked.fsc_curve_model.fsc:
-        fsc_model_map_masked.append(item)
-    dataOut['FSC_Model_Map_Masked'] = fsc_model_map_masked
-    for item in data.data.masked.fsc_curve_model.d_inv:
-        d_inv_model_map_masked.append(item)
-    dataOut['d_inv_Model_Map_Masked'] = d_inv_model_map_masked
-if data.data.unmasked.fsc_curve_model.fsc is not None:
-    fsc_model_map_unmasked = []
-    d_inv_model_map_unmasked = []
-    for item in data.data.unmasked.fsc_curve_model.fsc:
-        fsc_model_map_unmasked.append(item)
-    dataOut['FSC_Model_Map_Unmasked'] = fsc_model_map_unmasked
-    for item in data.data.unmasked.fsc_curve_model.d_inv:
-        d_inv_model_map_unmasked.append(item)
-    dataOut['d_inv_Model_Map_Unmasked'] = d_inv_model_map_unmasked
-        
+try:
+    if data.data.masked.fsc_curve_model.fsc:
+        fsc_model_map_masked = []
+        d_inv_model_map_masked = []
+        for item in data.data.masked.fsc_curve_model.fsc:
+            fsc_model_map_masked.append(item)
+        dataOut['FSC_Model_Map_Masked'] = fsc_model_map_masked
+        for item in data.data.masked.fsc_curve_model.d_inv:
+            d_inv_model_map_masked.append(item)
+        dataOut['d_inv_Model_Map_Masked'] = d_inv_model_map_masked
+except:
+    pass
+
+try:
+    if data.data.unmasked.fsc_curve_model.fsc:
+        fsc_model_map_unmasked = []
+        d_inv_model_map_unmasked = []
+        for item in data.data.unmasked.fsc_curve_model.fsc:
+            fsc_model_map_unmasked.append(item)
+        dataOut['FSC_Model_Map_Unmasked'] = fsc_model_map_unmasked
+        for item in data.data.unmasked.fsc_curve_model.d_inv:
+            d_inv_model_map_unmasked.append(item)
+        dataOut['d_inv_Model_Map_Unmasked'] = d_inv_model_map_unmasked
+except:
+    pass
+            
 fh = open("%s",'wb')
 pickle.dump(dataOut,fh)
 fh.close()
@@ -231,7 +292,7 @@ fh.close()
     return prot, data
 
 
-def phenixReporting(project, report, resolution, prot, data):
+def phenixReporting(project, report, resolution, prot, data, message):
 
     secLabel = "sec:phenix"
     msg = \
@@ -288,21 +349,21 @@ quality of the map.
         report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return prot
 
+    if message:
+        report.write(message)
 
-    # CC
     msg =\
 """To avoid ringing in Fourier space a smooth mask with a radius of %5.1f \\AA~has been applied.  \\\\
 \\underline{Overall correlation coefficients}: \\\\
-\\\\
 \\begin{center}
 \\begin{tabular}{rc}
 CC (mask) = & %5.3f\\\\
 CC (box) = & %5.3f\\\\
 CC (volume) = & %5.3f\\\\
 CC (peaks) = & %5.3f\\\\
-CC (main chain) = & %5.3f\\\\
-"""%(data['mask_smoothing_radius'], data['cc_mask'],data['cc_box'],data['cc_volume'],data['cc_peaks'],
-     data['cc_main_chain'])
+"""%(data['mask_smoothing_radius'], data['cc_mask'],data['cc_box'],data['cc_volume'],data['cc_peaks'])
+    if 'cc_main_chain' in data:
+        msg += "CC (main chain) = & %5.3f\\\\ \n" % data['cc_main_chain']
     if 'cc_side_chain' in data:
         msg+="CC (side chain) = & %5.3f\\\\ \n"%data['cc_side_chain']
     msg+="\\end{tabular}\n\\\\\n"
@@ -355,44 +416,51 @@ of residues whose correlation is below 0.5 is %4.1f \\%%.
 \\end{figure}
 
 """%(badResidues, fnCCHist)
+    report.write(msg)
 
     saveIntermediateData(report.fnReportDir, "phenix", True, "ccModelHist.png", fnCCHist, 'Histogram of the cross-correlation between the map and model evaluated for all residues')
     saveIntermediateData(report.fnReportDir, "phenix", False, "percentageResidues05", badResidues, ['%', 'The percentage of residues whose correlation is below 0.5'])
 
-    # Resolutions
-    msg+=\
-"""
-\\underline{Resolutions estimated from the model}:\\\\
-\\begin{center}
-\\begin{tabular}{rcc}
-    \\textbf{Resolution} (\\AA) & \\textbf{Masked} & \\textbf{Unmasked} \\\\
-    d99 & %4.1f & %4.1f \\\\
-    d\_model & %4.1f & %4.1f \\\\
-    d\_model (B-factor=0) & %4.1f & %4.1f \\\\
-    FSC\_model=0 & %4.1f & %4.1f \\\\
-    FSC\_model=0.143 & %4.1f & %4.1f \\\\
-    FSC\_model=0.5 & %4.1f & %4.1f \\\\
-\\end{tabular}
-\\end{center}
+    msg = """
+    \\underline{Resolutions estimated from the model}:\\\\
+    \\begin{center}
+    \\begin{tabular}{rcc}
+        \\textbf{Resolution} (\\AA) & \\textbf{Masked} & \\textbf{Unmasked} \\\\
+        d99 & %4.1f & %4.1f \\\\
+    """ % (data['*d99_full_masked'], data['*d99_full_unmasked'])
 
-"""%(data['*d99_full_masked'],data['*d99_full_unmasked'],
-     data['*dmodel_masked'],data['*dmodel_unmasked'],
-     data['d_model_b0_masked'],data['d_model_b0_unmasked'],
-     data['*dFSCmodel_0_masked'],data['*dFSCmodel_0_unmasked'],
-     data['*dFSCmodel_0.143_masked'],data['*dFSCmodel_0.143_unmasked'],
-     data['*dFSCmodel_0.5_masked'],data['*dFSCmodel_0.5_unmasked'])
+    # Añadir filas condicionales
+    if data['*dmodel_masked'] is not None and data['*dmodel_unmasked'] is not None:
+        msg += "    d\\_model & %4.1f & %4.1f \\\\\n" % (data['*dmodel_masked'], data['*dmodel_unmasked'])
+    if data['d_model_b0_masked'] is not None and data['d_model_b0_unmasked'] is not None:
+        msg += "    d\\_model (B-factor=0) & %4.1f & %4.1f \\\\\n" % (data['d_model_b0_masked'],
+                                                                      data['d_model_b0_unmasked'])
+    if data['*dFSCmodel_0_masked'] is not None and data['*dFSCmodel_0_unmasked'] is not None:
+        msg += "    FSC\\_model=0 & %4.1f & %4.1f \\\\\n" % (data['*dFSCmodel_0_masked'], data['*dFSCmodel_0_unmasked'])
+    if data['*dFSCmodel_0.143_masked'] is not None and data['*dFSCmodel_0.143_unmasked'] is not None:
+        msg += "    FSC\\_model=0.143 & %4.1f & %4.1f \\\\\n" % (data['*dFSCmodel_0.143_masked'],
+                                                                 data['*dFSCmodel_0.143_unmasked'])
+    if data['*dFSCmodel_0.5_masked'] is not None and data['*dFSCmodel_0.5_unmasked'] is not None:
+        msg += "    FSC\\_model=0.5 & %4.1f & %4.1f \\\\\n" % (data['*dFSCmodel_0.5_masked'],
+                                                               data['*dFSCmodel_0.5_unmasked'])
 
-    msg += \
-"""
-\\underline{Overall isotropic B factor}:\\\\
-\\begin{center}
-\\begin{tabular}{rcc}
-    \\textbf{B factor} & \\textbf{Masked} & \\textbf{Unmasked} \\\\
-    Overall B-iso & %4.1f & %4.1f \\\\
-\\end{tabular}
-\\end{center}
+    # Cerrar la tabla y el entorno center
+    msg += """\\end{tabular}
+    \\end{center}
+    """
 
-""" % (data["overall_b_iso_masked"], data["overall_b_iso_unmasked"])
+    if data["overall_b_iso_masked"] is not None and data["overall_b_iso_unmasked"] is not None:
+        msg += \
+    """
+    \\underline{Overall isotropic B factor}:\\\\
+    \\begin{center}
+    \\begin{tabular}{rcc}
+        \\textbf{B factor} & \\textbf{Masked} & \\textbf{Unmasked} \\\\
+        Overall B-iso & %4.1f & %4.1f \\\\
+    \\end{tabular}
+    \\end{center}
+    
+    """ % (data["overall_b_iso_masked"], data["overall_b_iso_unmasked"])
 
     if 'FSC_Model_Map_Masked' in data and 'FSC_Model_Map_Unmasked' in data:
         fnFSCModel = os.path.join(report.getReportDir(),"fscModel.png")
@@ -413,16 +481,19 @@ of residues whose correlation is below 0.5 is %4.1f \\%%.
 \\end{figure}
 
 """%fnFSCModel
+
+        saveIntermediateData(report.fnReportDir, "phenix", True, "fscModel.png", fnFSCModel, 'Plot that shows FSC between the input map and model with and without a mask constructed from the model')
+
     report.write(msg)
-
-    saveIntermediateData(report.fnReportDir, "phenix", True, "fscModel.png", fnFSCModel, 'Plot that shows FSC between the input map and model with and without a mask constructed from the model')
-
     warnings = []
     testWarnings = False
     if badResidues > 10 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The percentage of residues that have a cross-correlation below 0.5 " \
                         "is %4.1f, that is larger than 10\\%%}}" % badResidues)
-    if resolution<0.8*data['*dFSCmodel_0.5_masked'] or testWarnings:
+    if data['*dFSCmodel_0.5_masked'] is None:
+        warnings.append("{\\color{red} \\textbf{The model-map FSC resolution value (FSC=0.5) is missing. "
+                        "Skipping consistency check with the user-reported resolution.}}")
+    elif resolution<0.8*data['*dFSCmodel_0.5_masked'] or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %4.1f \\AA, is significantly " \
                         "smaller than the resolution estimated between map and model (FSC=0.5), %4.1f \\AA}}" %\
                         (resolution,data['*dFSCmodel_0.5_masked']))
@@ -446,11 +517,6 @@ resolution estimated between the map and model at FSC=0.5.
         report.writeAbstract("According to phenix, it seems that there might be some mismatch between the map "\
                              "and its model (see Sec. \\ref{%s}). "%secLabel)
 
-def phenix(project, report, protImportMap, protAtom, resolution, priority=False):
-    label = "A.a Phenix"
-    protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority)
-    phenixReporting(project, report, resolution, protPhenix, dataPhenix)
-
 def dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
                                             'PhenixProtRunDockInMap', doRaise=True)
@@ -464,6 +530,29 @@ def dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=F
     waitUntilFinishes(project, prot)
     return prot
 
+def fitWithChimeraX(project, protImportMap, protAtom, priority=False):
+    extraCommands = ""
+    extraCommands += "fitmap #3 in #2\n"
+    extraCommands += "scipionwrite #3 prefix fitted_\n"
+    extraCommands += "exit\n"
+
+    args = {'extraCommands': extraCommands,
+            'inputVolume': protImportMap.outputVolume,
+            'pdbFileToBeRefined': protAtom.outputPdb
+            }
+    Prot = pwplugin.Domain.importFromPlugin('chimera.protocols',
+                                                          'ChimeraProtOperate',
+                                                          doRaise=True)
+    prot = project.newProtocol(Prot, **args)
+    if useSlurm:
+        sendToSlurm(prot, priority=True if priority else False)
+    project.launchProtocol(prot)
+    waitUntilFinishes(project, prot)
+    PDB_output = eval("prot.fitted_Atom_struct__3_%06d"
+                      % prot.getObjId())
+    prot.outputPdb = PDB_output
+    return prot
+
 def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, priority=False):
 
     label = "A.a Phenix"
@@ -472,7 +561,17 @@ def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protI
 
     if protPhenix.isFailed():
         print("Phenix protocol failed while checking if map and model are fitted.")
-        return None, protPhenix, dataPhenix, protAtom, pdbdb_Id
+        # If stderr starts with 'Sorry: Input map is all zero after boxing...', we have to do a dock in map
+        logs_path = protPhenix._getLogsPath()
+        log_stderr = os.path.join(logs_path, 'run.stderr')
+        with open(log_stderr, 'r') as f:
+            stderr_first_line = f.readline().strip()
+        if stderr_first_line.startswith('Sorry: Input map is all zero after boxing...'):
+            protAtom = dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=False)
+            protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, label,
+                                                     priority)
+        else:
+            return None, protPhenix, dataPhenix, protAtom, pdbdb_Id
 
     if protPhenix.isAborted():
         print(PRINT_PROTOCOL_ABORTED + ": " + NAME_PHENIX)
@@ -480,30 +579,40 @@ def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protI
         report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
         return None, protPhenix, dataPhenix, protAtom, pdbdb_Id
 
-    print(f'------------ cc_mask in dataPhenix is: {dataPhenix["cc_mask"]}')
-    if dataPhenix["cc_mask"] > cc_mask_threshold:
+    cc_mask_value = dataPhenix["cc_mask"]
+    print(f'------------ cc_mask in dataPhenix is: {cc_mask_value}')
+    if cc_mask_value > cc_mask_threshold:
         print('----------------------- dataPhenix["cc_mask"] > cc_mask_threshold')
         report.write(PROPERLY_FITTED)
         return True, protPhenix, dataPhenix, protAtom, pdbdb_Id
 
-    elif dataPhenix["cc_mask"] <= cc_mask_threshold:
+    elif cc_mask_value <= cc_mask_threshold:
         print('----------------------- dataPhenix["cc_mask"] <= cc_mask_threshold')
-        new_protAtom = dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=False)
-        print('----------------------- Dock in map done')
-        protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, new_protAtom, resolution, label, priority)
-        report.write(MANUALLY_FITTED)
-        return True, protPhenix, dataPhenix, new_protAtom, pdbdb_Id
+        # 1. Dock in map with Phenix
+        dockin_protAtom = dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=False)
+        # 2. Fit in map with ChimeraX
+        if dockin_protAtom.isFailed():
+            protChimera = fitWithChimeraX(project, protImportMap, protAtom, priority=False)
+        else:
+            protChimera = fitWithChimeraX(project, protImportMap, dockin_protAtom, priority=False)
+        # 3. Phenix validation
+        protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protChimera, resolution, label, priority)
+        if protPhenix.isFailed() or dataPhenix["cc_mask"] <= cc_mask_threshold:
+            return False, protPhenix, dataPhenix, protAtom, pdbdb_Id
+        elif dataPhenix["cc_mask"] > cc_mask_threshold:
+            report.write(MANUALLY_FITTED)
+            return True, protPhenix, dataPhenix, protChimera, pdbdb_Id
 
 def convertPDB(project, report, protImportMap, protAtom, priority=False):
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtConvertPdb', doRaise=True)
     protConvert = project.newProtocol(Prot,
-                                      objLabel="Convert Pdb to map",
                                       inputPdbData=1,
                                       sampling=protImportMap.outputVolume.getSamplingRate(),
                                       vol=True,
                                       centerPdb=False)
+    protConvert.setObjLabel("A.b Convert Pdb to map")
     protConvert.pdbObj.set(protAtom.outputPdb)
     protConvert.volObj.set(protImportMap.outputVolume)
     if use_slurm:
@@ -565,9 +674,9 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtValFit', doRaise=True)
     prot = project.newProtocol(Prot,
-                               objLabel="A.b FSC-Q",
                                inputPDBObj=protAtom.outputPdb,
-                               numberOfThreads=n_threads)
+                               numberOfThreads=N_THREADS)
+    prot.setObjLabel("A.b FSC-Q")
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.pdbMap.set(protConvert.outputVolume)
     prot.inputMask.set(protCreateSoftMask.outputMask)
@@ -675,11 +784,11 @@ the different local resolutions or local heterogeneity.\\\\
     Prot = pwplugin.Domain.importFromPlugin('rosetta.protocols',
                                             'ProtRosettaGenerateStructures', doRaise=True)
     prot1  = project.newProtocol(Prot,
-                                 objLabel="A.c Multimodel ambiguity",
                                  inputStructure=protAtom.outputPdb,
                                  inputVolume=protImportMap.outputVolume,
                                  resolution=resolution,
                                  numMods=2)
+    prot1.setObjLabel("A.c Multimodel ambiguity")
     if use_slurm:
         sendToSlurm(prot1, GPU=True, priority=True if priority else False)
     project.launchProtocol(prot1)
@@ -701,8 +810,8 @@ the different local resolutions or local heterogeneity.\\\\
     Prot = pwplugin.Domain.importFromPlugin('atomstructutils.protocols',
                                             'ProtRMSDAtomStructs', doRaise=True)
     prot2 = project.newProtocol(Prot,
-                                objLabel="A.c RMSD",
                                 inputStructureSet=prot1.outputAtomStructs)
+    prot2.setObjLabel("A.c RMSD")
     if use_slurm:
         sendToSlurm(prot2, priority=True if priority else False)
     project.launchProtocol(prot2)
@@ -771,9 +880,52 @@ is %4.2f \\AA. Fig. \\ref{fig:modelRMSD} shows the atomic model colored by RMSD.
         report.writeAbstract("It seems that the model is too ambiguous (see Sec. \\ref{%s}). "%\
                              secLabel)
 
-def guinierModel(project, report, protImportMap, protConvert, resolution, priority=False):
+def guinierModel(project, report, protImportMap, protConvert, protCreateHardMask, resolution, priority=False):
+    secLabel = "sec:bfactorModel"
+
+    # Encabezado (subsección + etiqueta)
+    msg = """\\subsection{Level A.d Map-Model Guinier analysis}
+    \\label{%s}
+    """ % secLabel
+    report.write(msg)
+
+    if not resolution:
+        report.writeSummary("A.d Map-Model Guinier analysis", secLabel, NOT_APPLY_MESSAGE)
+        report.write(NOT_APPY_NO_RESOLUTION + STATUS_NOT_APPLY)
+        return None
+    if resolution>8:
+        toWrite = NOT_APPLY_WORSE_RESOLUTION % 8 + STATUS_NOT_APPLY
+        report.write(toWrite)
+        report.writeSummary("A.d Map-Model Guinier analysis", secLabel, NOT_APPLY_MESSAGE)
+        return
+
     map = protImportMap.outputVolume
     Ts = map.getSamplingRate()
+
+    # Create 3D mask
+    protCreateModelMask = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
+                                                inputVolume=protConvert.outputVolume,
+                                                threshold=0.1,
+                                                doMorphological=True)
+    protCreateModelMask.setObjLabel('model mask')
+    if use_slurm:
+        sendToSlurm(protCreateModelMask, priority=True if priority else False)
+    project.launchProtocol(protCreateModelMask)
+    waitUntilFinishes(project, protCreateModelMask)
+
+    # Adjust volumes
+    protAdjustVols = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols', 'XmippProtVolAdjust', doRaise=True),
+                                         vol1=map,
+                                         vol2=protConvert.outputVolume,
+                                         mask1=protCreateHardMask.outputMask,
+                                         mask2=protCreateModelMask.outputMask)
+    protAdjustVols.setObjLabel('adjust map and model volumes')
+    if use_slurm:
+        sendToSlurm(protAdjustVols, priority=True if priority else False)
+    project.launchProtocol(protAdjustVols)
+    waitUntilFinishes(project, protAdjustVols)
+
+    fnAtom = protAdjustVols.outputVolume.getFileName()
 
     fnAtom = os.path.join(project.getPath(), protConvert.outputVolume.getFileName())
     fnOut = os.path.join(report.getReportDir(), "sharpenedModel.mrc")
@@ -803,6 +955,10 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
     _, lnFAtom, _ = readGuinier(fnOut + ".guinier")
     lnFMapp = lnFMap+(np.mean(lnFAtom)-np.mean(lnFMap))
 
+    # eliminate first position to avoid errors in correlation calculation
+    lnFAtom = lnFAtom[1:]
+    lnFMapp = lnFMapp[1:]
+    dinv2 = dinv2[1:]
     R = np.corrcoef(lnFMapp, lnFAtom)
     R=R[0,1]
 
@@ -810,11 +966,8 @@ def guinierModel(project, report, protImportMap, protConvert, resolution, priori
     reportMultiplePlots(dinv2, [lnFAtom, lnFMapp], '1/Resolution^2 (1/A^2)', 'log Structure factor', fnPlot,
                         ['Atomic model', 'Experimental map'])
 
-    secLabel = "sec:bfactorModel"
     msg = \
-"""\\subsection{Level A.d Map-Model Guinier analysis}
-\\label{%s}
-\\textbf{Explanation:}\\\\
+"""\\textbf{Explanation:}\\\\
 We compared the Guinier plot (see this \\href{%s}{link} for more details) of the atomic model and the experimental map. We made the mean
 of both profiles to be equal (and equal to the mean of the atomic model) to make sure that they had comparable scales. 
 \\\\
@@ -831,7 +984,7 @@ Fourier transform) of the atom model and the experimental map. The correlation b
     \\label{fig:BfactorModel}
 \\end{figure}
 
-""" % (secLabel, BFACTOR_GUINIER_DOI, R, fnPlot)
+""" % (BFACTOR_GUINIER_DOI, R, fnPlot)
     report.write(msg)
 
     warnings = []
@@ -902,10 +1055,10 @@ have a Gaussian shape.\\\\
         Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
                                                 'ProtMapQ', doRaise=True)
         prot = project.newProtocol(Prot,
-                                objLabel="A.e MapQ",
                                 inputVol=protImportMap.outputVolume,
                                 pdbs=[protAtom.outputPdb],
                                 mapRes=resolution)
+        prot.setObjLabel("A.e MapQ")
         if use_slurm:
             sendToSlurm(prot, priority=True if priority else False)
         project.launchProtocol(prot)
@@ -923,10 +1076,13 @@ have a Gaussian shape.\\\\
             return prot
 
         saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*.cif')))[0], 'cif file')
-        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map_All.txt')))[0], 'Q__map_All txt file')
-        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map.pdb', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.pdb')))[0], 'Q__map pdb file')
-
-        input_file = glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.pdb')))[0]
+        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All',
+                             glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.mrc_All.txt')))[0],
+                             'Q__map_All txt file')
+        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map.pdb',
+                             glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.mrc.pdb')))[0],
+                             'Q__map pdb file')
+        input_file = glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map.mrc.pdb')))[0]
         # emd_26162_pdb_7txz_emv_mapq.json
         output_file = os.path.join(project.getPath(), prot._getExtraPath(), "%s_pdb_%s_emv_mapq.json" % (emdb_Id.lower().replace('-','_'), pdbdb_Id.lower()))
         json_file = convert_2_json(emdb_Id, pdbdb_Id, method='mapq', input_file=input_file, output_file=output_file)
@@ -946,7 +1102,10 @@ have a Gaussian shape.\\\\
                 if 'ATOM' in line:
                     line = re.sub(' +', ' ', line)
                     values = line.split(' ')
-                    mapq_scores.append(float(values[15]))
+                    try:
+                        mapq_scores.append(float(values[15]))
+                    except ValueError:
+                        continue
     else:
         ASH = AtomicStructHandler()
 
@@ -1089,13 +1248,18 @@ else:
     if not has_precalculated_data:
         fnCifMapQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_MapQ_score.cif"))
         # make sure the output mapq file is correct
-        with open(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id))) as cif:
+        # Retrieving file path
+        cif_dir = os.path.join(project.getPath(), prot._getExtraPath(""))
+        # Buscar el archivo .cif
+        cif_files = glob.glob(os.path.join(cif_dir, "*.cif"))
+        cif_file = cif_files[0]
+        with open(cif_file) as cif:
             cifData = cif.read()
         cifData = cifData.replace('residues', 'atoms')
-        with open(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id)), 'w') as cif:
+        with open(cif_file, 'w') as cif:
             cif.write(cifData)
 
-        replaceOcuppancyWithAttribute(os.path.join(project.getPath(), prot._getExtraPath("%s.cif" % pdbdb_Id)), "MapQ_Score",
+        replaceOcuppancyWithAttribute(os.path.join(project.getPath(), cif_file), "MapQ_Score",
                                       fnCifMapQ)
         report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", fnCifMapQ, "fig:mapq", bfactor=False,
                            occupancy=True, rainbow=False, legendMin=-1, legendMax=1)
@@ -1109,8 +1273,10 @@ else:
                 if 'ATOM' in line:
                     line = re.sub(' +', ' ', line)
                     values = line.split(' ')
-                    qscores[values[1]] = values[15]
-
+                    try:
+                        qscores[values[1]] = float(values[15])
+                    except ValueError:
+                        continue
         attributeFile = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS.defattr')
         with open(attributeFile, 'a') as af:
             af.write('attribute: qscores\nrecipient: atoms\n')
@@ -1131,23 +1297,26 @@ else:
 
     BperHomogeneous = isHomogeneous(Bpercentiles[0], Bpercentiles[-1], eps=0.1)
 
+    # threshold for median Q-score (Pintilie paper)
+    qscore_threshold = round(-0.1861*resolution + 1.1224 - 3*(0.2/6), 2)
+
     if BperHomogeneous:
         warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
                         "be some program issues analyzing the data.}}")
 
-    if Bpercentiles[2]<0.1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The median Q-score is less than 0.1.}}")
-    msg = \
-"""\\textbf{Automatic criteria}: The validation is OK if the median Q-score is larger than 0.1.
-\\\\
+    if Bpercentiles[2]<qscore_threshold or testWarnings:
+        warnings.append(f"{{\\color{{red}} \\textbf{{The median Q-score is less than {qscore_threshold}.}}}}")
 
-"""
+    msg = f"""\\textbf{{Automatic criteria}}: The validation is OK if the median Q-score is larger than {qscore_threshold}, which is the threshold for the resolution of {resolution} Å.
+    \\\\
+    
+    """
     report.write(msg)
     report.writeWarningsAndSummary(warnings, "A.e MapQ", secLabel)
     if len(warnings)>0:
         report.writeAbstract("There seems to be a problem with its MapQ scores (see Sec. \\ref{%s}). "%secLabel)
 
-def emringer(project, report, protImportMap, protAtom, priority=False):
+def emringer(project, report, protImportMap, protAtom, resolution, priority=False):
 
     secLabel = "sec:emringer"
     msg = \
@@ -1173,10 +1342,15 @@ that may need improvement.
 """ % (secLabel, EMRINGER_DOI)
     report.write(msg)
 
+    if resolution > 5:
+        report.writeSummary("A.f EMRinger", secLabel, NOT_APPLY_MESSAGE)
+        report.write(NOT_APPLY_WORSE_RESOLUTION % 5 + STATUS_NOT_APPLY)
+        return None
+
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
                                             'PhenixProtRunEMRinger', doRaise=True)
-    prot = project.newProtocol(Prot,
-                               objLabel="A.f EMRinger")
+    prot = project.newProtocol(Prot)
+    prot.setObjLabel('A.f EMRinger')
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
     if use_slurm:
@@ -1261,7 +1435,7 @@ optimal threshold.
     msg+=\
 """The following plots show the rolling window EMRinger analysis of the different chains to distinguish regions 
 of improved model quality. This analysis was performed on rolling sliding 21-residue windows along the primary 
-sequence of the protein chains.
+sequence of the protein chains. If straight lines are observed in the plots, this is likely due to the absence of side chains in those residues.
 
 """
     for chain in sorted(dataDict['_chains']):
@@ -1271,12 +1445,12 @@ sequence of the protein chains.
     msg+="\n"
 
     report.write(msg)
-
     warnings = []
     testWarnings = False
     if dataDict["EMRinger Score"] <1 or testWarnings:
-        warnings.append("{\\color{red} \\textbf{The EMRinger score is smaller than 1, it is %4.3f.}}"%\
-                        dataDict["EMRinger Score"])
+        warnings.append("{\\color{red} \\textbf{The EMRinger score is smaller than 1, it is %4.3f.}}" % \
+                        (dataDict["EMRinger Score"]))
+
     if dataDict["Max Zscore"] <1 or testWarnings:
         warnings.append("{\\color{red} \\textbf{The maximum Zscore is smaller than 1, it is %4.3f.}}"%\
                         dataDict["Max Zscore"])
@@ -1351,8 +1525,8 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         Prot = pwplugin.Domain.importFromPlugin('kiharalab.protocols',
                                                 'ProtDAQValidation', doRaise=True)
         prot = project.newProtocol(Prot,
-                                objLabel="A.g DAQ",
                                 stride=3)
+        prot.setObjLabel("A.g DAQ")
         prot.inputVolume.set(protImportMap.outputVolume)
         prot.inputAtomStruct.set(protAtom.outputPdb)
         if use_slurm:
@@ -1398,7 +1572,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
                     daqValues.append(float(value))
 
         fnDAQHist = os.path.join(report.getReportDir(),"daqHist.png")
-        reportHistogram(daqValues,"DAQ", fnDAQHist)
+        reportHistogram(daqValues,"DAQ", fnDAQHist, xlim=(-2, 2))
         Dpercentiles = np.percentile(daqValues, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
         saveIntermediateData(report.getReportDir(), 'DAQ', False, 'DAQHistData', daqValues, ['', 'DAQ values to create histogram'])
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQHist', fnDAQHist, 'DAQ histogram')
@@ -1515,7 +1689,7 @@ Atomic model: %s \\\\
     report.atomicModel("modelInput", msg, "Input atomic model", FNMODEL, "fig:modelInput")
     return False
 
-def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False):
+def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, resolution, doMultimodel, mapCoordX, mapCoordY, mapCoordZ, protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis=False, priority=False):
     
     secLabel = "sec:AAnalysis"
     section = "Level A Analysis"
@@ -1539,29 +1713,29 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
         if not skipAnalysis:
             report.writeSection(section, secLabel)
 
+            # ELiminate HETATM if there are any and use pdb fixer
+            protAtom, message = eliminatwe_HETATM(FNMODEL, project, priority, protAtom)
+
             # Check if map and model are fitted with phenix. If phenix fails, check it manually.
-            # cc_mask_threshold = 0.8
             cc_mask_threshold = 0.3
             fitted, protPhenix, dataPhenix, fittedProtAtom, pdbdb_Id = checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protImportMap, protAtom, FNMODEL, resolution, cc_mask_threshold, priority=priority)
 
-            # if protPhenix is not None and protPhenix.isFailed(): # protPhenix = None when phenix finished properly but any new origin was found. For those cases, we do not want to execute manual checks (it is only useful when phenix fails).
-            #     print("Starting to check manually whether map and model are fitted or not...")
-            #     #: add function to do manual checks
-            # if fitted is False: # Avoid execcuting level A if map and model are not fitted
-            #     report.write(ERROR_MESSAGE_CHECK_FITTED_FAILED)
-            #     return protAtom
-            if fitted is None:
+            if fitted is False: # Avoid executing level A if map and model are not fitted
+                report.writeSummary(section, secLabel, NOT_APPLY_MESSAGE)
+                report.write(NOT_MANUALLY_FITTED)
+                return protAtom
+            elif fitted is None:
                 print("Fitting protocol failed")
             else: # Continue executing level A
                 protConvert = convertPDB(project, report, protImportMap, fittedProtAtom, priority=priority)
                 if protConvert is not None:
-                    phenixReporting(project, report, resolution, protPhenix, dataPhenix)
+                    phenixReporting(project, report, resolution, protPhenix, dataPhenix, message)
                     fscq(project, report, protImportMap, fittedProtAtom, protConvert, protCreateSoftMask, fnMaskedMapDict['fnSoftMaskedMap'], priority=priority)
                     if doMultimodel:
                         multimodel(project, report, protImportMap, fittedProtAtom, resolution, priority=priority)
-                    guinierModel(project, report, protImportMap, protConvert, resolution, priority=priority)
+                    guinierModel(project, report, protImportMap, protConvert, protCreateHardMask, resolution, priority=priority)
                     mapq(project, report, protImportMap, fittedProtAtom, resolution, pdbdb_Id, priority=priority)
-                    emringer(project, report, protImportForPhenix, fittedProtAtom, priority=priority)
+                    emringer(project, report, protImportForPhenix, fittedProtAtom, resolution, priority=priority)
                     daq(project, report, protImportMap, protAtom, resolution, pdbdb_Id, priority=priority)
 
     return protAtom
