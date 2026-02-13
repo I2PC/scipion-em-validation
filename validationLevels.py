@@ -24,6 +24,7 @@
 # *
 # **************************************************************************
 
+from validationReport import ValidationReport
 import os
 import sys
 import math
@@ -34,9 +35,10 @@ import pyworkflow.plugin as pwplugin
 from pyworkflow.project import Manager
 from pyworkflow.utils.path import makePath, copyFile, cleanPath
 import pyworkflow.utils as pwutils
-from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes
+from resourceManager import sendTo
+, waitOutput, waitUntilFinishes
 from pwem.convert.atom_struct import AtomicStructHandler
-from validationReport import readMap
+from validationReport import readMap, get_env_bool
 import json
 from tools import EMDButils
 import xmipp3
@@ -44,17 +46,26 @@ import xmipp3
 import configparser
 
 from tools.utils import saveIntermediateData
+from bws_interpo.convert_eval_results import convert as convert_to_bws
+
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
-useSlurm = config['QUEUE'].getboolean('USE_SLURM')
+use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
+store_intermediate_data = get_env_bool('INTERMEDIATE_DATA_STORE_INTERMEDIATE_DATA') or config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
+intermediate_data_final_path = os.getenv('INTERMEDIATE_DATA_DEST_PATH') or config['INTERMEDIATE_DATA'].get('DEST_PATH')
 
-class OutOfChainsError(Exception): #TODO: remove it when updating pwem repo
+
+class OutOfChainsError(Exception):  # TODO: remove it when updating pwem repo
     pass
 
-class OutOfAtomsError(Exception): #TODO: remove it when updating pwem repo
+
+class OutOfAtomsError(Exception):  # TODO: remove it when updating pwem repo
     pass
-class UpdatedAtomicStructHandler(AtomicStructHandler): #TODO: remove it when updating pwem repo
+
+
+# TODO: remove it when updating pwem repo
+class UpdatedAtomicStructHandler(AtomicStructHandler):
     """
     Class that contain utilities to handle pdb/cif files.
     Updates: get the number of atoms in the structure and raise an error 
@@ -102,7 +113,8 @@ class UpdatedAtomicStructHandler(AtomicStructHandler): #TODO: remove it when upd
 
             # Get number of atoms
             try:
-                atoms = self.numberAtomsInStructure(self.getStructure(), writeAsPdb=True)
+                atoms = self.numberAtomsInStructure(
+                    self.getStructure(), writeAsPdb=True)
             except OutOfAtomsError:
                 print("Too many atoms to represent in PDB format")
                 return False
@@ -110,6 +122,7 @@ class UpdatedAtomicStructHandler(AtomicStructHandler): #TODO: remove it when upd
         self._write(pdbFile)
 
         return True
+
 
 def usage(message=''):
     print("\nMake a Map Validation Report"
@@ -173,6 +186,7 @@ def usage(message=''):
     # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=Validation11668 map=/home/coss/data/Dropbox/Aplicaciones/ShareLaTeX/MapValidation/EMDB11668/emd_11668.map sampling=0.492 threshold=0.15 resolution=1.15 symmetry=o  atomicModel=/home/coss/data/Dropbox/Aplicaciones/ShareLaTeX/MapValidation/EMDB11668/7a6a_updated.cif doMultimodel=no
     # ~/scipion3/scipion3 python ~/data/Dropbox/H/scipion-em-validation/validationLevels.py project=Validation11668_05 map=/home/coss/data/Dropbox/Aplicaciones/ShareLaTeX/MapValidation/EMDB11668/emd_11668.map sampling=0.492 threshold=0.05 resolution=1.15 symmetry=o  atomicModel=/home/coss/data/Dropbox/Aplicaciones/ShareLaTeX/MapValidation/EMDB11668/7a6a_updated.cif doMultimodel=no
 
+
 if any(i in sys.argv for i in ['-h', '-help', '--help', 'help']):
     usage()
 
@@ -194,7 +208,7 @@ HASANGLES = False
 doMultimodel = False
 FNMODEL = None
 JOB_NAME = None
-JOB_DESCRIPTION= None
+JOB_DESCRIPTION = None
 EMDB_ID = None
 EMDB_ID_NUM = None
 PDB_ID = None
@@ -224,7 +238,7 @@ IS_TEST = False
 
 levels = []
 # Validate inputs formats
-wrongInputs = {'errors':[], 'warnings':[]}
+wrongInputs = {'errors': [], 'warnings': []}
 
 for arg in sys.argv:
     if arg.startswith('EMDBid='):
@@ -240,7 +254,8 @@ for arg in sys.argv:
 if IS_EMDB_ENTRY:
     does_map_exist = EMDButils.does_map_exist(EMDB_ID_NUM)
     if does_map_exist[0]:
-        TS, MAPTHRESHOLD, MAPRESOLUTION, map_metadata_response_code, map_metadata_response_text = EMDButils.get_map_metadata(EMDB_ID_NUM)
+        TS, MAPTHRESHOLD, MAPRESOLUTION, map_metadata_response_code, map_metadata_response_text = EMDButils.get_map_metadata(
+            EMDB_ID_NUM)
         if map_metadata_response_code == 200:
             levels.append('0')
             if (LEVELS and '1' in LEVELS) or (not LEVELS):
@@ -343,7 +358,7 @@ else:
         LEVELW = ["workflow"]
         LEVELOa = ["xlm"]
         LEVELOb = ["saxs"]
-        LEVELOc = ["untiltedMic","tiltedMic","tiltkV","tiltCs","tiltQ0","tiltSampling","tiltAngle","untiltedCoords",
+        LEVELOc = ["untiltedMic", "tiltedMic", "tiltkV", "tiltCs", "tiltQ0", "tiltSampling", "tiltAngle", "untiltedCoords",
                    "tiltedCoords"]
 
         def detectLevel(labels, args):
@@ -371,14 +386,16 @@ else:
             levels.append("W")
         if detectLevel(LEVELOa, argsPresent) and detectLevel(LEVELA, argsPresent):
             levels.append("O")
-        if detectLevel(LEVELOb, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO check if detecting level A makes sense to execute level Ob (level Ob does not depend on the atomic model). Better detectLevel(LEVEL0, ...)?
+        # TODO check if detecting level A makes sense to execute level Ob (level Ob does not depend on the atomic model). Better detectLevel(LEVEL0, ...)?
+        if detectLevel(LEVELOb, argsPresent) and detectLevel(LEVELA, argsPresent):
             if not "O" in levels:
                 levels.append("O")
-        if detectLevel(LEVELOc, argsPresent) and detectLevel(LEVELA, argsPresent): #TODO check if detecting level A makes sense to execute level Oc (level Oc does not depend on the atomic model). Better detectLevel(LEVEL0, ...)?
+        # TODO check if detecting level A makes sense to execute level Oc (level Oc does not depend on the atomic model). Better detectLevel(LEVEL0, ...)?
+        if detectLevel(LEVELOc, argsPresent) and detectLevel(LEVELA, argsPresent):
             if not "O" in levels:
                 levels.append("O")
 
-if len(levels)==0 or not "0" in levels:
+if len(levels) == 0 or not "0" in levels:
     usage()
 
 # Get unique list of levels
@@ -403,7 +420,9 @@ else:
     fnDir, fnBase = os.path.split(FNMAP)
     if MAPCOORDX is not None and MAPCOORDY is not None and MAPCOORDZ is not None:
         protImportMapChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportVolumes', doRaise=True),
-                                                   filesPath=os.path.join(fnDir,FNMAP),
+                                                   objLabel='check format - import map',
+                                                   filesPath=os.path.join(
+                                                       fnDir, FNMAP),
                                                    samplingRate=TS,
                                                    setOrigCoord=True,
                                                    x=MAPCOORDX,
@@ -416,31 +435,37 @@ else:
                                                    samplingRate=TS,
                                                    setOrigCoord=False)
         protImportMapChecker.setObjLabel('check format - import map')
-if useSlurm:
+if use_slurm:
     sendToSlurm(protImportMapChecker, priority=False if IS_EMDB_ENTRY else True)
 project.launchProtocol(protImportMapChecker)
-#waitOutput(project, protImportMapChecker, 'outputVolume')
+# waitOutput(project, protImportMapChecker, 'outputVolume')
 waitUntilFinishes(project, protImportMapChecker)
 if protImportMapChecker.isFailed():
     error_value = EMDB_ID if IS_EMDB_ENTRY else os.path.basename(FNMAP)
-    wrongInputs['errors'].append({'param': 'map', 'value': error_value, 'cause': 'There is a problem reading the volume map file'})
+    wrongInputs['errors'].append(
+        {'param': 'map', 'value': error_value, 'cause': 'There is a problem reading the volume map file'})
 
 else:
     if IS_EMDB_ENTRY:
-        FNMAP = os.path.join(project.getPath(), protImportMapChecker.outputVolume.getFileName())
+        FNMAP = os.path.join(
+            project.getPath(), protImportMapChecker.outputVolume.getFileName())
         MAPCOORDX, MAPCOORDY, MAPCOORDZ = protImportMapChecker.outputVolume.getShiftsFromOrigin()
         MAPCOORDX = -1 * MAPCOORDX
         MAPCOORDY = -1 * MAPCOORDY
         MAPCOORDZ = -1 * MAPCOORDZ
         if '1' in levels:
-            half_maps = EMDButils.download_emdb_halfmaps(EMDB_ID_NUM, protImportMapChecker._getExtraPath())
+            half_maps = EMDButils.download_emdb_halfmaps(
+                EMDB_ID_NUM, protImportMapChecker._getExtraPath())
             fnMap1 = half_maps[0].replace('.gz', '')
             fnMap2 = half_maps[1].replace('.gz', '')
             if os.path.exists(os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1)) and os.path.exists(os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)):
-                protImportMapChecker.outputVolume.setHalfMaps([os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1), os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)])
+                protImportMapChecker.outputVolume.setHalfMaps([os.path.join(project.getPath(), protImportMapChecker._getExtraPath(
+                ), fnMap1), os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)])
                 protImportMapChecker._store()
-                FNMAP1 = os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap1)
-                FNMAP2 = os.path.join(project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)
+                FNMAP1 = os.path.join(
+                    project.getPath(), protImportMapChecker._getExtraPath(), fnMap1)
+                FNMAP2 = os.path.join(
+                    project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)
 
     # check if we can have a proper mask with the threshold specified
     protCreateMaskChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
@@ -450,7 +475,7 @@ else:
                                                 doMorphological=True,
                                                 elementSize=math.ceil(2/TS)) # Dilation by 2A
     protCreateMaskChecker.setObjLabel('check proper mask')
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protCreateMaskChecker, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protCreateMaskChecker)
     waitUntilFinishes(project, protCreateMaskChecker)
@@ -458,7 +483,8 @@ else:
     M = readMap(protCreateMaskChecker.outputMask.getFileName()).getData()
     totalMass = np.sum(M)
     if not totalMass > 0:
-        wrongInputs['errors'].append({'param': 'threshold', 'value': MAPTHRESHOLD, 'cause': 'The mask obtained from the volume map is empty, try to lower the threshold value'})
+        wrongInputs['errors'].append({'param': 'threshold', 'value': MAPTHRESHOLD,
+                                     'cause': 'The mask obtained from the volume map is empty, try to lower the threshold value'})
 
 if "1" in levels:
     # check 'map1' and 'map2' arg
@@ -481,13 +507,14 @@ if "1" in levels:
                                                     samplingRate=TS,
                                                     setOrigCoord=False)
         protImportMap1Checker.setObjLabel('check format - import half1')
-    if useSlurm:
+    if user_slurm:
         sendToSlurm(protImportMap1Checker, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protImportMap1Checker)
-    #waitOutput(project, protImportMap1Checker, 'outputVolume')
+    # waitOutput(project, protImportMap1Checker, 'outputVolume')
     waitUntilFinishes(project, protImportMap1Checker)
     if protImportMap1Checker.isFailed():
-        wrongInputs['errors'].append({'param': 'map1', 'value': FNMAP1, 'cause': 'There is a problem reading the half-map1 file'})
+        wrongInputs['errors'].append(
+            {'param': 'map1', 'value': FNMAP1, 'cause': 'There is a problem reading the half-map1 file'})
 
     # 'map2'
     fnDir, fnBase = os.path.split(FNMAP2)
@@ -508,13 +535,14 @@ if "1" in levels:
                                                     samplingRate=TS,
                                                     setOrigCoord=False)
         protImportMap1Checker.setObjLabel('check format - import half2')
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportMap2Checker, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protImportMap2Checker)
-    #waitOutput(project, protImportMap2Checker, 'outputVolume')
+    # waitOutput(project, protImportMap2Checker, 'outputVolume')
     waitUntilFinishes(project, protImportMap2Checker)
     if protImportMap2Checker.isFailed():
-        wrongInputs['errors'].append({'param': 'map2', 'value': FNMAP2, 'cause': 'There is a problem reading the half-map2 file'})
+        wrongInputs['errors'].append(
+            {'param': 'map2', 'value': FNMAP2, 'cause': 'There is a problem reading the half-map2 file'})
 
 if "2" in levels:
     # Check 'avgs' arg
@@ -522,13 +550,14 @@ if "2" in levels:
                                                 filesPath=FNAVGS,
                                                 samplingRate=TSAVG)
     protImportAvgsChecker.setObjLabel('check format - import averages')
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportAvgsChecker)
     project.launchProtocol(protImportAvgsChecker)
-    #waitOutput(project, protImportAvgsChecker, 'outputAverages')
+    # waitOutput(project, protImportAvgsChecker, 'outputAverages')
     waitUntilFinishes(project, protImportAvgsChecker)
     if protImportAvgsChecker.isFailed():
-        wrongInputs['errors'].append({'param': 'avgs', 'value': FNAVGS, 'cause': 'There is a problem reading the 2D Classes file'})
+        wrongInputs['errors'].append(
+            {'param': 'avgs', 'value': FNAVGS, 'cause': 'There is a problem reading the 2D Classes file'})
 
 if "3" in levels:
     # Check 'particles' arg
@@ -540,22 +569,26 @@ if "3" in levels:
                                                      amplitudeContrast=Q0)
     protImportParticlesChecker.setObjLabel('check format - import particles')
     if FNPARTICLES.endswith(".sqlite"):
-        protImportParticlesChecker.importFrom.set(protImportParticlesChecker.IMPORT_FROM_SCIPION)
+        protImportParticlesChecker.importFrom.set(
+            protImportParticlesChecker.IMPORT_FROM_SCIPION)
         protImportParticlesChecker.sqliteFile.set(FNPARTICLES)
     elif FNPARTICLES.endswith(".xmd"):
-        protImportParticlesChecker.importFrom.set(protImportParticlesChecker.IMPORT_FROM_XMIPP)
+        protImportParticlesChecker.importFrom.set(
+            protImportParticlesChecker.IMPORT_FROM_XMIPP)
         protImportParticlesChecker.mdFile.set(FNPARTICLES)
     elif FNPARTICLES.endswith(".star"):
-        protImportParticlesChecker.importFrom.set(protImportParticlesChecker.IMPORT_FROM_RELION)
+        protImportParticlesChecker.importFrom.set(
+            protImportParticlesChecker.IMPORT_FROM_RELION)
         protImportParticlesChecker.starFile.set(FNPARTICLES)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportParticlesChecker)
     project.launchProtocol(protImportParticlesChecker)
-    #waitOutput(project, protImportParticlesChecker, 'outputParticles')
+    # waitOutput(project, protImportParticlesChecker, 'outputParticles')
     waitUntilFinishes(project, protImportParticlesChecker)
     # check if particles has alignment
     if protImportParticlesChecker.isFailed() or not protImportParticlesChecker.outputParticles.hasAlignment():
-        wrongInputs['errors'].append({'param': 'particles', 'value': FNPARTICLES, 'cause': 'There is a problem reading the particles file'})
+        wrongInputs['errors'].append(
+            {'param': 'particles', 'value': FNPARTICLES, 'cause': 'There is a problem reading the particles file'})
 
 if "5" in levels:
     # Check 'micrographs' arg
@@ -566,24 +599,26 @@ if "5" in levels:
                                      amplitudeContrast=Q0)
     protImportMicrographsChecker.setObjLabel('check format - import mics')
     if MICPATTERN.endswith(".sqlite"):
-        protImportMicrographsChecker.importFrom.set(protImportMicrographsChecker.IMPORT_FROM_SCIPION)
+        protImportMicrographsChecker.importFrom.set(
+            protImportMicrographsChecker.IMPORT_FROM_SCIPION)
         protImportMicrographsChecker.sqliteFile.set(MICPATTERN)
     else:
         protImportMicrographsChecker.filesPattern.set(MICPATTERN)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportMicrographsChecker)
     project.launchProtocol(protImportMicrographsChecker)
-    #waitOutput(project, protImportMicrographsChecker, 'outputMicrographs')
+    # waitOutput(project, protImportMicrographsChecker, 'outputMicrographs')
     waitUntilFinishes(project, protImportMicrographsChecker)
     if protImportMicrographsChecker.isFailed():
-        wrongInputs['errors'].append({'param': 'micrographs', 'value': MICPATTERN, 'cause': 'There is a problem reading the micrographs file'})
+        wrongInputs['errors'].append({'param': 'micrographs', 'value': MICPATTERN,
+                                     'cause': 'There is a problem reading the micrographs file'})
 
 if "A" in levels and not protImportMapChecker.isFailed():
     if IS_EMDB_ENTRY:
         FNMODEL = EMDButils.download_atomicmodel(PDB_ID, project.getPath())
     # Check 'atomicModel' arg
     writeAtomicModelFailed = False
-    try: # Check if biopython can read atomic model file
+    try:  # Check if biopython can read atomic model file
         h = UpdatedAtomicStructHandler()
         h.read(FNMODEL)
         try:  # Check if biopython can convert atomic file to PDB
@@ -597,16 +632,20 @@ if "A" in levels and not protImportMapChecker.isFailed():
             fnPdb = FNMODEL
             # h.writeAsPdb(fnPdb)
         except OutOfChainsError:
-            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Atomic model file not valid. Some programs cannot handle it due to size: Too many chains to represent in PDB format'})
+            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL,
+                                           'cause': 'Atomic model file not valid. Some programs cannot handle it due to size: Too many chains to represent in PDB format'})
             writeAtomicModelFailed = True
         except OutOfAtomsError:
-            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Atomic model file not valid. Some programs cannot handle it due to size: Too many atoms to represent in PDB format'})
+            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL,
+                                           'cause': 'Atomic model file not valid. Some programs cannot handle it due to size: Too many atoms to represent in PDB format'})
             writeAtomicModelFailed = True
         except:
-            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Atomic model file not valid. Some programs cannot handle it because it cannot be safely written in PDB format'})
+            wrongInputs['warnings'].append({'param': 'atomicModel', 'value': FNMODEL,
+                                           'cause': 'Atomic model file not valid. Some programs cannot handle it because it cannot be safely written in PDB format'})
             writeAtomicModelFailed = True
     except:
-        wrongInputs['errors'].append({'param': 'atomicModel', 'value': FNMODEL, 'cause': 'Atomic model file not valid. It cannot be safely read'})
+        wrongInputs['errors'].append({'param': 'atomicModel', 'value': FNMODEL,
+                                     'cause': 'Atomic model file not valid. It cannot be safely read'})
         writeAtomicModelFailed = True
 
     if not writeAtomicModelFailed:
@@ -615,34 +654,37 @@ if "A" in levels and not protImportMapChecker.isFailed():
                                                         pdbFile=fnPdb)
         protImportAtomicModelChecker.setObjLabel('check format - import atomic')
         protImportAtomicModelChecker.inputVolume.set(protImportMapChecker.outputVolume)
-        if useSlurm:
+        if use_slurm:
             sendToSlurm(protImportAtomicModelChecker, priority=False if IS_EMDB_ENTRY else True)
         project.launchProtocol(protImportAtomicModelChecker)
-        #waitOutput(project, protImportAtomicModelChecker, 'outputPdb')
+        # waitOutput(project, protImportAtomicModelChecker, 'outputPdb')
         waitUntilFinishes(project, protImportAtomicModelChecker)
         if protImportAtomicModelChecker.isFailed():
-            wrongInputs['errors'].append({'param': 'atomicModel', 'value': fnPdb, 'cause': 'There is a problem reading the atomic model file'})
+            wrongInputs['errors'].append(
+                {'param': 'atomicModel', 'value': fnPdb, 'cause': 'There is a problem reading the atomic model file'})
 
 
 if "O" in levels and not protImportMapChecker.isFailed():
     # Check 'xlm', 'saxs', 'untiltedMic', 'tiltedMic', 'untiltedCoords', 'tiltedCoords' args
     # 'xlm'
-    if "A" in levels and not writeAtomicModelFailed and not protImportAtomicModelChecker.isFailed():  #TODO: add  ... and XLM is not None:
+    # TODO: add  ... and XLM is not None:
+    if "A" in levels and not writeAtomicModelFailed and not protImportAtomicModelChecker.isFailed():
         protImportXLMChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xlmtools.protocols', 'ProtWLM', doRaise=True),
                                                    xlList=XLM)
         protImportXLMChecker.setObjLabel("check format - XLM")
         protImportXLMChecker.pdbs.set([protImportAtomicModelChecker.outputPdb])
-        if useSlurm:
+        if use_slurm:
             sendToSlurm(protImportXLMChecker)
         project.launchProtocol(protImportXLMChecker)
-        #waitOutput(project, protImportXLMChecker, 'crosslinkStruct_1')
+        # waitOutput(project, protImportXLMChecker, 'crosslinkStruct_1')
         waitUntilFinishes(project, protImportXLMChecker)
 
         if protImportXLMChecker.isFailed():
-            wrongInputs['errors'].append({'param': 'xlm', 'value': XLM, 'cause': 'There is a problem reading the XML file'})
-    #TODO: Avoid launching checkers for the different subsections of level O when not specifying the correspoding parameters
+            wrongInputs['errors'].append(
+                {'param': 'xlm', 'value': XLM, 'cause': 'There is a problem reading the XML file'})
+    # TODO: Avoid launching checkers for the different subsections of level O when not specifying the correspoding parameters
     # 'sax'
-    #TODO: Add 'if SAXS is not None:'
+    # TODO: Add 'if SAXS is not None:'
     protCreateMask = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
                                          inputVolume=protImportMapChecker.outputVolume,
                                          threshold=MAPTHRESHOLD,
@@ -650,12 +692,11 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                          doMorphological=True,
                                          elementSize=math.ceil(2/TS)) # Dilation by 2A
     protCreateMask.setObjLabel('check format - create mask')
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protCreateMask)
     project.launchProtocol(protCreateMask)
-    #waitOutput(project, protCreateMask, 'outputMask')
+    # waitOutput(project, protCreateMask, 'outputMask')
     waitUntilFinishes(project, protCreateMask)
-
 
     protPseudo = project.newProtocol(pwplugin.Domain.importFromPlugin('continuousflex.protocols', 'FlexProtConvertToPseudoAtoms', doRaise=True),
                                      maskMode=2,
@@ -663,27 +704,27 @@ if "O" in levels and not protImportMapChecker.isFailed():
     protPseudo.setObjLabel("check format - convert Map to Pseudo")
     protPseudo.inputStructure.set(protImportMapChecker.outputVolume)
     protPseudo.volumeMask.set(protCreateMask.outputMask)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protPseudo)
     project.launchProtocol(protPseudo)
-    #waitOutput(project, protPseudo, 'outputVolume')
-    #waitOutput(project, protPseudo, 'outputPdb')
+    # waitOutput(project, protPseudo, 'outputVolume')
+    # waitOutput(project, protPseudo, 'outputPdb')
     waitUntilFinishes(project, protPseudo)
-
 
     protImportSaxsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('atsas.protocols',
                                                                                  'AtsasProtConvertPdbToSAXS', doRaise=True),
                                                 experimentalSAXS=SAXS)
     protImportSaxsChecker.setObjLabel("check format - SAXS")
     protImportSaxsChecker.inputStructure.set(protPseudo.outputPdb)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportSaxsChecker)
     project.launchProtocol(protImportSaxsChecker)
     if protImportSaxsChecker.isFailed():
-        wrongInputs['errors'].append({'param': 'saxs', 'value': SAXS, 'cause': 'There is a problem reading the SAXS file'})
+        wrongInputs['errors'].append(
+            {'param': 'saxs', 'value': SAXS, 'cause': 'There is a problem reading the SAXS file'})
 
     # 'untiltedMic' and 'tiltedMic'
-    #TODO: Add 'if not [x for x in (UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS) if x is None]: # Checks that none of the variables are None'
+    # TODO: Add 'if not [x for x in (UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS) if x is None]: # Checks that none of the variables are None'
     protImportTiltPairsChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('pwem.protocols', 'ProtImportMicrographsTiltPairs', doRaise=True),
                                                      patternUntilted=UNTILTEDMIC,
                                                      patternTilted=TILTEDMIC,
@@ -692,15 +733,17 @@ if "O" in levels and not protImportMapChecker.isFailed():
                                                      sphericalAberration=TILTCS,
                                                      samplingRate=TILTTS)
     protImportTiltPairsChecker.setObjLabel("check format - import tilt pairs")
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportTiltPairsChecker)
     project.launchProtocol(protImportTiltPairsChecker)
-    #waitOutput(project, protImportTiltPairsChecker, 'outputMicrographsTiltPair')
+    # waitOutput(project, protImportTiltPairsChecker, 'outputMicrographsTiltPair')
     waitUntilFinishes(project, protImportTiltPairsChecker)
 
     if protImportTiltPairsChecker.isFailed():
-        wrongInputs['errors'].append( {'param': 'untiltedMic', 'value': UNTILTEDMIC, 'cause': 'There is a problem reading the untilted mic file'})
-        wrongInputs['errors'].append({'param': 'tiltedMic', 'value': TILTEDMIC, 'cause': 'There is a problem reading the tilted mic file'})
+        wrongInputs['errors'].append({'param': 'untiltedMic', 'value': UNTILTEDMIC,
+                                     'cause': 'There is a problem reading the untilted mic file'})
+        wrongInputs['errors'].append(
+            {'param': 'tiltedMic', 'value': TILTEDMIC, 'cause': 'There is a problem reading the tilted mic file'})
 
     # 'untiltedCoords' and 'tiltedCoords'
     x, y, z = protImportMapChecker.outputVolume.getDimensions()
@@ -715,22 +758,24 @@ if "O" in levels and not protImportMapChecker.isFailed():
     if UNTILTEDCOORDS.endswith('.json'):
         protImportCoordsChecker.importFrom.set(1)
     protImportCoordsChecker.inputMicrographsTiltedPair.set(protImportTiltPairsChecker.outputMicrographsTiltPair)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protImportCoordsChecker)
     project.launchProtocol(protImportCoordsChecker)
-    #waitOutput(project, protImportCoordsChecker, 'outputCoordinatesTiltPair')
+    # waitOutput(project, protImportCoordsChecker, 'outputCoordinatesTiltPair')
     waitUntilFinishes(project, protImportCoordsChecker)
     if protImportCoordsChecker.isFailed():
-        wrongInputs['errors'].append({'param': 'untiltedCoords', 'value': UNTILTEDCOORDS, 'cause': 'There is a problem reading the untilted coords file'})
-        wrongInputs['errors'].append({'param': 'tiltedCoords', 'value': TILTEDCOORDS, 'cause': 'There is a problem reading the tilted coords file'})
+        wrongInputs['errors'].append({'param': 'untiltedCoords', 'value': UNTILTEDCOORDS,
+                                     'cause': 'There is a problem reading the untilted coords file'})
+        wrongInputs['errors'].append({'param': 'tiltedCoords', 'value': TILTEDCOORDS,
+                                     'cause': 'There is a problem reading the tilted coords file'})
 
-from validationReport import ValidationReport
-report = ValidationReport(fnProjectDir, levels, IS_EMDB_ENTRY, EMDB_ID, FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION)
+report = ValidationReport(fnProjectDir, levels, IS_EMDB_ENTRY, EMDB_ID,
+                          FNMAP, PDB_ID, FNMODEL, JOB_NAME, JOB_DESCRIPTION, MAPRESOLUTION)
 
-with open (os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f:
-        json.dump(wrongInputs, f)
+with open(os.path.join(report.fnReportDir, 'wrongInputs.json'), 'w') as f:
+    json.dump(wrongInputs, f)
 # if some input data was wrong do whatever we want: inform the user, write error msg in report, etc.
-#if protImportMapChecker.isFailed() or protImportMap1Checker.isFailed() or protImportMap2Checker.isFailed() or \
+# if protImportMapChecker.isFailed() or protImportMap1Checker.isFailed() or protImportMap2Checker.isFailed() or \
 if protImportMapChecker.isFailed() or \
         (protImportMap1Checker.isFailed() if "1" in levels and 'protImportMap1Checker' in locals() else None) or \
         (protImportMap2Checker.isFailed() if "1" in levels and 'protImportMap2Checker' in locals() else None) or \
@@ -742,10 +787,10 @@ if protImportMapChecker.isFailed() or \
         (protImportSaxsChecker.isFailed() if "O" in levels and 'protImportSaxsChecker' in locals() else None) or \
         (protImportTiltPairsChecker.isFailed() if "O" in levels and 'protImportTiltPairsChecker' in locals() else None) or \
         (protImportCoordsChecker.isFailed() if "O" in levels and 'protImportCoordsChecker' in locals() else None) or \
-        len(wrongInputs['errors'])>0:
+        len(wrongInputs['errors']) > 0:
     print("Some input data was not correct")
 
-else: # go ahead
+else:  # go ahead
     print("All inputs were correct, let's process them!")
     # Create report
     # Level 0
@@ -760,28 +805,30 @@ else: # go ahead
     # Level 2
     if "2" in levels:
         from validationLevel2 import level2
-        protImportAvgs, protAvgsResizeMap = level2(project, report, protImportMap, FNAVGS, TSAVG, SYM, skipAnalysis = False)
+        protImportAvgs, protAvgsResizeMap = level2(
+            project, report, protImportMap, FNAVGS, TSAVG, SYM, skipAnalysis=False)
 
     # Level 3
     if "3" in levels:
         from validationLevel3 import level3
         protImportParticles, protResizeParticlesMap, protResizeAvgs = level3(project, report, protImportMap, protImportAvgs,
-                                                                    FNPARTICLES, TSPARTICLES, KV, CS, Q0,
-                                                                    skipAnalysis = False)
+                                                                             FNPARTICLES, TSPARTICLES, KV, CS, Q0,
+                                                                             skipAnalysis=False)
 
     # Level 4
     if "4" in levels:
         from validationLevel4 import level4
         protResizeParticles = level4(project, report, protImportMap, protCreateHardMask, protResizeParticlesMap, SYM,
-                                     MAPRESOLUTION, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, skipAnalysis = False)
+                                     MAPRESOLUTION, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, skipAnalysis=False)
 
     # Level 5
     if "5" in levels:
         from validationLevel5 import level5
-        level5(project, report, protImportParticles, KV, CS, Q0, MICPATTERN, TSMIC, skipAnalysis = False)
+        level5(project, report, protImportParticles, KV, CS,
+               Q0, MICPATTERN, TSMIC, skipAnalysis=False)
 
     # Level A
-    #TODO: pass writeAtomicModelFailed to levelA() to write the warning in the report
+    # TODO: pass writeAtomicModelFailed to levelA() to write the warning in the report
     if "A" in levels:
         from validationLevelA import levelA
         protAtom = levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAtomicModelFailed, MAPRESOLUTION, doMultimodel, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis = False, priority=False if IS_EMDB_ENTRY else True)
@@ -791,21 +838,24 @@ else: # go ahead
     # Level W
     if "W" in levels:
         from validationLevelW import levelW
-        levelW(project, report, WORKFLOW, skipAnalysis = False)
+        levelW(project, report, WORKFLOW, skipAnalysis=False)
 
     # Level O
-    #TODO: pass writeAtomicModelFailed to levelO() to write the warning in the report (section O.a.)
+    # TODO: pass writeAtomicModelFailed to levelO() to write the warning in the report (section O.a.)
     if "O" in levels:
         from validationLevelO import levelO
         levelO(project, report, protImportMap, protCreateHardMask, protAtom, XLM, SAXS,
                UNTILTEDMIC, TILTEDMIC, TILTKV, TILTCS, TILTQ0, TILTTS, TILTANGLE, UNTILTEDCOORDS, TILTEDCOORDS, SYM,
-               skipAnalysis = False)
+               skipAnalysis=False)
 
     # Close report
     report.abstractResolution(MAPRESOLUTION)
-    saveIntermediateData(report.getReportDir(), 'outputData', False, 'resolutionEstimates', [resolutionEstimate.tolist() if type(resolutionEstimate) is np.ndarray else resolutionEstimate for resolutionEstimate in report.resolutionEstimates], ['\u212B', 'List of the resolutions of the map estimated by various methods to get the estimated range and average in abstract'])
-    saveIntermediateData(report.getReportDir(), 'outputData', False, 'score', report.score, ['', 'The overall score (passing tests; STATUS OK) of the map'])
-    saveIntermediateData(report.getReportDir(), 'outputData', False, 'scoreN', report.scoreN, ['', 'The total number of evaluable items (tests) to assess the map'])
+    saveIntermediateData(report.getReportDir(), 'outputData', False, 'resolutionEstimates', [resolutionEstimate.tolist() if type(resolutionEstimate) is np.ndarray else resolutionEstimate for resolutionEstimate in report.resolutionEstimates], [
+                         '\u212B', 'List of the resolutions of the map estimated by various methods to get the estimated range and average in abstract'])
+    saveIntermediateData(report.getReportDir(), 'outputData', False, 'score', report.score, [
+                         '', 'The overall score (passing tests; STATUS OK) of the map'])
+    saveIntermediateData(report.getReportDir(), 'outputData', False, 'scoreN', report.scoreN, [
+                         '', 'The total number of evaluable items (tests) to assess the map'])
 
     # Check if there are warnings
     with open(os.path.join(fnProjectDir, "validationReport", "report.tex")) as summaryWarnings:
@@ -824,9 +874,54 @@ else: # go ahead
             with open(logs[0]) as log:
                 for line in log:
                     if re.search(r'plugin v', line):
-                        version = line.split(':')[1].replace(' ', '').replace('\n', '')
+                        version = line.split(':')[1].replace(
+                            ' ', '').replace('\n', '')
                         protDicts[prot.getObjId()]['pluginVersion'] = version
         with open(os.path.join(fnProjectDir, 'validationReport', 'workflow.json'), 'w') as f:
-            f.write(json.dumps(list(protDicts.values()), indent=4, separators=(',', ': ')))
+            f.write(json.dumps(list(protDicts.values()),
+                    indent=4, separators=(',', ': ')))
 
-    report.closeReport(MAPRESOLUTION, IS_TEST)
+    if IS_EMDB_ENTRY and "A" in levels:
+        # Convert results to BWS compatible format
+        print("Convert results to 3DBionotes format ...")
+        try:
+            deepres_json_path = convert_to_bws("XmippProtDeepRes", project_root=project.getPath(),
+                                               volume="deepRes_resolution_originalSize.vol")
+            if deepres_json_path:
+                saveIntermediateData(report.getReportDir(), 'deepRes', True,
+                                     'deepRes_resolution_json', str(deepres_json_path),
+                                     'deepRes resolutions in json format')
+        except Exception as e:
+            print(f"Failed to save DeepRes: {e}")
+
+        try:
+            monores_json_path = convert_to_bws("XmippProtMonoRes", project_root=project.getPath(),
+                                               volume="monoresResolutionMap.mrc")
+            if monores_json_path:
+                saveIntermediateData(report.getReportDir(), 'monoRes', True,
+                                     'monoRes_resolution_json', str(monores_json_path),
+                                     'monoRes resolutions in json format')
+        except Exception as e:
+            print(f"Failed to save MonoRes: {e}")
+
+        try:
+            blocres_json_path = convert_to_bws("BsoftProtBlocres", project_root=project.getPath(),
+                                               volume="resolutionMap.map")
+            if blocres_json_path:
+                saveIntermediateData(report.getReportDir(), 'blocRes', True,
+                                     'blocRes_resolution_json', str(blocres_json_path),
+                                     'blocRes resolutions in json format')
+        except Exception as e:
+            print(f"Failed to save BlocRes: {e}")
+
+        try:
+            fscq_json_path = convert_to_bws("XmippProtValFit", project_root=project.getPath(),
+                                            volume="diferencia.map")
+            if fscq_json_path:
+                saveIntermediateData(report.getReportDir(), 'FSCQ', True,
+                                     'FSCQ_resolution_json', str(fscq_json_path),
+                                     'FSCQ resolutions in json format')
+        except Exception as e:
+            print(f"Failed to save FSC-Q: {e}")
+
+    report.closeReport(MAPRESOLUTION, IS_TEST, store_intermediate_data, intermediate_data_final_path)

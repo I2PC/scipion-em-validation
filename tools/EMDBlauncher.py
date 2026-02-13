@@ -11,14 +11,18 @@ import sys
 import argparse
 import re
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from validationReport import get_env_bool, get_env_int
+
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.yaml'))
-EMDB_entries_path = config['EMDB'].get('ENTRIES_PATH')
-log_folder = config['EMDB'].get('LOG_PATH')
-scipionProjects_path = config['SCIPION'].get('SCIPIONPROJECTS_PATH')
-scipion_launcher = config['SCIPION'].get('SCIPION_LAUNCHER')
-validation_server_launcher = config['EM-VALIDATION'].get('VALIDATION_SERVER_LAUNCHER')
-CLEAN_ORIGINAL_DATA = config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
+EMDB_entries_path = os.getenv('EMDB_ENTRIES_PATH') or config['EMDB'].get('ENTRIES_PATH')
+log_folder = os.getenv('EMDB_LOG_PATH') or config['EMDB'].get('LOG_PATH')
+scipion_projects_path = os.getenv('SCIPION_SCIPIONPROJECTS_PATH') or config['SCIPION'].get('SCIPIONPROJECTS_PATH')
+scipion_launcher = os.getenv('SCIPION_SCIPION_LAUNCHER') or config['SCIPION'].get('SCIPION_LAUNCHER')
+validation_server_launcher = os.getenv('EM_VALIDATION_VALIDATION_SERVER_LAUNCHER') or config['EM-VALIDATION'].get('VALIDATION_SERVER_LAUNCHER')
+CLEAN_ORIGINAL_DATA = get_env_bool('INTERMEDIATE_DATA_CLEAN_ORIGINAL_DATA') or config['INTERMEDIATE_DATA'].getboolean('CLEAN_ORIGINAL_DATA')
+num_concurrent_launches = get_env_int('OTHER_NUM_CONCURRENT_LAUNCHES') or config['OTHER'].getint('NUM_CONCURRENT_LAUNCHES')
 
 def connect_to_ddbb():
     connection = mysql.connector.connect(host='localhost', user='vrs', password='', database='vrs')
@@ -68,7 +72,7 @@ def launcher(entry, cmd, log_file, levels, isTest):
             if stderr:
                 log_file.write(stderr)
 
-        reportPath = os.path.join(scipionProjects_path, entry, 'validationReport', 'report.pdf')
+        reportPath = os.path.join(scipion_projects_path, entry, 'validationReport', 'report.pdf')
         data = (1, int(datetime.now().timestamp()), 0 if process.returncode == 0 and os.path.exists(reportPath) else 1,
                 reportPath if process.returncode == 0 and os.path.exists(reportPath) else None,
                 stderr if process.returncode != 0 else None, entry, n_launchs+1)
@@ -89,7 +93,7 @@ def launcher(entry, cmd, log_file, levels, isTest):
             cleanOriginalData = CLEAN_ORIGINAL_DATA
 
         if cleanOriginalData and process.returncode == 0 and os.path.exists(reportPath):
-            cmd = 'rm -rf %s' % os.path.join(scipionProjects_path, entry)
+            cmd = 'rm -rf %s' % os.path.join(scipion_projects_path, entry)
             subprocess.run(cmd, shell=True)
     except Exception as e:
         print("Exception:", e)
@@ -171,7 +175,7 @@ def launch(levels, n_entries, isTest, start_entry=1, random=False):
         cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, doLevels, "--isTest" if isTest else ""))
         output_files.append(os.path.join(log_folder, entry))
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_concurrent_launches) as executor:
         for cmd, output_file, entry in zip(cmds, output_files, emdb_entries):
             executor.submit(launcher, entry, cmd, output_file, doLevels, isTest)
             sleep(60)
@@ -193,7 +197,7 @@ def launch_fails(isTest, exceptions=[]):
             output_files.append(os.path.join(log_folder, entry))
 
     if emdb_entries:
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_concurrent_launches) as executor:
             for cmd, output_file, entry, level in zip(cmds, output_files, emdb_entries, doLevels):
                 executor.submit(launcher, entry, cmd, output_file, level, isTest)
                 sleep(60)
@@ -228,7 +232,7 @@ def launch_list(input_list, doLevels, isTest):
             cmds.append(cmd % (scipion_launcher, validation_server_launcher, entry, doLevels, "--isTest" if isTest else ""))
             output_files.append(os.path.join(log_folder, entry))
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_concurrent_launches) as executor:
             for cmd, output_file, entry in zip(cmds, output_files, emdb_entries):
                 executor.submit(launcher, entry, cmd, output_file, doLevels, isTest)
                 sleep(60)
@@ -250,7 +254,7 @@ def main(argv):
 
     # Launch validation over all EMDB entries
     main_group.add_argument('--launchAll', '-la', help='launch validations over all EMDB entries', action='store_true')
-    parser.add_argument('--level', '-l', help='when --launchAll or launchList: which level launch', choices=['0', '0,A', '0,1', 'O,A,1'])
+    parser.add_argument('--level', '-l', help='when --launchAll or launchList: which level launch', choices=['0', '0,A', '0,1', '0,A,1'])
     parser.add_argument('--nEntries', '-n', type=int, help='when --launchAll: how many EMDB entries (i.e: 100)')
     subgroup.add_argument('--startEntry', '-start', type=int, help='when --launchAll: starting EMDB position entry from list (i.e:1)')
     subgroup.add_argument('--random', '-r', help='when --launchAll: select nEntries random entries from list', action='store_true')

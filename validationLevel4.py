@@ -32,7 +32,7 @@ import scipy
 import pyworkflow.plugin as pwplugin
 import xmipp3
 
-from validationReport import reportHistogram, reportPlot, reportMultiplePlots
+from validationReport import reportHistogram, reportPlot, reportMultiplePlots, get_env_bool, get_env_int
 from resourceManager import waitOutput, sendToSlurm, skipSlurm, waitUntilFinishes, waitOutputFile
 
 import configparser
@@ -41,8 +41,8 @@ from resources.constants import *
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
-useSlurm = config['QUEUE'].getboolean('USE_SLURM')
-gpuIdSkipSlurm = config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
+use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
+gpu_id_skip_slurm = get_env_int('QUEUE_GPU_ID_SKIP_SLURM') or config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
 
 def resizeProject(project, protMap, protParticles, resolution):
     Xdim = protMap.outputVolume.getDim()[0]
@@ -63,7 +63,7 @@ def resizeProject(project, protMap, protParticles, resolution):
                                               windowOperation=1,
                                               windowSize=Xdimp)
     protResizeParticles.inputParticles.set(protParticles.outputParticles)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protResizeParticles)
     project.launchProtocol(protResizeParticles)
     #waitOutput(project, protResizeParticles, 'outputParticles')
@@ -87,7 +87,7 @@ def similarityMeasures(project, report, protMap, protMask, protParticles, symmet
     prot.inputVolumes.set(protMap.outputVolume)
     prot.inputParticles.set(protParticles.outputParticles)
     prot.nextMask.set(protMask.outputMask)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
@@ -216,7 +216,7 @@ of the smoothed cross-correlation landscape.\\\\
                                symmetryGroup=symmetry,
                                maximumTargetResolution=resolution,
                                numberOfMpi=8)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputParticles')
@@ -288,7 +288,7 @@ def multirefAlignability(project, report, protMap, protMask, protParticles, symm
                                numberOfMpi=8)
     prot.inputVolumes.set(protMap.outputVolume)
     prot.inputParticles.set(protParticles.outputParticles)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputParticles')
@@ -395,7 +395,7 @@ def compareAlignment(project, report, refmap, protRefParticles, protReconstructi
     protAlign.inputReference.set(refmap)
     protAlign.inputVolume.set(protReconstruction.outputVolume)
     protAlign.inputParticles.set(protReconstruction.outputParticles)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protAlign)
     project.launchProtocol(protAlign)
     #waitOutput(project, protAlign, 'outputVolume')
@@ -409,7 +409,7 @@ def compareAlignment(project, report, refmap, protRefParticles, protReconstructi
                                     symmetryGroup=symmetry)
     protCompare.inputParticles1.set(protRefParticles.outputParticles)
     protCompare.inputParticles2.set(protReconstruction.outputParticles)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protCompare)
     project.launchProtocol(protCompare)
     #waitOutput(project, protCompare, 'outputParticles')
@@ -489,7 +489,7 @@ def relionAlignment(project, report, protResizeMap, protCreateHardMaskFromResize
     prot.referenceVolume.set(protResizeMap.outputVol)
     prot.inputParticles.set(protResizeParticles.outputParticles)
     prot.referenceMask.set(protCreateHardMaskFromResizedMap.outputMask)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, GPU=True)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
@@ -565,8 +565,8 @@ def cryosparcAlignment(project, report, protResizeMap, protCreateHardMaskFromRes
         prot.symmetryGroup.set(4)
     elif symmetry=="i2":
         prot.symmetryGroup.set(5)
-    if useSlurm:
-        skipSlurm(prot, gpuIdSkipSlurm)
+    if use_slurm:
+        skipSlurm(prot, gpu_id_skip_slurm)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
     #waitOutput(project, prot, 'outputParticles')
@@ -686,7 +686,7 @@ def relionClassification(project, report, protResizeMap, protCreateHardMaskFromR
     prot.referenceVolume.set(protResizeMap.outputVol)
     prot.inputParticles.set(protParticles.outputParticles)
     prot.referenceMask.set(protCreateHardMaskFromResizedMap.outputMask)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputClasses')
@@ -782,7 +782,7 @@ def validateOverfitting(project, report, protResizeMap, protCreateHardMaskFromRe
 
     prot.input3DReference.set(protResizeMap.outputVol)
     prot.inputParticles.set(protParticles.outputParticles)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, GPU=True)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
@@ -885,7 +885,7 @@ def angularDistributionEfficiency(project, report, protResizeParticles, symmetry
                                Bfact=-bfactor)
 
     prot.inputParticles.set(protResizeParticles.outputParticles)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume1')
@@ -1013,7 +1013,7 @@ angle mis-assignment.
                                numberToUse=-1,
                                sym=symStr)
 
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
@@ -1068,7 +1068,7 @@ def ctfStability(project, report, protRefinement, protResizeParticles, protCreat
                                           objLabel="4.i PostProcess")
     protPostprocess.protRefine.set(protRefinement)
     protPostprocess.solventMask.set(protCreateHardMaskFromResizedMap.outputMask)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protPostprocess)
     project.launchProtocol(protPostprocess)
     #waitOutput(project, protPostprocess, 'outputVolume')
@@ -1111,7 +1111,7 @@ the differences in defoci cannot be larger than the ice thickness. We also estim
                                numberOfMpi=8)
     prot.inputParticles.set(protResizeParticles.outputParticles)
     prot.inputPostprocess.set(protPostprocess)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputParticles')

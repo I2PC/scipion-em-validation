@@ -40,7 +40,7 @@ import pyworkflow.plugin as pwplugin
 from pyworkflow.utils.path import cleanPattern, cleanPath
 from pwem.emlib.image import ImageHandler
 from validationReport import readMap, calculateSha256, CDFFromHistogram, CDFpercentile, reportPlot, \
-    radialPlot, reportMultiplePlots, reportHistogram, isHomogeneous
+    radialPlot, reportMultiplePlots, reportHistogram, isHomogeneous, get_env_bool, get_env_int
 import xmipp3
 
 from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished
@@ -53,9 +53,13 @@ from resources.constants import *
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
-useSlurm = config['QUEUE'].getboolean('USE_SLURM')
-N_TASKS = config['QUEUE'].get('N_TASKS')
-N_THREADS = config['SCIPION'].get('N_THREADS')
+use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
+n_mpis = get_env_int('SCIPION_N_MPIS') or config['SCIPION'].getint('N_MPIS')
+n_threads = get_env_int('SCIPION_N_THREADS') or config['SCIPION'].getint('N_THREADS')
+containerized = get_env_bool('SCIPION_CONTAINERIZED') or config['SCIPION'].getboolean('CONTAINERIZED')
+containerized_launcher_path = os.getenv('SCIPION_CONTAINER_LAUNCHER_PATH') or config['SCIPION'].get('CONTAINER_LAUNCHER_PATH')
+use_virtual_display = get_env_bool('CHIMERA_USE_VIRTUAL_DISPLAY') or config['CHIMERA'].getboolean('USE_VIRTUAL_DISPLAY')
+virtual_display_port = get_env_int('CHIMERA_VIRTUAL_DISPLAY_PORT') or config['CHIMERA'].getint('VIRTUAL_DISPLAY_PORT')
 
 def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
@@ -78,7 +82,7 @@ def importMap(project, label, fnMap, Ts, mapCoordX, mapCoordY, mapCoordZ, priori
                                    filesPattern=fnMap,
                                    samplingRate=Ts,
                                    setOrigCoord=False)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')
@@ -110,7 +114,7 @@ def globalResolution(project, report, label, protImportMap1, protImportMap2, res
     prot.inputVolume.set(protImportMap1.outputVolume)
     prot.referenceVolume.set(protImportMap2.outputVolume)
 
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputFSC')
@@ -342,7 +346,7 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
     prot.halfTwo.set(protImportMap2.outputVolume)
     prot.mask.set(protMask.outputMask)
 
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputFSC')
@@ -441,8 +445,8 @@ This method (see this \\href{%s}{link} for more details) computes a local Fourie
     prot.inputVolume2.set(protImportMap2.outputVolume)
     prot.mask.set(protMask.outputMask)
 
-    if useSlurm:
-        sendToSlurm(prot, nMPIs=10, priority=True if priority else False)
+    if use_slurm:
+        sendToSlurm(prot, nMPIs=n_mpis, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'resolution_Volume')
     waitUntilFinishes(project, prot)
@@ -521,7 +525,7 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
                             fnMaskedMap, Ts,
                             os.path.join(project.getPath(), prot._getExtraPath("resolutionMap.map")),
                             Rpercentiles[0], Rpercentiles[-1])
-    saveIntermediateData(report.getReportDir(), 'deepRes', True, 'blocResViewer',
+    saveIntermediateData(report.getReportDir(), 'blocRes', True, 'blocResViewer',
                          [os.path.join(report.getReportDir(), 'blocresViewer1.jpg'),
                           os.path.join(report.getReportDir(), 'blocresViewer2.jpg'),
                           os.path.join(report.getReportDir(), 'blocresViewer3.jpg')], 'blocRes views')
@@ -583,15 +587,20 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
     fnMask = os.path.join(project.getPath(),protMask.outputMask.getFileName())
     args = "--doBenchMarking --noguiSplit %s %s --vxSize=%f  --maskVol=%s"%(fnVol1, fnVol2, Ts, fnMask)
     print("Running: %s %s" % (resmap, args))
-    cmd = '%s %s' % (resmap, args)
 
-    if not useSlurm:
-        p = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
+    if not use_slurm:
+        cmd = f'{resmap} {args}'
+        p = subprocess.Popen(f'xvfb-run --server-num={virtual_display_port} {cmd}' if use_virtual_display else cmd, 
+                             shell=True, stderr=subprocess.PIPE)
         p.wait()
         sleep(120)
     else:
+        cmd = f'{"bash " + containerized_launcher_path if containerized else ""}'
+        if use_virtual_display:
+            cmd += f' xvfb-run --server-num={virtual_display_port}'
+        cmd = f'{cmd} {resmap} {args}'
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
-        slurmScriptPath = createScriptForSlurm('resmap_' + str(randomInt), report.getReportDir(), cmd, nTasks=int(N_TASKS), priority=priority)
+        slurmScriptPath = createScriptForSlurm('resmap_' + str(randomInt), report.getReportDir(), cmd, nTasks=int(n_mpis), priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished
@@ -600,7 +609,7 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
                 break
         sleep(120)
 
-    fnResMap = os.path.join(report.getReportDir() if not useSlurm else os.path.dirname(slurmScriptPath), "half1_ori_resmap.mrc")
+    fnResMap = os.path.join(report.getReportDir() if not use_slurm else os.path.dirname(slurmScriptPath), "half1_ori_resmap.mrc")
     if not os.path.exists(fnResMap):
         report.writeSummary("1.d Resmap", secLabel, ERROR_MESSAGE)
         report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
@@ -716,10 +725,10 @@ def monores(project, report, label, protImportMap, protCreateMask, resolution, f
                                useHalfVolumes=True,
                                minRes=2*Ts,
                                maxRes=max(10,5*resolution),
-                               numberOfThreads=N_THREADS)
+                               numberOfThreads=n_threads)
     prot.associatedHalves.set(protImportMap.outputVolume)
     prot.mask.set(protCreateMask.outputMask)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'resolution_Volume')
@@ -886,10 +895,10 @@ protein. As the shells approach the outside of the protein, these radial average
                                objLabel=label,
                                fast=True,
                                resstep=0.5,
-                               numberOfThreads=N_THREADS)
+                               numberOfThreads=n_threads)
     prot.inputVolumes.set(protImportMap.outputVolume)
     prot.Mask.set(protCreateMask.outputMask)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume_doa')
@@ -1033,7 +1042,7 @@ def fso(project, report, label, protImportMap, protMask, resolution, priority=Fa
     prot.inputHalves.set(protImportMap.outputVolume)
     prot.mask.set(protMask.outputMask)
 
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
@@ -1168,7 +1177,7 @@ def resizeMapToTargetResolution(project, map, TsTarget, priority=False):
                                         windowOperation=1,
                                         windowSize=Xdimp)
     protResizeMap.inputVolumes.set(map)
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(protResizeMap, priority=True if priority else False)
     project.launchProtocol(protResizeMap)
     waitUntilFinishes(project, protResizeMap)
@@ -1209,7 +1218,7 @@ This method (see this \\href{%s}{link} for more details) analyzes the FSC in dif
     prot.volumeHalf2.set(protImportMap2.outputVolume)
     prot.maskVolume.set(protCreateSoftMask.outputMask)
 
-    if useSlurm:
+    if use_slurm:
         sendToSlurm(prot, GPU=True, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputVolume')

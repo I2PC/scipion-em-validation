@@ -1,29 +1,32 @@
 [QUEUE]
 # Do you want to use Slurm?
-USE_SLURM = True
+USE_SLURM = False
 # GPU ID to be used when Slurm is set up and you do want to skip it
 GPU_ID_SKIP_SLURM = 7
 # Queue names
 STANDARD_QUEUE_NAME = standard
 PRIORITY_QUEUE_NAME = fast
-N_TASKS = 10
+USE_SPECIFIC_NODES = False
+NODE_LIST = node1,node2,node3
 
 [CHIMERA]
 MAX_MEM_TO_USE = 60000
 MAX_VOXELS = 1500
+USE_VIRTUAL_DISPLAY = True
+VIRTUAL_DISPLAY_PORT = 99
 
 [INTERMEDIATE_DATA]
-STORE_INTERMEDIATE_DATA = True
+STORE_INTERMEDIATE_DATA = False
 CLEAN_ORIGINAL_DATA = False
 DEST_PATH = /data/ScipionUserDataToRetrieve/projects
 
 [MAPQ]
-MAPQ_PATH = /home/vrs/scipion3/software/em/chimera-1.16/mapq/
-CHIMERA_PROGRAM_PATH = /home/vrs/scipion3/software/em/chimera-1.16/chimera/bin/chimera
+MAPQ_PATH = /scipion/software/em/chimera-1.16/mapq/
+CHIMERA_PROGRAM_PATH = /scipion/software/em/chimera-1.16/chimera/bin/chimera
 
 [EM-VALIDATION]
-VALIDATION_TOOLS_PATH = /home/vrs/scipion3/plugins/scipion-em-validation/tools/
-VALIDATION_SERVER_LAUNCHER = /home/vrs/scipion3/plugins/scipion-em-validation/validationLevels.py
+VALIDATION_TOOLS_PATH = /scipion/scipion-em-validation/tools/
+VALIDATION_SERVER_LAUNCHER = /scipion/scipion-em-validation/validationLevels.py
 
 [EMDB]
 ENTRIES_PATH = /home/vrs/EMDB/entries
@@ -33,3 +36,9 @@ LOG_PATH = /home/vrs/EMDB/logs
 SCIPIONPROJECTS_PATH = /home/vrs/ScipionUserData/projects
 SCIPION_LAUNCHER = /home/vrs/scipion3/scipion3
 N_THREADS = 10
+N_MPIS = 10
+CONTAINERIZED = False
+CONTAINER_LAUNCHER_PATH = /path/to/launcher.sh
+
+[OTHER]
+NUM_CONCURRENT_LAUNCHES = 1000
