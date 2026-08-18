@@ -63,7 +63,7 @@ def download_emdb_halfmaps(emdbid, directory):
     json_results = requests.get(url_supplement_info_rest_api).json()
     half_maps = [json_results['interpretation']['half_map_list']['half_map'][0]['file'], json_results['interpretation']['half_map_list']['half_map'][1]['file']]
 
-    url_ftp_other = 'ftp://ftp.ebi.ac.uk/pub/databases/emdb/structures/EMD-%s/other/%s'
+    url_ftp_other = 'https://ftp.ebi.ac.uk/pub/databases/emdb/structures/EMD-%s/other/%s'
 
     print("Downloading associated halfmaps...")
 
