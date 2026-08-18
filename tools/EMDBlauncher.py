@@ -233,6 +233,7 @@ def launch_list(input_list, doLevels, isTest):
             output_files.append(os.path.join(log_folder, entry))
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_concurrent_launches) as executor:
+            print(f"I will use {num_concurrent_launches} concurrent launches")
             for cmd, output_file, entry in zip(cmds, output_files, emdb_entries):
                 executor.submit(launcher, entry, cmd, output_file, doLevels, isTest)
                 sleep(60)
