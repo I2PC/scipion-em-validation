@@ -262,9 +262,12 @@ Fig. \\ref{fig:SSNR} shows the SSNR and the SSNR=1 threshold. %s\\\\
 """The mean resolution between the three methods is %5.2f\AA~and its range is within the interval [%5.2f,%5.2f]\\AA."""  % (np.mean(resolutionList), np.min(resolutionList), np.max(resolutionList))
         report.write(msg)
 
-    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'meanResolution3', np.mean(resolutionList), ['\u212B', 'The mean resolution between the three methods, FSC, DPR, SSNR'])
-    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'llResolutionInterval', np.min(resolutionList), ['\u212B', 'Lower limit resolution interval for the three methods'])
-    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'ulResolutionInterval', np.max(resolutionList), ['\u212B', 'Upper limit resolution interval for the three methods'])
+    meanResolution3 = np.mean(resolutionList) if len(resolutionList)>0 else None
+    llResolutionInterval = np.min(resolutionList) if len(resolutionList)>0 else None
+    ulResolutionInterval = np.max(resolutionList) if len(resolutionList)>0 else None
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'meanResolution3', meanResolution3, ['\u212B', 'The mean resolution between the three methods, FSC, DPR, SSNR. None means that none of the three methods (FSC, DPR, SSNR) crossed their threshold'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'llResolutionInterval', llResolutionInterval, ['\u212B', 'Lower limit resolution interval for the three methods. None means that none of the three methods (FSC, DPR, SSNR) crossed their threshold'])
+    saveIntermediateData(report.getReportDir(), 'globalResolution', False, 'ulResolutionInterval', ulResolutionInterval, ['\u212B', 'Upper limit resolution interval for the three methods. None means that none of the three methods (FSC, DPR, SSNR) crossed their threshold'])
 
     msg = \
 """\\begin{figure}[H]
@@ -293,15 +296,15 @@ Fig. \\ref{fig:SSNR} shows the SSNR and the SSNR=1 threshold. %s\\\\
     # Warnings
     warnings=[]
     testWarnings = False
-    if fFSC is not None:
+    if fFSC is not None and resolution is not None:
         if resolution<0.8/fFSC or testWarnings:
             warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
                             "to the resolution calculated by the FSC, %5.2f \\AA}}"%(resolution,1.0/fFSC))
-    if fDPR is not None:
+    if fDPR is not None and resolution is not None:
         if resolution<0.8/fDPR or testWarnings:
             warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
                             "to the resolution calculated by the DPR, %5.2f\\AA.}}"%(resolution,1.0/fDPR))
-    if fSSNR is not None:
+    if fSSNR is not None and resolution is not None:
         if resolution<0.8/fSSNR or testWarnings:
             warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
                             "to the resolution calculated by the SSNR, %5.2f\\AA.}}"%(resolution,1.0/fSSNR))
@@ -406,7 +409,7 @@ estimated FSC and resolution.
 
     warnings=[]
     testWarnings = False
-    if resolution<0.8*FDRResolution or testWarnings:
+    if (resolution is not None and resolution<0.8*FDRResolution) or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
                         "to the resolution calculated by the FSC permutation, %5.2f \\AA}}"%(resolution,FDRResolution))
     msg = \
@@ -471,8 +474,12 @@ This method (see this \\href{%s}{link} for more details) computes a local Fourie
 
     reportHistogram(R, "Local resolution (A)", fnHist)
     Rpercentiles = np.percentile(R, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
-    resolutionP = np.sum(R<resolution)/R.size*100
+    resolutionP = np.sum(R<resolution)/R.size*100 if resolution is not None else None
     report.addResolutionEstimate(Rpercentiles[2])
+
+    reportedResSentence = "The reported resolution, %5.2f \\AA, is at the percentile %4.1f." % (resolution, resolutionP) \
+        if resolution is not None else \
+        "No resolution was reported/deposited for this entry, so it cannot be located within this percentile distribution."
 
     toWrite = \
 """
@@ -497,7 +504,7 @@ percentiles are:
     \\end{tabular}
 \\end{center}
 
-The reported resolution, %5.2f \AA, is at the percentile %4.1f. 
+%s
 Fig. \\ref{fig:blocresColor} shows some representative views of the local resolution.
 
 \\begin{figure}[H]
@@ -507,8 +514,8 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
     \\label{fig:histBlocres}
 \\end{figure}
 
-""" % (Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution,
-       resolutionP, fnHist)
+""" % (Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], reportedResSentence,
+       fnHist)
     report.write(toWrite)
 
     saveIntermediateData(report.getReportDir(), 'blocRes', False, 'resolutionPercentiles', Rpercentiles.tolist(), ['\u212B', 'List of local resolution in Angstroms at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
@@ -539,7 +546,7 @@ Fig. \\ref{fig:blocresColor} shows some representative views of the local resolu
         warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
                         "be some program issues analyzing the data.}}")
 
-    if resolutionP < 0.1 or testWarnings:
+    if (resolutionP is not None and resolutionP < 0.1) or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect " \
                         "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
                         (resolution, resolutionP))
@@ -631,14 +638,18 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
 
         reportHistogram(R, "Local resolution (A)", fnHist)
         Rpercentiles = np.percentile(R, np.array([0.025, 0.25, 0.5, 0.75, 0.975])*100)
-        resolutionP = np.sum(R<resolution)/R.size*100
+        resolutionP = np.sum(R<resolution)/R.size*100 if resolution is not None else None
         report.addResolutionEstimate(Rpercentiles[2])
+
+        reportedResSentence = "The reported resolution, %5.2f \\AA, is at the percentile %4.0f." % (resolution, resolutionP) \
+            if resolution is not None else \
+            "No resolution was reported/deposited for this entry, so it cannot be located within this percentile distribution."
 
         toWrite = \
     """
     Fig. \\ref{fig:histResmap} shows the histogram of the local resolution according to Resmap. Some representative
     percentiles are:
-    
+
     \\begin{center}
         \\begin{tabular}{|c|c|}
             \\hline
@@ -656,19 +667,19 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
             \\hline
         \\end{tabular}
     \\end{center}
-    
-    The reported resolution, %5.2f \AA, is at the percentile %4.0f. 
+
+    %s
     Fig. \\ref{fig:resmapColor} shows some representative views of the local resolution.
-    
+
     \\begin{figure}[H]
         \centering
         \includegraphics[width=10cm]{%s}
         \\caption{Histogram of the local resolution according to Resmap.}
         \\label{fig:histResmap}
     \\end{figure}
-    
-    """ % (Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution,
-           resolutionP, fnHist)
+
+    """ % (Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], reportedResSentence,
+           fnHist)
         report.write(toWrite)
 
         saveIntermediateData(report.getReportDir(), 'resMap', False, 'resolutionPercentiles', Rpercentiles.tolist(), ['\u212B', 'List of local resolution in Angstroms at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
@@ -698,7 +709,7 @@ This method (see this \\href{%s}{link} for more details) is based on a test hypo
             warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
                             "be some program issues analyzing the data.}}")
 
-        if resolutionP < 0.1 or testWarnings:
+        if (resolutionP is not None and resolutionP < 0.1) or testWarnings:
             warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect " \
                             "to the local resolution distribution. It occupies the %5.2f percentile}}" % \
                             (resolution, resolutionP))
@@ -720,11 +731,16 @@ def monores(project, report, label, protImportMap, protCreateMask, resolution, f
 
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols',
                                             'XmippProtMonoRes', doRaise=True)
+    # maxRes is a required parameter of XmippProtMonoRes (it fails _validate() if not set).
+    # When EMDB does not report a resolution for this entry, fall back to a generous fixed
+    # search bound (50 Å) instead of crashing on 5*None; this only widens the low-resolution
+    # end of the search range and does not affect the estimated local resolution itself.
+    maxRes = max(10, 5*resolution) if resolution is not None else 50
     prot = project.newProtocol(Prot,
                                objLabel=label,
                                useHalfVolumes=True,
                                minRes=2*Ts,
-                               maxRes=max(10,5*resolution),
+                               maxRes=maxRes,
                                numberOfThreads=n_threads)
     prot.associatedHalves.set(protImportMap.outputVolume)
     prot.mask.set(protCreateMask.outputMask)
@@ -777,8 +793,12 @@ if its energy is signficantly above the level of noise.\\\\
 
     R, RCDF=CDFFromHistogram(x_axis[:-2], y_axis[:-2])
     Rpercentiles = CDFpercentile(R, RCDF, Fp=[0.025, 0.25, 0.5, 0.75, 0.975])
-    resolutionP = CDFpercentile(R, RCDF, xp=resolution)
+    resolutionP = CDFpercentile(R, RCDF, xp=resolution) if resolution is not None else None
     report.addResolutionEstimate(Rpercentiles[2])
+
+    reportedResSentence = "The reported resolution, %5.2f \\AA, is at the percentile %4.1f." % (resolution, resolutionP*100) \
+        if resolution is not None else \
+        "No resolution was reported/deposited for this entry, so it cannot be located within this percentile distribution."
 
     toWrite=\
 """
@@ -803,7 +823,7 @@ percentiles are:
     \\end{tabular}
 \\end{center}
 
-The reported resolution, %5.2f \AA, is at the percentile %4.1f. 
+%s
 Fig. \\ref{fig:monoresColor} shows some representative views of the local resolution
 
 \\begin{figure}[H]
@@ -813,12 +833,12 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
     \\label{fig:histMonores}
 \\end{figure}
 
-"""%(Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], resolution, resolutionP*100,
+"""%(Rpercentiles[0], Rpercentiles[1], Rpercentiles[2], Rpercentiles[3], Rpercentiles[4], reportedResSentence,
      fnHistMonoRes)
     report.write(toWrite)
 
     saveIntermediateData(report.getReportDir(), 'monoRes', False, 'resolutionPercentiles', [float(Rpercentil) for Rpercentil in Rpercentiles], ['\u212B', 'List of local resolution in Angstroms at percentiles 2.5%, 25%, 50%, 75% and 97.5 %'])
-    saveIntermediateData(report.getReportDir(), 'monoRes', False, 'resolutionPercentile', resolutionP*100, ['%', 'The percentile at which the reported resolution is'])
+    saveIntermediateData(report.getReportDir(), 'monoRes', False, 'resolutionPercentile', resolutionP*100 if resolutionP is not None else None, ['%', 'The percentile at which the reported resolution is'])
     saveIntermediateData(report.getReportDir(), 'monoRes', False, 'estimatedResolution', [float(Rpercentil) for Rpercentil in Rpercentiles][2], ['\u212B', 'The estimated resolution (median) in Angstroms obtained from MonoRes'])
 
 
@@ -842,7 +862,7 @@ Fig. \\ref{fig:monoresColor} shows some representative views of the local resolu
         warnings.append("{\\color{red} \\textbf{Program output seems to be too homogeneous. There might " \
                         "be some program issues analyzing the data.}}")
 
-    if resolutionP<0.001 or testWarnings:
+    if (resolutionP is not None and resolutionP<0.001) or testWarnings:
         warnings.append("{\\color{red} \\textbf{The reported resolution, %5.2f \\AA, is particularly high with respect "\
                         "to the local resolution distribution. It occupies the %5.2f percentile}}"%\
                         (resolution,resolutionP*100))
@@ -884,7 +904,9 @@ protein. As the shells approach the outside of the protein, these radial average
 """ % (secLabel, MONODIR_DOI)
     report.write(msg)
 
-    if resolution>10:
+    # If no resolution was reported/deposited for this entry we cannot tell whether it is too
+    # coarse for MonoDir to be meaningful, so we don't skip it (permissive default: run it).
+    if resolution is not None and resolution>10:
         report.writeSummary("1.f MonoDir", secLabel, NOT_APPLY_MESSAGE)
         report.write(NOT_APPLY_WORSE_RESOLUTION % 10 + STATUS_NOT_APPLY)
         return None
@@ -1018,7 +1040,7 @@ Fig. \\ref{fig:monoDirRadial}. The overall mean of the directional resolution is
                         "The associated p-value is %f.}}"%p)
         report.writeAbstract("The resolution does not seem to be uniform in all directions (see Sec. \\ref{%s}). "%\
                              secLabel)
-    if resolution<0.8*avgDirResolution or testWarnings:
+    if (resolution is not None and resolution<0.8*avgDirResolution) or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the average directional resolution, %5.2f \\AA.}}" % (resolution, avgDirResolution))
     msg = \
@@ -1141,7 +1163,7 @@ respectively. This region is shaded in the plot.
     # Warnings
     warnings=[]
     testWarnings = False
-    if (f05 is not None and resolution<0.8/f05) or testWarnings:
+    if (f05 is not None and resolution is not None and resolution<0.8/f05) or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the resolution estimated by FSO, %5.2f \\AA.}}" % (resolution, 1/f05))
     msg = \
@@ -1320,7 +1342,7 @@ the map power in Fourier space. %s
     # Warnings
     warnings=[]
     testWarnings = False
-    if (fg is not None and resolution<0.8/fg) or testWarnings:
+    if (fg is not None and resolution is not None and resolution<0.8/fg) or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the resolution estimated by FSC3D, %5.2f \\AA.}}" % (resolution, 1/fg))
     if fg is None or testWarnings:
