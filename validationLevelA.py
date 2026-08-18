@@ -493,7 +493,7 @@ of residues whose correlation is below 0.5 is %4.1f \\%%.
     if data['*dFSCmodel_0.5_masked'] is None:
         warnings.append("{\\color{red} \\textbf{The model-map FSC resolution value (FSC=0.5) is missing. "
                         "Skipping consistency check with the user-reported resolution.}}")
-    elif resolution<0.8*data['*dFSCmodel_0.5_masked'] or testWarnings:
+    elif (resolution is not None and resolution<0.8*data['*dFSCmodel_0.5_masked']) or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %4.1f \\AA, is significantly " \
                         "smaller than the resolution estimated between map and model (FSC=0.5), %4.1f \\AA}}" %\
                         (resolution,data['*dFSCmodel_0.5_masked']))

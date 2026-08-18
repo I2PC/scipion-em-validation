@@ -943,7 +943,7 @@ was %4.1f \\AA, and its range [%4.1f,%4.1f].
     # Warnings
     warnings=[]
     testWarnings = False
-    if resolution<0.8*avgDirResolution or testWarnings:
+    if (resolution is not None and resolution<0.8*avgDirResolution) or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the average directional resolution, %5.2f \\AA.}}" %\
                         (resolution, avgDirResolution))
