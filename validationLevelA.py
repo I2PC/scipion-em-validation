@@ -153,7 +153,7 @@ def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
                                    )
         prot.setObjLabel('eliminating HETATM')
     prot.inputAtomStruct.set(protAtom.outputPdb)
-    if use_Slurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
@@ -544,7 +544,7 @@ def fitWithChimeraX(project, protImportMap, protAtom, priority=False):
                                                           'ChimeraProtOperate',
                                                           doRaise=True)
     prot = project.newProtocol(Prot, **args)
-    if use_Slurm:
+    if use_slurm:
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
