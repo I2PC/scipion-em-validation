@@ -26,6 +26,7 @@
 
 import math
 
+import mrcfile
 import numpy as np
 import os
 import scipy
@@ -42,7 +43,7 @@ from validationReport import readMap, readGuinier, latexEnumerate, calculateSha2
 
 import xmipp3
 
-from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished
+from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished, computeImportMemory
 
 import configparser
 
@@ -61,7 +62,20 @@ containerized = get_env_bool('SCIPION_CONTAINERIZED') or config['SCIPION'].getbo
 containerized_launcher_path = os.getenv('SCIPION_CONTAINER_LAUNCHER_PATH') or config['SCIPION'].get('CONTAINER_LAUNCHER_PATH')
 
 
-def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=False):
+def fixAmbiguousVolumeHeader(fnVolume):
+    if not fnVolume.endswith(('.mrc', '.map')):
+        return
+    try:
+        with mrcfile.open(fnVolume, mode='r+', permissive=True) as f:
+            if f.header.ispg == 0 and f.header.nz > 1:
+                f.header.ispg = 401
+                f.flush()
+    except Exception as e:
+        print("WARNING: could not check/fix the MRC header of %s (%s); "
+              "continuing with the file as-is" % (fnVolume, e))
+
+
+def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=False, mapDimensions=None):
     Prot = pwplugin.Domain.importFromPlugin('pwem.protocols',
                                             'ProtImportVolumes', doRaise=True)
 
@@ -88,10 +102,13 @@ def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapC
         prot.half2map.set(fnMap2)
 
     if use_slurm:
-        sendToSlurm(prot, priority=True if priority else False)
+        importMemory = computeImportMemory(*mapDimensions) if mapDimensions else 8192
+        sendToSlurm(prot, memory=importMemory, priority=True if priority else False)
     project.launchProtocol(prot)
     # waitOutput(project, prot, 'outputVolume')
     waitUntilFinishes(project, prot)
+    if not prot.isFailed() and not prot.isAborted() and hasattr(prot, 'outputVolume'):
+        fixAmbiguousVolumeHeader(prot.outputVolume.getFileName())
     saveIntermediateData(report.fnReportDir, 'inputData',
                          True, 'map', str(prot.filesPath), 'map from EMDB')
     if fnMap1 is not None and fnMap2 is not None:
@@ -102,7 +119,7 @@ def importMap(project, report, label, fnMap, fnMap1, fnMap2, Ts, mapCoordX, mapC
     return prot
 
 
-def createMask(project, label, map, Ts, threshold, smooth=False, priority=False):
+def createMask(project, label, map, Ts, threshold, smooth=False, priority=False, mapDimensions=None):
     Prot = pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess',
                                             'XmippProtCreateMask3D', doRaise=True)
     prot = project.newProtocol(Prot,
@@ -115,7 +132,8 @@ def createMask(project, label, map, Ts, threshold, smooth=False, priority=False)
                                sigmaConvolution=2.0 if smooth else None,
                                elementSize=math.ceil(2/Ts) if Ts else 1) # Dilation by 2A
     if use_slurm:
-        sendToSlurm(prot, priority=True if priority else False)
+        maskMemory = computeImportMemory(*mapDimensions) if mapDimensions else 8192
+        sendToSlurm(prot, memory=maskMemory, priority=True if priority else False)
     project.launchProtocol(prot)
     # waitOutput(project, prot, 'outputMask')
     waitUntilFinishes(project, prot)
@@ -145,7 +163,7 @@ def createResizedMaskedMap(report, resizedMap, resizedMask):
     return fnResizedMaskedMap
 
 
-def resizeMap(project, protMap, resolution, priority=False):
+def resizeMap(project, protMap, resolution, priority=False, mapDimensions=None):
     Xdim = protMap.outputVolume.getDim()[0]
     Ts = protMap.outputVolume.getSamplingRate()
     AMap = Xdim * Ts
@@ -172,7 +190,8 @@ def resizeMap(project, protMap, resolution, priority=False):
                                             resizeFactor=1)
     protResizeMap.inputVolumes.set(protMap.outputVolume)
     if use_slurm:
-        sendToSlurm(protResizeMap, priority=True if priority else False)
+        resizeMemory = computeImportMemory(*mapDimensions) if mapDimensions else 8192
+        sendToSlurm(protResizeMap, memory=resizeMemory, priority=True if priority else False)
     project.launchProtocol(protResizeMap)
     # waitOutput(project, protResizeMap, 'outputVol')
     waitUntilFinishes(project, protResizeMap)
@@ -1392,15 +1411,29 @@ Resolution estimated by user: %s \\\\
                             fnSoftMask, "fig:maxVarSoftMask", maxVar=True)
 
 
-def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis=False, priority=False):
+def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, mapCoordX, mapCoordY, mapCoordZ, skipAnalysis=False, priority=False, mapDimensions=None):
     # Import map
     imgh = emlib.image.ImageHandler()
     x, y, z, n = imgh.getDimensions(fnMap)
-    if n > 1:  # If it is a stack of images, pick the first one
+    # Some EMDB depositions have ispg=0 in their MRC header (the CCP4/MRC
+    # convention for "image/image stack" rather than "volume"). Xmipp's
+    # ImageHandler follows that convention literally and misreports a
+    # genuine NxNxN volume as a stack of N separate 2D images (z=1, n=N).
+    # Blindly trusting n>1 then picks only the first slice and overwrites
+    # fnMap with it in place, destroying the real volume (seen on
+    # EMD-7067 and EMD-11584: 320x320x320 became 320x320x1, incident
+    # 2026-09-17). When we know the map's real depth from EMDB's own
+    # metadata (mapDimensions[2] = 'sec'), trust that instead: only treat
+    # it as a real stack if EMDB itself also reports a flat map.
+    isRealImageStack = n > 1
+    if mapDimensions is not None and mapDimensions[2] is not None and mapDimensions[2] > 1:
+        isRealImageStack = False
+    if isRealImageStack:  # If it is a stack of images, pick the first one
         volume = xmipp3.Image("1@" + fnMap)
         volume.write(fnMap)
     protImportMap = importMap(project, report, "import map", fnMap, fnMap1,
-                              fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=priority)
+                              fnMap2, Ts, mapCoordX, mapCoordY, mapCoordZ, priority=priority,
+                              mapDimensions=mapDimensions)
     if protImportMap.isFailed():
         raise Exception("Import map did not work")
     elif protImportMap.isAborted():
@@ -1414,17 +1447,17 @@ def level0(project, report, fnMap, fnMap1, fnMap2, Ts, threshold, resolution, ma
 
     # Resize to the given resolution
     protResizeMap, TsResizeMap = resizeMap(
-        project, protImportMap, resolution, priority=priority)
+        project, protImportMap, resolution, priority=priority, mapDimensions=mapDimensions)
 
     # Create soft and hard masks
     protCreateHardMask = createMask(
-        project, "create hard mask", protImportMap.outputVolume, Ts, threshold, smooth=False, priority=priority)
+        project, "create hard mask", protImportMap.outputVolume, Ts, threshold, smooth=False, priority=priority, mapDimensions=mapDimensions)
     if protCreateHardMask.isFailed():
         raise Exception("Create hard mask did not work")
     elif protCreateHardMask.isAborted():
         raise Exception("Create hard mask was MANUALLY ABORTED")
     protCreateSoftMask = createMask(
-        project, "create soft mask", protImportMap.outputVolume, Ts, threshold, smooth=True, priority=priority)
+        project, "create soft mask", protImportMap.outputVolume, Ts, threshold, smooth=True, priority=priority, mapDimensions=mapDimensions)
     if protCreateSoftMask.isFailed():
         raise Exception("Create soft mask did not work")
     if protCreateSoftMask.isAborted():
