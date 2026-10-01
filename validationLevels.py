@@ -35,7 +35,7 @@ import pyworkflow.plugin as pwplugin
 from pyworkflow.project import Manager
 from pyworkflow.utils.path import makePath, copyFile, cleanPath
 import pyworkflow.utils as pwutils
-from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes
+from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes, computeImportMemory
 from pwem.convert.atom_struct import AtomicStructHandler
 from validationReport import readMap, get_env_bool
 import json
@@ -434,8 +434,15 @@ else:
                                                    samplingRate=TS,
                                                    setOrigCoord=False)
         protImportMapChecker.setObjLabel('check format - import map')
+MAP_COL, MAP_ROW, MAP_SEC = None, None, None
+if IS_EMDB_ENTRY:
+    # Also used later to tell a real 2D image stack apart from a 3D volume
+    # whose MRC header has ispg=0 (see level0()/importMap() in
+    # validationLevel0.py), so it is fetched regardless of use_slurm.
+    MAP_COL, MAP_ROW, MAP_SEC = EMDButils.get_map_dimensions(EMDB_ID_NUM)
 if use_slurm:
-    sendToSlurm(protImportMapChecker, priority=False if IS_EMDB_ENTRY else True)
+    importMemory = computeImportMemory(MAP_COL, MAP_ROW, MAP_SEC) if IS_EMDB_ENTRY else 8192
+    sendToSlurm(protImportMapChecker, memory=importMemory, priority=False if IS_EMDB_ENTRY else True)
 project.launchProtocol(protImportMapChecker)
 # waitOutput(project, protImportMapChecker, 'outputVolume')
 waitUntilFinishes(project, protImportMapChecker)
@@ -794,7 +801,7 @@ else:  # go ahead
     # Create report
     # Level 0
     from validationLevel0 import level0
-    protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, protCreateSoftMaskFromResizedMap, fnMaskedMapDict = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = True, priority=False if IS_EMDB_ENTRY else True)
+    protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, protCreateSoftMaskFromResizedMap, fnMaskedMapDict = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = True, priority=False if IS_EMDB_ENTRY else True, mapDimensions=(MAP_COL, MAP_ROW, MAP_SEC))
 
     # Level 1
     if "1" in levels:
