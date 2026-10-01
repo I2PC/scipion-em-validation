@@ -41,6 +41,28 @@ def get_map_metadata(emdbid):
             pass
     return sampling, threshold, resolution, response.status_code, response.text
 
+def get_map_dimensions(emdbid):
+    """
+    Returns the map dimensions (col, row, sec), in voxels, from an EMDB map.
+    Used to estimate how much memory is needed to import the map (see
+    resourceManager.computeImportMemory).
+    """
+    url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/%s' % emdbid
+    print("Getting EMD-%s map dimensions..." % emdbid)
+    col, row, sec = None, None, None
+    response = requests.get(url_rest_api)
+
+    if response.status_code == 200:
+        json_results = response.json()
+        try:
+            dimensions = json_results["map"]["dimensions"]
+            col = int(dimensions["col"])
+            row = int(dimensions["row"])
+            sec = int(dimensions["sec"])
+        except:
+            pass
+    return col, row, sec
+
 def has_halfmaps(emdbid):
     """
     Checks if an EMDB map has half-maps associated
@@ -63,7 +85,7 @@ def download_emdb_halfmaps(emdbid, directory):
     json_results = requests.get(url_supplement_info_rest_api).json()
     half_maps = [json_results['interpretation']['half_map_list']['half_map'][0]['file'], json_results['interpretation']['half_map_list']['half_map'][1]['file']]
 
-    url_ftp_other = 'ftp://ftp.ebi.ac.uk/pub/databases/emdb/structures/EMD-%s/other/%s'
+    url_ftp_other = 'https://ftp.ebi.ac.uk/pub/databases/emdb/structures/EMD-%s/other/%s'
 
     print("Downloading associated halfmaps...")
 

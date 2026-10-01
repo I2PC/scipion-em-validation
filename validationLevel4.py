@@ -40,7 +40,7 @@ import configparser
 from resources.constants import *
 
 config = configparser.ConfigParser()
-config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+config.read([os.path.join(os.path.dirname(__file__), 'config.yaml'), os.path.join(os.path.dirname(__file__), 'config_dev.yaml')])
 use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
 gpu_id_skip_slurm = get_env_int('QUEUE_GPU_ID_SKIP_SLURM') or config['QUEUE'].getint('GPU_ID_SKIP_SLURM')
 
@@ -943,7 +943,7 @@ was %4.1f \\AA, and its range [%4.1f,%4.1f].
     # Warnings
     warnings=[]
     testWarnings = False
-    if resolution<0.8*avgDirResolution or testWarnings:
+    if (resolution is not None and resolution<0.8*avgDirResolution) or testWarnings:
         warnings.append("{\\color{red} \\textbf{The resolution reported by the user, %5.2f\\AA, is at least 80\\%% "\
                         "smaller than the average directional resolution, %5.2f \\AA.}}" %\
                         (resolution, avgDirResolution))
