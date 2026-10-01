@@ -46,7 +46,7 @@ import pwem.convert.atom_struct
 import xmipp3
 
 from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot, isHomogeneous, safeNeg, get_env_bool, get_env_int
-from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished
+from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished, computePhenixMemory
 
 import configparser
 
@@ -119,6 +119,8 @@ def moveOriginTo(newOrigin, handler):
         coords = atom.get_coord()
         atom.coord = coords + np.asarray(newOrigin) - np.asarray(centerMass)
 
+PDB_MAX_ATOMS = 99999
+
 def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
     # Checking if there are residues defined as N (undefined) which will cause errors and need to be eliminated
     command_N_residues = f"awk '{{ if ($6 == \"N\") print }}' {FNMODEL}"
@@ -130,11 +132,18 @@ def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
     # Check if there's any output and eliminate them
     Prot = pwplugin.Domain.importFromPlugin('pwchem.protocols',
                                             'ProtChemPrepareReceptor', doRaise=True)
+    # PDBFixer forces a legacy .pdb output, which cannot hold more than 99999 atoms
+    # (e.g. EMD-4476/6q97 failed with "Atom serial number ('100000') exceeds PDB format
+    # limit"). For such models skip PDBFixer so pwchem keeps the mmCIF format.
+    numAtoms = countModelAtoms(FNMODEL)
+    usePDBFixer = not (numAtoms is not None and numAtoms > PDB_MAX_ATOMS)
+    if not usePDBFixer:
+        print('Model has %d atoms (> %d, PDB format limit), PDB Fixer will not be used' % (numAtoms, PDB_MAX_ATOMS))
     if result_hetatm.stdout:
         print('Hetero atoms were found, starting to delete them...')
         prot = project.newProtocol(Prot,
                                    waters=False,
-                                   usePDBFixer=True,
+                                   usePDBFixer=usePDBFixer,
                                    addAtoms=3,
                                    addRes=False,
                                    extraClean=True
@@ -146,7 +155,7 @@ def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
         prot = project.newProtocol(Prot,
                                    waters=False,
                                    HETATM=False,
-                                   usePDBFixer=True,
+                                   usePDBFixer=usePDBFixer,
                                    addAtoms=3,
                                    addRes=False,
                                    extraClean=True
@@ -157,6 +166,10 @@ def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
         sendToSlurm(prot, priority=True if priority else False)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
+    if not hasattr(prot, 'outputStructure'):
+        # Do not abort the whole level A if the cleaning failed: go on with the original model
+        print('%s did not produce an output structure, using the original atomic model' % prot.getObjLabel())
+        return protAtom, 'Hetero atoms and undefined residues could not be removed from the atomic model, so the original model was used in this analysis.\n\n'
     prot.outputPdb = prot.outputStructure
 
     # Adding warning if N or hetatm where deleted
@@ -169,6 +182,18 @@ def eliminatwe_HETATM(FNMODEL, project, priority, protAtom):
 
     return prot, message
 
+def countModelAtoms(fnModel):
+    """ Quick, format-agnostic atom count: works for both legacy PDB and mmCIF, since in
+    both formats an atom record line starts with the literal word ATOM or HETATM (same
+    assumption eliminatwe_HETATM() already relies on for its own grep). Returns None if
+    the count can't be determined, so callers can fall back to a size-agnostic default. """
+    try:
+        result = subprocess.run("grep -c -E '^(ATOM|HETATM)' %s" % fnModel,
+                                shell=True, capture_output=True, text=True)
+        return int(result.stdout.strip())
+    except (ValueError, subprocess.SubprocessError):
+        return None
+
 def phenixExecution(project, report, protImportMap, protAtom, resolution, label, priority=False):
     Prot = pwplugin.Domain.importFromPlugin('phenix.protocols',
                                             'PhenixProtRunValidationCryoEM', doRaise=True)
@@ -178,7 +203,15 @@ def phenixExecution(project, report, protImportMap, protAtom, resolution, label,
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.inputStructure.set(protAtom.outputPdb)
     if use_slurm:
-        sendToSlurm(prot, priority=True if priority else False)
+        # This step's memory needs are dominated by the atomic model, not the map (see
+        # EMD-70833/EMD-65950 in fixes/005-phenix-oom-silent-levela-skip.md): large
+        # multi-chain complexes (hundreds of thousands of atoms) can push Phenix well
+        # past the flat 8192 MB default this used to always request, causing it to be
+        # silently OOM-killed with no trace in the report.
+        numAtoms = countModelAtoms(protAtom.outputPdb.getFileName())
+        col, row, sec = protImportMap.outputVolume.getDim()
+        memory = computePhenixMemory(numAtoms, col, row, sec)
+        sendToSlurm(prot, memory=memory, priority=True if priority else False)
     project.launchProtocol(prot)
     waitUntilFinishes(project, prot)
 
@@ -384,6 +417,8 @@ CC (peaks) = & %5.3f\\\\
 
     # CC per residues
     allCCs = []
+    chainCCDict = dict(data['chain_list'])
+    MIN_RESIDUES_FOR_PROFILE = 2  # a chain with a single residue (ligand/glycosylation site) has no profile to plot
     def plotCCResidue(chain_id, reportDir, allCCs):
         fnPlot = os.path.join(reportDir, "ccresidue_%s.png"%chain_id)
         resseq_list, residue_cc = data['resseq_list'][chain_id]
@@ -392,8 +427,16 @@ CC (peaks) = & %5.3f\\\\
         reportPlot(x, residue_cc, 'Aminoacid no.', 'Cross-correlation', fnPlot, addMean=True, title="Chain %s"%chain_id)
         return fnPlot
 
-    msg+="""We now show the correlation profiles of the different chain per residue.\n"""
+    msg+="""We now show the correlation profiles of the different chain per residue. Chains with a single residue
+(typically a bound ligand or a glycosylation site) have no per-residue profile to plot; their overall
+cross-correlation is already reported in the table above.\\\\ \n"""
     for chain_id in sorted(data['resseq_list']):
+        resseq_list, residue_cc = data['resseq_list'][chain_id]
+        if len(residue_cc) < MIN_RESIDUES_FOR_PROFILE:
+            allCCs += residue_cc
+            msg += "\\textit{Chain %s: single-residue chain (ligand/glycosylation), CC~=~%.3f. No per-residue profile shown.}\\\\ \n" % (
+                chain_id, chainCCDict.get(chain_id, float('nan')))
+            continue
         fnPlot = plotCCResidue(chain_id, report.getReportDir(), allCCs)
         saveIntermediateData(report.fnReportDir, "phenix", True, "ccresidue_%s.png"%chain_id, fnPlot, 'Plot including the correlation profiles of the chain %s'%chain_id)
         msg+="""\\includegraphics[width=7cm]{%s}\n"""%fnPlot
@@ -561,12 +604,15 @@ def checkFittedWithPhenix(project, report, EMDB_ID_NUM, section, secLabel, protI
 
     if protPhenix.isFailed():
         print("Phenix protocol failed while checking if map and model are fitted.")
-        # If stderr starts with 'Sorry: Input map is all zero after boxing...', we have to do a dock in map
+        # If stderr contains 'Sorry: Input map is all zero after boxing...', we have to do a
+        # dock in map. We used to only check the FIRST line of stderr for this, which misses
+        # it whenever anything else (a warning, a deprecation notice, Qt/XDG noise - all
+        # common in this environment) gets printed before Phenix's own error line.
         logs_path = protPhenix._getLogsPath()
         log_stderr = os.path.join(logs_path, 'run.stderr')
         with open(log_stderr, 'r') as f:
-            stderr_first_line = f.readline().strip()
-        if stderr_first_line.startswith('Sorry: Input map is all zero after boxing...'):
+            stderr_content = f.read()
+        if 'Sorry: Input map is all zero after boxing...' in stderr_content:
             protAtom = dockInMapWithPhenix(project, protImportMap, protAtom, resolution, priority=False)
             protPhenix, dataPhenix = phenixExecution(project, report, protImportMap, protAtom, resolution, label,
                                                      priority)
@@ -902,31 +948,6 @@ def guinierModel(project, report, protImportMap, protConvert, protCreateHardMask
     map = protImportMap.outputVolume
     Ts = map.getSamplingRate()
 
-    # Create 3D mask
-    protCreateModelMask = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
-                                                inputVolume=protConvert.outputVolume,
-                                                threshold=0.1,
-                                                doMorphological=True)
-    protCreateModelMask.setObjLabel('model mask')
-    if use_slurm:
-        sendToSlurm(protCreateModelMask, priority=True if priority else False)
-    project.launchProtocol(protCreateModelMask)
-    waitUntilFinishes(project, protCreateModelMask)
-
-    # Adjust volumes
-    protAdjustVols = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols', 'XmippProtVolAdjust', doRaise=True),
-                                         vol1=map,
-                                         vol2=protConvert.outputVolume,
-                                         mask1=protCreateHardMask.outputMask,
-                                         mask2=protCreateModelMask.outputMask)
-    protAdjustVols.setObjLabel('adjust map and model volumes')
-    if use_slurm:
-        sendToSlurm(protAdjustVols, priority=True if priority else False)
-    project.launchProtocol(protAdjustVols)
-    waitUntilFinishes(project, protAdjustVols)
-
-    fnAtom = protAdjustVols.outputVolume.getFileName()
-
     fnAtom = os.path.join(project.getPath(), protConvert.outputVolume.getFileName())
     fnOut = os.path.join(report.getReportDir(), "sharpenedModel.mrc")
     args = "-i %s -o %s --sampling %f --maxres %s --auto"%(fnAtom, fnOut, Ts, resolution)
@@ -1007,6 +1028,31 @@ than 0.5.
 
     saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'sharpenedModel.mrc.guinier', os.path.join(report.getReportDir(), 'sharpenedModel.mrc.guinier'), 'sharpenedModel.mrc.guinier file which contain the data to create the guinier plot')
     saveIntermediateData(report.getReportDir(), 'guinierModel', True, 'guinierPlot', fnPlot, 'guinier plot for Map-Model Guinier Analysis')
+
+
+# Coefficients of MapQ's own expected-Q-vs-resolution model at sigma=0.6, i.e. the same
+# cubic used internally by MapQ (qscores.ExpectedQScore) to print "Q_peak" in its output:
+#   expectedQ(RES) = -0.0019064058*RES^3 + 0.0499875375*RES^2 - 0.4513945578*RES + 1.5361860733
+# This polynomial is monotonically decreasing over the whole real line (no real turning
+# points), so for any avgQ there is exactly one real root: a well-defined "resolution at
+# which this avgQ would be the expected/typical Q-score".
+MAPQ_EXPECTED_Q_COEFFS_SIGMA_0_6 = (-0.0019064058, 0.0499875375, -0.4513945578, 1.5361860733)
+
+
+def estimateResolutionFromQ(avgQ):
+    """ Invert MapQ's sigma=0.6 expected-Q-vs-resolution cubic to turn a chain's average
+    Q-score into an estimated resolution (in the same units as the map, typically A).
+    We compute this ourselves instead of reading it from MapQ's own text output because
+    the installed MapQ version no longer writes a per-chain resolution estimate there
+    (see the comment where this is called from mapq()).
+    Returns None if no real root is found (should not normally happen, see above). """
+    a, b, c, d = MAPQ_EXPECTED_Q_COEFFS_SIGMA_0_6
+    roots = np.roots([a, b, c, d - avgQ])
+    realRoots = [r.real for r in roots if abs(r.imag) < 1e-6]
+    if not realRoots:
+        return None
+    return realRoots[0]
+
 
 def mapq(project, report, protImportMap, protAtom, resolution, pdbdb_Id, priority=False):
 
@@ -1125,6 +1171,18 @@ have a Gaussian shape.\\\\
             values = fields["_scipion_attributes.value"]
             mapq_scores += [float(value) for attribute, value in zip(attributes, values) if attribute == "MapQ_Score"]
 
+    # A genuine MapQ computation never returns the exact same value (0.0) for every single atom;
+    # this only happens when MapQ's global mean/std-based estimate of the map's dynamic range
+    # collapses on a sparse/composite map (see NOT_APPLY_MAPQ_DEGENERATE_RESULT). Detect it here
+    # instead of silently reporting a fabricated-looking "0.00" table (see EMD-74451 for reference).
+    if len(mapq_scores) == 0 or (min(mapq_scores) == 0.0 and max(mapq_scores) == 0.0):
+        print("- MapQ returned degenerate all-zero Q-scores for %s (%d values). This map is likely "
+              "too sparse/composite for MapQ's dynamic-range estimation to work; skipping the MapQ "
+              "section instead of reporting fabricated results." % (pdbdb_Id, len(mapq_scores)))
+        report.writeSummary("A.e MapQ", secLabel, NOT_APPLY_MESSAGE)
+        report.write(NOT_APPLY_MAPQ_DEGENERATE_RESULT + STATUS_NOT_APPLY)
+        return prot if not has_precalculated_data else None
+
     fnHist = os.path.join(report.getReportDir(),"mapqHist.png")
 
     reportHistogram(mapq_scores, "MapQ score", fnHist)
@@ -1233,9 +1291,22 @@ else:
         elif state==1:
             tokens = line.split()
             if len(tokens)>0:
-                res = float(tokens[-1])
-                msg+="      %s & %s & %4.1f \\\\ \n"%(tokens[0],tokens[3],res)
-                resolutions.append(res)
+                # NOTE: we used to read the estimated resolution straight from the last
+                # whitespace-separated token of this line. That only worked with an older
+                # version of the vendored MapQ script, whose last column was a real,
+                # chain-specific number. The version currently installed instead writes the
+                # (chain-independent) "Q_peak" formula as literal text, so the last token
+                # ends up being that formula's constant term (identical for every chain/entry).
+                # We recompute the estimate ourselves instead, from the chain's own Avg. Q
+                # (tokens[3]) via estimateResolutionFromQ(), so we no longer depend on the
+                # exact text format MapQ happens to emit.
+                avgQ = float(tokens[3])
+                res = estimateResolutionFromQ(avgQ)
+                if res is not None:
+                    msg+="      %s & %s & %4.1f \\\\ \n"%(tokens[0],tokens[3],res)
+                    resolutions.append(res)
+                else:
+                    msg+="      %s & %s & -- \\\\ \n"%(tokens[0],tokens[3])
             else:
                 state=2
                 break
@@ -1404,7 +1475,7 @@ that may need improvement.
 """\\underline{General results}:\\\\
 \\begin{center}
 \\begin{tabular}{rc}
-    Optimal threshold & %f \\\\
+    Optimal threshold & %0.3f \\\\
     Rotamer ratio & %4.3f \\\\
     Max. Zscore & %5.2f \\\\
     Model length & %d \\\\
@@ -1441,13 +1512,30 @@ optimal threshold.
     saveIntermediateData(report.getReportDir(), 'EMRinger', True, 'emringerThreshold_scan.png', fnScore, 'emringer threshold scan plot showing the EMRinger score and fraction of rotameric residues as a function of the map threshold')
     saveIntermediateData(report.getReportDir(), 'EMRinger', True, 'residueHist.pngv', fnResidueHist, 'emringer histogram for rotameric (blue) and non-rotameric (red) residues at the optimal threshold')
 
-    msg+=\
-"""The following plots show the rolling window EMRinger analysis of the different chains to distinguish regions 
-of improved model quality. This analysis was performed on rolling sliding 21-residue windows along the primary 
-sequence of the protein chains. If straight lines are observed in the plots, this is likely due to the absence of side chains in those residues.
+    ROLLING_WINDOW_SIZE = 21  # residues needed to fill at least one rolling window
+    residuesPerChain = collections.Counter()
+    for resFormat in dataDict.get('_residues_format', []):
+        parts = resFormat.split()
+        if len(parts) < 2:
+            continue
+        m = re.match(r'^([A-Za-z]+)(\d+.*)$', parts[1])
+        if m:
+            residuesPerChain[m.group(1)] += 1
 
-"""
+    msg+=\
+"""The following plots show the rolling window EMRinger analysis of the different chains to distinguish regions
+of improved model quality. This analysis was performed on rolling sliding 21-residue windows along the primary
+sequence of the protein chains. If straight lines are observed in the plots, this is likely due to the absence of side chains in those residues.
+Chains with fewer than %d scannable residues (e.g. a single bound copy of a rotameric aminoacid used as a ligand)
+cannot fill a complete window, so no rolling-window plot is shown for them; their scanned residues are still
+included in the overall EMRinger score above.
+
+"""%ROLLING_WINDOW_SIZE
     for chain in sorted(dataDict['_chains']):
+        nRes = residuesPerChain.get(chain, 0)
+        if nRes < ROLLING_WINDOW_SIZE:
+            msg += "\\textit{Chain %s: only %d scannable residue(s) (likely a ligand), no rolling-window plot shown.}\\\\ \n" % (chain, nRes)
+            continue
         fnPlot = os.path.join(project.getPath(),
                               glob.glob(prot._getExtraPath("*_emringer_plots/%s_rolling.png"%chain))[0])
         msg += "\\includegraphics[width=7cm]{%s}\n" % fnPlot
@@ -1734,7 +1822,18 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
                 report.write(NOT_MANUALLY_FITTED)
                 return protAtom
             elif fitted is None:
+                # checkFittedWithPhenix() could not even determine whether map and model are
+                # fitted (the Phenix protocol itself failed, for a reason other than the one
+                # specific case it already knows how to recover from). Until now this silently
+                # skipped the whole Level A section with no trace in the report at all - the
+                # entry simply looked like it had no Level A analysis, with nothing to explain
+                # why (see EMD-70833, EMD-65950: both have a large map and a large multi-chain
+                # model, most likely causing Phenix's fit-check job to be OOM-killed under the
+                # flat default Slurm memory allocation - see phenixExecution()).
                 print("Fitting protocol failed")
+                report.writeSummary(section, secLabel, ERROR_MESSAGE)
+                report.write(ERROR_MESSAGE_CHECK_FITTED_FAILED + STATUS_ERROR_MESSAGE)
+                return protAtom
             else: # Continue executing level A
                 protConvert = convertPDB(project, report, protImportMap, fittedProtAtom, priority=priority)
                 if protConvert is not None:
