@@ -5,6 +5,24 @@ import mmcif
 import chimera
 from chimera.resCode import protein3to1, nucleic3to1
 
+
+def _ResId(mp):
+    '''
+    mmcif.ResId() was removed in recent MapQ versions (e.g. 2.9.7), which now
+    read the residue number straight from auth_seq_id. Mimic that, falling
+    back to label_seq_id.
+    '''
+    for key in ('auth_seq_id', 'label_seq_id'):
+        try:
+            return int(mp[key])
+        except (KeyError, ValueError, TypeError):
+            pass
+    return None
+
+
+ResId = getattr(mmcif, 'ResId', _ResId)
+
+
 def ReadMol(fpath, log=False):
 
     from random import random
@@ -71,7 +89,7 @@ def ReadMol(fpath, log=False):
         if chainEId in descrByEntityId:
             nmol.chainDescr[chainId] = descrByEntityId[chainEId]
 
-        resId = mmcif.ResId(mp)
+        resId = ResId(mp)
         if resId is None:
             continue
 
