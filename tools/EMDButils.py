@@ -41,6 +41,28 @@ def get_map_metadata(emdbid):
             pass
     return sampling, threshold, resolution, response.status_code, response.text
 
+def get_map_dimensions(emdbid):
+    """
+    Returns the map dimensions (col, row, sec), in voxels, from an EMDB map.
+    Used to estimate how much memory is needed to import the map (see
+    resourceManager.computeImportMemory).
+    """
+    url_rest_api = 'https://www.ebi.ac.uk/emdb/api/entry/%s' % emdbid
+    print("Getting EMD-%s map dimensions..." % emdbid)
+    col, row, sec = None, None, None
+    response = requests.get(url_rest_api)
+
+    if response.status_code == 200:
+        json_results = response.json()
+        try:
+            dimensions = json_results["map"]["dimensions"]
+            col = int(dimensions["col"])
+            row = int(dimensions["row"])
+            sec = int(dimensions["sec"])
+        except:
+            pass
+    return col, row, sec
+
 def has_halfmaps(emdbid):
     """
     Checks if an EMDB map has half-maps associated
