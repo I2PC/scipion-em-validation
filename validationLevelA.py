@@ -1345,26 +1345,17 @@ else:
                            occupancy=True, rainbow=False, legendMin=-1, legendMax=1)
 
     else:
-        # create .defattr file
-        qscores = {}
-        with open(cifWSFilename) as cif:
-            lines = cif.readlines()
-            for line in lines:
-                if 'ATOM' in line:
-                    line = re.sub(' +', ' ', line)
-                    values = line.split(' ')
-                    try:
-                        qscores[values[1]] = float(values[15])
-                    except ValueError:
-                        continue
-        attributeFile = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS.defattr')
-        with open(attributeFile, 'a') as af:
-            af.write('attribute: qscores\nrecipient: atoms\n')
-            for atom in qscores:
-                af.write('\t:%s\t%s\n' % (atom, qscores[atom]))
+        # Copy the per-atom Q-score into the occupancy column and color by occupancy.
+        # We used to write a .defattr file with ':<atom serial>' specs, but in ChimeraX ':N' means
+        # residue number N (in every chain), so atoms were colored wrongly and each line triggered a
+        # full spec search: on large models (e.g. EMD-26444, ~200k atoms) ChimeraX ran for hours.
+        cifDic = AtomicStructHandler().readLowLevel(cifWSFilename)
+        cifDic['_atom_site.occupancy'] = [q if q not in ('?', '.') else '0' for q in cifDic['_atom_site.Q-score']]
+        fnCifMapQ = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS_occupancy.cif')
+        AtomicStructHandler()._writeLowLevel(fnCifMapQ, cifDic)
 
-        report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", cifWSFilename, "fig:mapq", bfactor=False,
-                           occupancy=False, otherAttribute=[attributeFile, 'qscores'], rainbow=False, legendMin=-1, legendMax=1)
+        report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", fnCifMapQ, "fig:mapq", bfactor=False,
+                           occupancy=True, rainbow=False, legendMin=-1, legendMax=1)
 
     saveIntermediateData(report.getReportDir(), 'MapQ', True, 'MapQView',
                          [os.path.join(report.getReportDir(), 'mapqView1.jpg'),
