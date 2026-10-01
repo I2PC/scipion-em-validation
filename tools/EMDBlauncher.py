@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from validationReport import get_env_bool, get_env_int
 
 config = configparser.ConfigParser()
-config.read(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.yaml'))
+config.read([os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.yaml'), os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config_dev.yaml')])
 EMDB_entries_path = os.getenv('EMDB_ENTRIES_PATH') or config['EMDB'].get('ENTRIES_PATH')
 log_folder = os.getenv('EMDB_LOG_PATH') or config['EMDB'].get('LOG_PATH')
 scipion_projects_path = os.getenv('SCIPION_SCIPIONPROJECTS_PATH') or config['SCIPION'].get('SCIPIONPROJECTS_PATH')
