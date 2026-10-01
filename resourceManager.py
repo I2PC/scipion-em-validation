@@ -7,7 +7,7 @@ from pyworkflow.protocol import getProtocolFromDb
 import configparser
 
 config = configparser.ConfigParser()
-config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+config.read([os.path.join(os.path.dirname(__file__), 'config.yaml'), os.path.join(os.path.dirname(__file__), 'config_dev.yaml')])
 standard_queue = os.getenv('QUEUE_STANDARD_QUEUE_NAME') or config['QUEUE'].get('STANDARD_QUEUE_NAME')
 priority_queue = os.getenv('QUEUE_PRIORITY_QUEUE_NAME') or config['QUEUE'].get('PRIORITY_QUEUE_NAME')
 if os.getenv('QUEUE_NODE_LIST'):

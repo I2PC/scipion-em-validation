@@ -52,7 +52,7 @@ from tools.utils import saveIntermediateData
 from resources.constants import *
 
 config = configparser.ConfigParser()
-config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+config.read([os.path.join(os.path.dirname(__file__), 'config.yaml'), os.path.join(os.path.dirname(__file__), 'config_dev.yaml')])
 use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
 n_mpis = get_env_int('SCIPION_N_MPIS') or config['SCIPION'].getint('N_MPIS')
 n_threads = get_env_int('SCIPION_N_THREADS') or config['SCIPION'].getint('N_THREADS')

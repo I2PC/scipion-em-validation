@@ -49,7 +49,7 @@ from bws_interpo.convert_eval_results import convert as convert_to_bws
 
 
 config = configparser.ConfigParser()
-config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+config.read([os.path.join(os.path.dirname(__file__), 'config.yaml'), os.path.join(os.path.dirname(__file__), 'config_dev.yaml')])
 use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
 store_intermediate_data = get_env_bool('INTERMEDIATE_DATA_STORE_INTERMEDIATE_DATA') or config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
 intermediate_data_final_path = os.getenv('INTERMEDIATE_DATA_DEST_PATH') or config['INTERMEDIATE_DATA'].get('DEST_PATH')
