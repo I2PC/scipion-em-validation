@@ -43,7 +43,7 @@ from validationReport import readMap, readGuinier, latexEnumerate, calculateSha2
 
 import xmipp3
 
-from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished, computeImportMemory
+from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished, computeImportMemory, computeMaskMemory
 
 import configparser
 
@@ -132,7 +132,7 @@ def createMask(project, label, map, Ts, threshold, smooth=False, priority=False,
                                sigmaConvolution=2.0 if smooth else None,
                                elementSize=math.ceil(2/Ts) if Ts else 1) # Dilation by 2A
     if use_slurm:
-        maskMemory = computeImportMemory(*mapDimensions) if mapDimensions else 8192
+        maskMemory = computeMaskMemory(*mapDimensions) if mapDimensions else 8192
         sendToSlurm(prot, memory=maskMemory, priority=True if priority else False)
     project.launchProtocol(prot)
     # waitOutput(project, prot, 'outputMask')
