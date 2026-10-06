@@ -396,6 +396,9 @@ def getFilename(path, withExt=False):
         return p.stem
 
 
+# (connect, read) seconds: without it a stalled 3DBionotes-WS response hangs validationLevels.py forever
+WS_TIMEOUT = (10, 120)
+
 def getScoresFromWS(db_id, method):
     """
     Check if there are a precoputed values from the source DB
@@ -408,7 +411,7 @@ def getScoresFromWS(db_id, method):
     try:
         json_data = None
         print('- getScoresFromWS %s, %s, %s' % (db_id, method, url_rest_api))
-        with requests.get(url_rest_api, verify=False) as response:
+        with requests.get(url_rest_api, verify=False, timeout=WS_TIMEOUT) as response:
             if response.status_code == 200:
                 json_data = response.json()
             else:
@@ -432,7 +435,7 @@ def getFileFromWS(db_id, method):
     try:
         raw_data = None
         print('- getFileFromWS %s, %s, %s' % (db_id, method, url_rest_api))
-        with requests.get(url_rest_api, verify=False) as response:
+        with requests.get(url_rest_api, verify=False, timeout=WS_TIMEOUT) as response:
             if response.status_code == 200:
                 raw_data = response.text
             else:
