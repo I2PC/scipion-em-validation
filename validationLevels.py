@@ -35,7 +35,7 @@ import pyworkflow.plugin as pwplugin
 from pyworkflow.project import Manager
 from pyworkflow.utils.path import makePath, copyFile, cleanPath
 import pyworkflow.utils as pwutils
-from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes, computeImportMemory
+from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes, computeImportMemory, computeMaskMemory
 from pwem.convert.atom_struct import AtomicStructHandler
 from validationReport import readMap, get_env_bool
 import json
@@ -472,6 +472,8 @@ else:
                     project.getPath(), protImportMapChecker._getExtraPath(), fnMap1)
                 FNMAP2 = os.path.join(
                     project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)
+            else:
+                sys.exit("Level 1 was requested and EMD-%s has half maps, but they could not be downloaded" % EMDB_ID_NUM)
 
     # check if we can have a proper mask with the threshold specified
     protCreateMaskChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
@@ -482,15 +484,21 @@ else:
                                                 elementSize=math.ceil(2/TS)) # Dilation by 2A
     protCreateMaskChecker.setObjLabel('check proper mask')
     if use_slurm:
-        sendToSlurm(protCreateMaskChecker, priority=False if IS_EMDB_ENTRY else True)
+        maskMemory = computeMaskMemory(MAP_COL, MAP_ROW, MAP_SEC) if IS_EMDB_ENTRY else 8192
+        sendToSlurm(protCreateMaskChecker, memory=maskMemory, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protCreateMaskChecker)
     waitUntilFinishes(project, protCreateMaskChecker)
 
-    M = readMap(protCreateMaskChecker.outputMask.getFileName()).getData()
-    totalMass = np.sum(M)
-    if not totalMass > 0:
+    # e.g. OOM in keepBiggest: report it instead of crashing on the missing outputMask
+    if protCreateMaskChecker.isFailed() or not hasattr(protCreateMaskChecker, 'outputMask'):
         wrongInputs['errors'].append({'param': 'threshold', 'value': MAPTHRESHOLD,
-                                     'cause': 'The mask obtained from the volume map is empty, try to lower the threshold value'})
+                                     'cause': 'The mask could not be computed from the volume map (protocol failed, see check proper mask logs)'})
+    else:
+        M = readMap(protCreateMaskChecker.outputMask.getFileName()).getData()
+        totalMass = np.sum(M)
+        if not totalMass > 0:
+            wrongInputs['errors'].append({'param': 'threshold', 'value': MAPTHRESHOLD,
+                                         'cause': 'The mask obtained from the volume map is empty, try to lower the threshold value'})
 
 if "1" in levels:
     # check 'map1' and 'map2' arg
@@ -801,12 +809,16 @@ else:  # go ahead
     # Create report
     # Level 0
     from validationLevel0 import level0
-    protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, protCreateSoftMaskFromResizedMap, fnMaskedMapDict = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = True, priority=False if IS_EMDB_ENTRY else True, mapDimensions=(MAP_COL, MAP_ROW, MAP_SEC))
+    protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, protCreateSoftMaskFromResizedMap, fnMaskedMapDict = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False, priority=False if IS_EMDB_ENTRY else True, mapDimensions=(MAP_COL, MAP_ROW, MAP_SEC))
 
     # Level 1
     if "1" in levels:
         from validationLevel1 import level1
-        level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protImportMap, protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis = True, priority=False if IS_EMDB_ENTRY else True)
+        level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protImportMap, protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis = False, priority=False if IS_EMDB_ENTRY else True)
+        # The entry has half maps, so level 1 must have been computed: fail the validation instead
+        # of silently producing a report without it (EMDBlauncher stores stderr as fail_reason)
+        if not any(prot.getObjLabel().startswith('1.a') for prot in project.getRuns()):
+            sys.exit("Level 1 was requested and the entry has half maps, but level 1 analysis was not computed")
 
     # Level 2
     if "2" in levels:
