@@ -42,6 +42,20 @@ def computeImportMemory(col, row, sec, base_memory=8192):
     memory = MAX_IMPORT_MEMORY_MB
   return memory
 
+# XmippProtCreateMask3D (keepBiggest) keeps ~4 double copies of the volume: measured
+# ~35 B/voxel peak on EMD-4842 (480^3), so float32-based computeImportMemory falls short
+# (EMD-20206, 800^3: OOM at 8 GB). See fixes/008-mask-checker-oom-keepbiggest.md
+MASK_BYTES_PER_VOXEL = 40
+
+def computeMaskMemory(col, row, sec, base_memory=8192):
+  """
+  Estimates the Slurm memory (in MB) needed by XmippProtCreateMask3D on an EMDB map
+  """
+  if not (col and row and sec):
+    return base_memory
+  memory = max(base_memory, int(col * row * sec * MASK_BYTES_PER_VOXEL / (1024 ** 2)))
+  return min(memory, MAX_IMPORT_MEMORY_MB)
+
 # MB per atom for Phenix's cryo-EM validation/fitting-check step (phenixExecution() in
 # validationLevelA.py), which until now was sent to Slurm with the flat 8192 MB default
 # regardless of model size. Calibrated from two direct reproductions of EMD-70833's real
