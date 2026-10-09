@@ -273,6 +273,7 @@ if IS_EMDB_ENTRY:
         print("Results of 'does_map_exist':")
         print('Response code:', does_map_exist[1])
         print('Response text:', does_map_exist[2])
+        sys.exit("There is no EMDB map with code %s: %s" % (EMDB_ID_NUM, does_map_exist[2][:500]))
 else:
     PRIORITY_QUEUE = True
     for arg in sys.argv:
@@ -456,6 +457,18 @@ else:
         FNMAP = os.path.join(
             project.getPath(), protImportMapChecker.outputVolume.getFileName())
         MAPCOORDX, MAPCOORDY, MAPCOORDZ = protImportMapChecker.outputVolume.getShiftsFromOrigin()
+        # Scipion's EMDB import ignores the map axis order (MAPC/MAPR/MAPS) when setting the origin,
+        # so maps not stored as x/y/z get a wrong origin and the model ends up outside the map
+        # (e.g. EMD-31078). Take the origin from the map header instead.
+        headerOrigin = EMDButils.get_map_origin_xyz(FNMAP)
+        if headerOrigin is not None and \
+                np.linalg.norm(np.array(headerOrigin) - np.array([MAPCOORDX, MAPCOORDY, MAPCOORDZ])) > 0.1:
+            print("WARNING: origin from Scipion EMDB import (%s) does not match the map header "
+                  "taking the axis order into account (%s). Using the header origin."
+                  % ((MAPCOORDX, MAPCOORDY, MAPCOORDZ), headerOrigin))
+            MAPCOORDX, MAPCOORDY, MAPCOORDZ = headerOrigin
+            protImportMapChecker.outputVolume.setShiftsInOrigin(MAPCOORDX, MAPCOORDY, MAPCOORDZ)
+            protImportMapChecker._store()
         MAPCOORDX = -1 * MAPCOORDX
         MAPCOORDY = -1 * MAPCOORDY
         MAPCOORDZ = -1 * MAPCOORDZ
