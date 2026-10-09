@@ -12,6 +12,13 @@ def does_map_exist(emdbid):
     print("Checking if EMD-%s exists..." % emdbid)
     response = requests.get(url_rest_api)
     if response.status_code == 200:
+        # Obsolete/withdrawn entries still answer 200 but have no map to download
+        try:
+            status = response.json()["admin"]["current_status"]["code"]["valueOf_"]
+        except Exception:
+            status = None
+        if status and status != 'REL':
+            return False, response.status_code, "EMD-%s is not released in EMDB (current status: %s)" % (emdbid, status)
         return True, response.status_code, response.text
     else:
         return False, response.status_code, response.text
@@ -147,6 +154,46 @@ def proper_map_axis_order(emdbid):
     except:
         return False
     return True
+
+def get_map_origin_xyz(fnMap):
+    """
+    Returns the (x, y, z) coordinates, in Angstroms, of the first voxel of a CCP4/MRC map, i.e. the
+    origin shifts as Scipion uses them.
+
+    The header fields NCSTART/NRSTART/NSSTART are given in column/row/section order, which is
+    only x/y/z when MAPC/MAPR/MAPS = 1/2/3. Scipion's EMDB import (pwem fetch_emdb_map) takes the
+    EMDB origin (col, row, sec) as if it were (x, y, z), so maps stored with another axis order
+    (e.g. EMD-31078, MAPC/MAPR/MAPS = 3/2/1) end up shifted and the atomic model falls outside
+    the map. Here the start values are permuted to x/y/z using MAPC/MAPR/MAPS.
+    Returns None if the header cannot be interpreted.
+    """
+    import struct
+    with open(fnMap, 'rb') as f:
+        header = f.read(224)
+    if len(header) < 224:
+        return None
+    for endian in ('<', '>'):
+        mapcrs = struct.unpack(endian + '3i', header[64:76])
+        if sorted(mapcrs) == [1, 2, 3]:
+            break
+    else:
+        return None
+    start = struct.unpack(endian + '3i', header[16:28])
+    gridXYZ = struct.unpack(endian + '3i', header[28:40])
+    cellXYZ = struct.unpack(endian + '3f', header[40:52])
+    originXYZ = struct.unpack(endian + '3f', header[196:208])
+    if any(g <= 0 for g in gridXYZ):
+        return None
+    samplingXYZ = [c / g for c, g in zip(cellXYZ, gridXYZ)]
+
+    # MRC2014: the ORIGIN field (already in x, y, z and Angstroms) takes precedence when it is set
+    if any(o != 0 for o in originXYZ) and not any(o != o for o in originXYZ):
+        return tuple(float(o) for o in originXYZ)
+
+    startXYZ = [0, 0, 0]
+    for crsIdx, axis in enumerate(mapcrs):
+        startXYZ[axis - 1] = start[crsIdx]
+    return tuple(float(s * ts) for s, ts in zip(startXYZ, samplingXYZ))
 
 def gunzip(gzpath, path):
     gzf = gzip.open(gzpath)
