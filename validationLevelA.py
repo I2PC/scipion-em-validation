@@ -50,7 +50,7 @@ from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes, createSc
 
 import configparser
 
-from tools.utils import saveIntermediateData, getFilename, getScoresFromWS, getFileFromWS
+from tools.utils import saveIntermediateData, getFilename
 from tools.emv_utils import convert_2_json
 
 from resources.constants import *
@@ -721,7 +721,7 @@ take values between -1.5 and 1.5, being 0 an indicator of good matching between 
                                             'XmippProtValFit', doRaise=True)
     prot = project.newProtocol(Prot,
                                inputPDBObj=protAtom.outputPdb,
-                               numberOfThreads=N_THREADS)
+                               numberOfThreads=n_threads)
     prot.setObjLabel("A.b FSC-Q")
     prot.inputVolume.set(protImportMap.outputVolume)
     prot.pdbMap.set(protConvert.outputVolume)
@@ -1070,106 +1070,69 @@ have a Gaussian shape.\\\\
 """ % (secLabel, MAPQ_DOI)
     report.write(msg)
 
-    # check if we have the precomputed data
-    # https://3dbionotes.cnb.csic.es/bws/api/emv/7xzz/mapq/
     emdb_Id = getFilename(str(protImportMap.filesPath), withExt=False)
-    print("Get MapQ scores from 3DBionotes-WS for %s" % pdbdb_Id)
-    has_precalculated_data = False
-    cif_data = getFileFromWS(pdbdb_Id, 'mapq')
 
-    if cif_data:
-        # save to report
-        results_msg = \
-            """
-            \\Precalculated MapQ scores obtained from DB source via 3DBionotes-WS:
-            \\\\
-            \\url{https://3dbionotes.cnb.csic.es/bws/api/emv/%s/mapq/}
-            \\\\
-            """ % emdb_Id.lower().replace('_','-')
-        report.write(results_msg)
-        has_precalculated_data = True
-    else:
-        # if there is not precalculated data or failed to retrieve it
-        print('- Could not get data for', pdbdb_Id)
-        print('-- Proceed to calculate it localy')
+    if resolution>5:
+        report.writeSummary("A.e MapQ", secLabel, NOT_APPLY_MESSAGE)
+        report.write(NOT_APPLY_WORSE_RESOLUTION % 5 + STATUS_NOT_APPLY)
+        return None
 
-        if resolution>5:
-            report.writeSummary("A.e MapQ", secLabel, NOT_APPLY_MESSAGE)
-            report.write(NOT_APPLY_WORSE_RESOLUTION % 5 + STATUS_NOT_APPLY)
-            return None
+    Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
+                                            'ProtMapQ', doRaise=True)
+    prot = project.newProtocol(Prot,
+                            inputVol=protImportMap.outputVolume,
+                            pdbs=[protAtom.outputPdb],
+                            mapRes=resolution)
+    prot.setObjLabel("A.e MapQ")
+    if use_slurm:
+        sendToSlurm(prot, priority=True if priority else False)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'scoredStructures')
+    waitUntilFinishes(project, prot)
+    if prot.isFailed():
+        report.writeSummary("A.e MapQ", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return
 
-        Prot = pwplugin.Domain.importFromPlugin('mapq.protocols',
-                                                'ProtMapQ', doRaise=True)
-        prot = project.newProtocol(Prot,
-                                inputVol=protImportMap.outputVolume,
-                                pdbs=[protAtom.outputPdb],
-                                mapRes=resolution)
-        prot.setObjLabel("A.e MapQ")
-        if use_slurm:
-            sendToSlurm(prot, priority=True if priority else False)
-        project.launchProtocol(prot)
-        #waitOutput(project, prot, 'scoredStructures')
-        waitUntilFinishes(project, prot)
-        if prot.isFailed():
-            report.writeSummary("A.e MapQ", secLabel, ERROR_MESSAGE)
-            report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
-            return
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_MAPQ)
+        report.writeSummary("A.e MapQ", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
 
-        if prot.isAborted():
-            print(PRINT_PROTOCOL_ABORTED + ": " + NAME_MAPQ)
-            report.writeSummary("A.e MapQ", secLabel, ERROR_ABORTED_MESSAGE)
-            report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
-            return prot
+    qAllTxtFiles = glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map*_All.txt')))
+    qPdbFiles = glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map*.pdb')))
+    if not qAllTxtFiles or not qPdbFiles:
+        print('- MapQ protocol finished but did not produce the expected output files in %s'
+              % prot._getExtraPath())
+        report.writeSummary("A.e MapQ", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_NO_RESULTS + STATUS_ERROR_MESSAGE)
+        return prot
 
-        qAllTxtFiles = glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map*_All.txt')))
-        qPdbFiles = glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*Q__map*.pdb')))
-        if not qAllTxtFiles or not qPdbFiles:
-            print('- MapQ protocol finished but did not produce the expected output files in %s'
-                  % prot._getExtraPath())
-            report.writeSummary("A.e MapQ", secLabel, ERROR_MESSAGE)
-            report.write(ERROR_MESSAGE_NO_RESULTS + STATUS_ERROR_MESSAGE)
-            return prot
-
-        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*.cif')))[0], 'cif file')
-        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All',
-                             qAllTxtFiles[0],
-                             'Q__map_All txt file')
-        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map.pdb',
-                             qPdbFiles[0],
-                             'Q__map pdb file')
-        input_file = qPdbFiles[0]
-        # emd_26162_pdb_7txz_emv_mapq.json
-        output_file = os.path.join(project.getPath(), prot._getExtraPath(), "%s_pdb_%s_emv_mapq.json" % (emdb_Id.lower().replace('-','_'), pdbdb_Id.lower()))
-        json_file = convert_2_json(emdb_Id, pdbdb_Id, method='mapq', input_file=input_file, output_file=output_file)
-        saveIntermediateData(report.getReportDir(), 'MapQ', True, 'EMV json file', json_file, 'MapQ scores in EMV json format')
+    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'cif', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*.cif')))[0], 'cif file')
+    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map_All',
+                         qAllTxtFiles[0],
+                         'Q__map_All txt file')
+    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'Q__map.pdb',
+                         qPdbFiles[0],
+                         'Q__map pdb file')
+    input_file = qPdbFiles[0]
+    # emd_26162_pdb_7txz_emv_mapq.json
+    output_file = os.path.join(project.getPath(), "%s_pdb_%s_emv_mapq.json" % (emdb_Id.lower().replace('-','_'), pdbdb_Id.lower()))
+    json_file = convert_2_json(emdb_Id, pdbdb_Id, method='mapq', input_file=input_file, output_file=output_file)
+    saveIntermediateData(report.getReportDir(), 'MapQ', True, 'EMV json file', json_file, 'MapQ scores in EMV json format')
 
 
     # get histogram
     mapq_scores = []
-    if has_precalculated_data and cif_data:
-        cifWSFilename = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS.cif')
-        pdbFromWS = open(cifWSFilename, 'w')
-        pdbFromWS.write(cif_data)
-        pdbFromWS.close()
-        with open(cifWSFilename) as cif:
-            lines = cif.readlines()
-            for line in lines:
-                if 'ATOM' in line:
-                    line = re.sub(' +', ' ', line)
-                    values = line.split(' ')
-                    try:
-                        mapq_scores.append(float(values[15]))
-                    except ValueError:
-                        continue
-    else:
-        ASH = AtomicStructHandler()
+    ASH = AtomicStructHandler()
 
-        for struct in prot.scoredStructures:
-            fileName = struct.getFileName()
-            fields = ASH.readLowLevel(fileName)
-            attributes = fields["_scipion_attributes.name"]
-            values = fields["_scipion_attributes.value"]
-            mapq_scores += [float(value) for attribute, value in zip(attributes, values) if attribute == "MapQ_Score"]
+    for struct in prot.scoredStructures:
+        fileName = struct.getFileName()
+        fields = ASH.readLowLevel(fileName)
+        attributes = fields["_scipion_attributes.name"]
+        values = fields["_scipion_attributes.value"]
+        mapq_scores += [float(value) for attribute, value in zip(attributes, values) if attribute == "MapQ_Score"]
 
     # A genuine MapQ computation never returns the exact same value (0.0) for every single atom;
     # this only happens when MapQ's global mean/std-based estimate of the map's dynamic range
@@ -1181,7 +1144,7 @@ have a Gaussian shape.\\\\
               "section instead of reporting fabricated results." % (pdbdb_Id, len(mapq_scores)))
         report.writeSummary("A.e MapQ", secLabel, NOT_APPLY_MESSAGE)
         report.write(NOT_APPLY_MAPQ_DEGENERATE_RESULT + STATUS_NOT_APPLY)
-        return prot if not has_precalculated_data else None
+        return prot
 
     fnHist = os.path.join(report.getReportDir(),"mapqHist.png")
 
@@ -1221,59 +1184,7 @@ percentiles are:
 """ % (Bpercentiles[0], Bpercentiles[1], Bpercentiles[2], Bpercentiles[3], Bpercentiles[4], fnHist)
     report.write(toWrite)
 
-    if not has_precalculated_data:
-        files = glob.glob(prot._getExtraPath("*All.txt"))
-    else:
-        cifFilename = os.path.join(report.getReportDir(), pdbdb_Id + '_MAPQFromWS.cif')
-        cifFromWS = open(cifFilename, 'w')
-        cifFromWS.write(getFileFromWS(pdbdb_Id, 'mapq'))
-        cifFromWS.close()
-
-        QStatsScript =\
-"""
-import sys
-import chimera
-
-from chimera import Molecule
-
-mapq_path = "%s"
-sys.path.append(mapq_path)
-
-validation_tools_path = "%s"
-sys.path.append(validation_tools_path)
-
-import mmcif
-import qscores
-from mapq_utils import SaveQStats, ReadMol
-
-print('\\nCreating MapQ Statistics...\\n')
-mol = ReadMol("%s")
-
-chimera.openModels.add([mol])
-
-mols = chimera.openModels.list(modelTypes=[Molecule])
-if len(mols) == 0:
-    print(" - no molecules loaded")
-else:
-    print('\\nMolecules loaded correctly')
-    for mi, mol in enumerate(mols):
-        qscores.SetBBAts(mol)
-        SaveQStats(mol, "All", 0.6, %d)
-
-"""%(mapq_path, validation_tools_path, cifFilename, resolution)        
-        fnQStatsScript = os.path.join(report.getReportDir(),"mapq_stats.py")
-        fhQStatsScript = open(fnQStatsScript,"w")
-        fhQStatsScript.write(QStatsScript)
-        fhQStatsScript.close()
-
-        args = "--nogui --script %s "%(fnQStatsScript)
-        print("Running: %s %s" % (chimera_program, args))
-        p = subprocess.Popen('%s %s' % (chimera_program, args), shell=True, stderr=subprocess.PIPE)
-        p.wait()
-
-        files = glob.glob(os.path.join(report.getReportDir(), "*All.txt"))
-
-    fh = open(files[0])
+    fh = open(qAllTxtFiles[0])
     msg=\
 """ The following table shows the average Q-score and estimated resolution for each chain.
 \\begin{center}
@@ -1325,37 +1236,23 @@ else:
 
     # get colored models
     msg = "The atomic model colored by MapQ can be seen in Fig. \\ref{fig:mapq}.\n\n"
-    if not has_precalculated_data:
-        fnCifMapQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_MapQ_score.cif"))
-        # make sure the output mapq file is correct
-        # Retrieving file path
-        cif_dir = os.path.join(project.getPath(), prot._getExtraPath(""))
-        # Buscar el archivo .cif
-        cif_files = glob.glob(os.path.join(cif_dir, "*.cif"))
-        cif_file = cif_files[0]
-        with open(cif_file) as cif:
-            cifData = cif.read()
-        cifData = cifData.replace('residues', 'atoms')
-        with open(cif_file, 'w') as cif:
-            cif.write(cifData)
+    fnCifMapQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_MapQ_score.cif"))
+    # make sure the output mapq file is correct
+    # Retrieving file path
+    cif_dir = os.path.join(project.getPath(), prot._getExtraPath(""))
+    # Buscar el archivo .cif
+    cif_files = glob.glob(os.path.join(cif_dir, "*.cif"))
+    cif_file = cif_files[0]
+    with open(cif_file) as cif:
+        cifData = cif.read()
+    cifData = cifData.replace('residues', 'atoms')
+    with open(cif_file, 'w') as cif:
+        cif.write(cifData)
 
-        replaceOcuppancyWithAttribute(os.path.join(project.getPath(), cif_file), "MapQ_Score",
-                                      fnCifMapQ)
-        report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", fnCifMapQ, "fig:mapq", bfactor=False,
-                           occupancy=True, rainbow=False, legendMin=-1, legendMax=1)
-
-    else:
-        # Copy the per-atom Q-score into the occupancy column and color by occupancy.
-        # We used to write a .defattr file with ':<atom serial>' specs, but in ChimeraX ':N' means
-        # residue number N (in every chain), so atoms were colored wrongly and each line triggered a
-        # full spec search: on large models (e.g. EMD-26444, ~200k atoms) ChimeraX ran for hours.
-        cifDic = AtomicStructHandler().readLowLevel(cifWSFilename)
-        cifDic['_atom_site.occupancy'] = [q if q not in ('?', '.') else '0' for q in cifDic['_atom_site.Q-score']]
-        fnCifMapQ = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_MapQFromWS_occupancy.cif')
-        AtomicStructHandler()._writeLowLevel(fnCifMapQ, cifDic)
-
-        report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", fnCifMapQ, "fig:mapq", bfactor=False,
-                           occupancy=True, rainbow=False, legendMin=-1, legendMax=1)
+    replaceOcuppancyWithAttribute(os.path.join(project.getPath(), cif_file), "MapQ_Score",
+                                  fnCifMapQ)
+    report.atomicModel("mapqView", msg, "Atomic model colored by MapQ", fnCifMapQ, "fig:mapq", bfactor=False,
+                       occupancy=True, rainbow=False, legendMin=-1, legendMax=1)
 
     saveIntermediateData(report.getReportDir(), 'MapQ', True, 'MapQView',
                          [os.path.join(report.getReportDir(), 'mapqView1.jpg'),
@@ -1516,12 +1413,13 @@ optimal threshold.
     msg+=\
 """The following plots show the rolling window EMRinger analysis of the different chains to distinguish regions
 of improved model quality. This analysis was performed on rolling sliding 21-residue windows along the primary
-sequence of the protein chains. If straight lines are observed in the plots, this is likely due to the absence of side chains in those residues.
+sequence of the protein chains, using a map threshold of %s. If straight lines are observed in the plots, this is likely due to the absence of side chains in those residues.
 Chains with fewer than %d scannable residues (e.g. a single bound copy of a rotameric aminoacid used as a ligand)
 cannot fill a complete window, so no rolling-window plot is shown for them; their scanned residues are still
 included in the overall EMRinger score above.
 
-"""%ROLLING_WINDOW_SIZE
+"""%("%4.3f (the optimal threshold)" % dataDict['_rollingThreshold'] if dataDict.get('_rollingThreshold') else "0",
+     ROLLING_WINDOW_SIZE)
     for chain in sorted(dataDict['_chains']):
         nRes = residuesPerChain.get(chain, 0)
         if nRes < ROLLING_WINDOW_SIZE:
@@ -1555,8 +1453,9 @@ included in the overall EMRinger score above.
                             "map (see Sec. \\ref{%s}). "%secLabel)
 
     _emringer_plots = []
-    for file in os.listdir(glob.glob(prot._getExtraPath('*_emringer_plots'))[0]):
-        _emringer_plots.append(os.path.join(project.getPath(), prot._getExtraPath('*_emringer_plots'), file))
+    emringerPlotsDir = glob.glob(prot._getExtraPath('*_emringer_plots'))[0]
+    for file in os.listdir(emringerPlotsDir):
+        _emringer_plots.append(os.path.join(project.getPath(), emringerPlotsDir, file))
 
     saveIntermediateData(report.getReportDir(), 'EMRinger', True, 'emringer_csv', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*_emringer.csv')))[0], 'emringer_csv file')
     saveIntermediateData(report.getReportDir(), 'EMRinger', True, '7tmw_emringer.pkl', glob.glob(os.path.join(project.getPath(), prot._getExtraPath('*_emringer.pkl')))[0], 'emringer pickle file')
@@ -1581,83 +1480,74 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
 """ % (secLabel, DAQ_DOI)
     report.write(msg)
 
-    #TODO: API call
-    # check if we have the precomputed data
-    # https://3dbionotes.cnb.csic.es/bws/api/emv/7xzz/daq/
     emdb_Id = getFilename(str(protImportMap.filesPath), withExt=False)
-    print("Get DAQ scores from 3DBionotes-WS for %s" % pdbdb_Id)
-    has_precalculated_data = False
-    json_data = getScoresFromWS(pdbdb_Id, 'daq')
 
-    if json_data:
-        # save to report
-        results_msg = \
-            """
-            \\Precalculated DAQ scores obtained from DB source via 3DBionotes-WS:
-            \\\\
-            \\url{https://3dbionotes.cnb.csic.es/bws/api/emv/%s/daq/}
-            \\\\
-            """ % emdb_Id.lower().replace('_','-')
-        report.write(results_msg)
-        has_precalculated_data = True
-    else:
-        # if there is not precalculated data or failed to retrieve it
-        print('- Could not get data for', pdbdb_Id)
-        print('-- Proceed to calculate it localy')
+    if resolution>5:
+        report.writeSummary("A.g DAQ", secLabel, NOT_APPLY_MESSAGE)
+        report.write(NOT_APPLY_WORSE_RESOLUTION % 5 + STATUS_NOT_APPLY)
+        return None
 
-        if resolution>5:
-            report.writeSummary("A.g DAQ", secLabel, NOT_APPLY_MESSAGE)
-            report.write(NOT_APPLY_WORSE_RESOLUTION % 5 + STATUS_NOT_APPLY)
-            return None
+    Prot = pwplugin.Domain.importFromPlugin('kiharalab.protocols',
+                                            'ProtDAQValidation', doRaise=True)
+    prot = project.newProtocol(Prot,
+                            stride=3)
+    prot.setObjLabel("A.g DAQ")
+    prot.inputVolume.set(protImportMap.outputVolume)
+    prot.inputAtomStruct.set(protAtom.outputPdb)
+    if use_slurm:
+        sendToSlurm(prot, GPU=True, priority=True if priority else False)
+    project.launchProtocol(prot)
+    #waitOutput(project, prot, 'outputAtomStruct')
+    waitUntilFinishes(project, prot)
 
-        Prot = pwplugin.Domain.importFromPlugin('kiharalab.protocols',
-                                                'ProtDAQValidation', doRaise=True)
-        prot = project.newProtocol(Prot,
-                                stride=3)
-        prot.setObjLabel("A.g DAQ")
-        prot.inputVolume.set(protImportMap.outputVolume)
-        prot.inputAtomStruct.set(protAtom.outputPdb)
-        if use_slurm:
-            sendToSlurm(prot, GPU=True, priority=True if priority else False)
-        project.launchProtocol(prot)
-        #waitOutput(project, prot, 'outputAtomStruct')
-        waitUntilFinishes(project, prot)
+    if prot.isFailed():
+        report.writeSummary("A.g DAQ", secLabel, ERROR_MESSAGE)
+        report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
+        return prot
 
-        if prot.isFailed():
-            report.writeSummary("A.g DAQ", secLabel, ERROR_MESSAGE)
-            report.write(ERROR_MESSAGE_PROTOCOL_FAILED + STATUS_ERROR_MESSAGE)
-            return prot
+    if prot.isAborted():
+        print(PRINT_PROTOCOL_ABORTED + ": " + NAME_DAQ)
+        report.writeSummary("A.g DAQ", secLabel, ERROR_ABORTED_MESSAGE)
+        report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
+        return prot
+    
+    # Sanity check: if every residue got exactly the same score (typically 0.0), DAQ found no density
+    # under the model (model outside the map box / wrong origin). Report it as an error instead of
+    # publishing a histogram and an EMV json full of zeros.
+    try:
+        cifDic = AtomicStructHandler().readLowLevel(prot._getPath('outputStructure.cif'))
+        rawDaqValues = [float(value) for name, value in zip(cifDic['_scipion_attributes.name'],
+                                                            cifDic['_scipion_attributes.value'])
+                        if name == "DAQ_score"]
+    except Exception as e:
+        print("Could not read DAQ scores: %s" % e)
+        rawDaqValues = []
+    if len(rawDaqValues) == 0 or len(set(rawDaqValues)) == 1:
+        print("DAQ returned %d scores, all equal to %s: model probably outside the map"
+              % (len(rawDaqValues), rawDaqValues[0] if rawDaqValues else None))
+        report.writeSummary("A.g DAQ", secLabel, ERROR_MESSAGE)
+        report.write("{\\color{red} \\textbf{ERROR: DAQ assigned the same score to every residue, which usually means "
+                     "that the atomic model does not overlap the map (wrong origin or model outside the box). "
+                     "The DAQ results are not shown.}}\\\\\n" + STATUS_ERROR_MESSAGE)
+        return prot
 
-        if prot.isAborted():
-            print(PRINT_PROTOCOL_ABORTED + ": " + NAME_DAQ)
-            report.writeSummary("A.g DAQ", secLabel, ERROR_ABORTED_MESSAGE)
-            report.write(ERROR_MESSAGE_ABORTED + STATUS_ERROR_ABORTED_MESSAGE)
-            return prot
-        
-        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQcif', os.path.join(project.getPath(), prot._getPath('outputStructure.cif')), 'cif file containing DAQ scores')
-        input_file = os.path.join(project.getPath(), prot._getPath('outputStructure.cif'))
-        # emd_26162_pdb_7txz_emv_daq.json
-        output_file = os.path.join(project.getPath(), prot._getExtraPath(), "%s_pdb_%s_emv_daq.json" % (emdb_Id.lower().replace('-','_'), pdbdb_Id.lower()))
-        json_file = convert_2_json(emdb_Id, pdbdb_Id, method='daq', input_file=input_file, output_file=output_file)
-        saveIntermediateData(report.getReportDir(), 'DAQ', True, 'EMV json file', json_file, 'DAQ scores in EMV json format')
+    saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQcif', os.path.join(project.getPath(), prot._getPath('outputStructure.cif')), 'cif file containing DAQ scores')
+    input_file = os.path.join(project.getPath(), prot._getPath('outputStructure.cif'))
+    # emd_26162_pdb_7txz_emv_daq.json
+    output_file = os.path.join(project.getPath(), "%s_pdb_%s_emv_daq.json" % (emdb_Id.lower().replace('-','_'), pdbdb_Id.lower()))
+    json_file = convert_2_json(emdb_Id, pdbdb_Id, method='daq', input_file=input_file, output_file=output_file)
+    saveIntermediateData(report.getReportDir(), 'DAQ', True, 'EMV json file', json_file, 'DAQ scores in EMV json format')
 
     # get histogram
     try:            
         daqValues = []
-        if has_precalculated_data and json_data:
-            chain_data = json_data["chains"]
-            for chain in chain_data:
-                ch_seqData = chain["seqData"]
-                for ch_residue in ch_seqData:
-                    daqValues.append(float(ch_residue["scoreValue"]))
-        else:
-            # daqDic = prot.parseDAQScores(prot.outputAtomStruct.getFileName())
-            # daqValues = [float(x) for x in list(daqDic.values())]
-            from pwem.convert.atom_struct import AtomicStructHandler
-            cifDic = AtomicStructHandler().readLowLevel(prot._getPath('outputStructure.cif'))
-            for name, value in zip(cifDic['_scipion_attributes.name'],cifDic['_scipion_attributes.value']):
-                if name=="DAQ_score":
-                    daqValues.append(float(value))
+        # daqDic = prot.parseDAQScores(prot.outputAtomStruct.getFileName())
+        # daqValues = [float(x) for x in list(daqDic.values())]
+        from pwem.convert.atom_struct import AtomicStructHandler
+        cifDic = AtomicStructHandler().readLowLevel(prot._getPath('outputStructure.cif'))
+        for name, value in zip(cifDic['_scipion_attributes.name'],cifDic['_scipion_attributes.value']):
+            if name=="DAQ_score":
+                daqValues.append(float(value))
 
         fnDAQHist = os.path.join(report.getReportDir(),"daqHist.png")
         reportHistogram(daqValues,"DAQ", fnDAQHist, xlim=(-2, 2))
@@ -1686,17 +1576,9 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
 
         # get colored models
         msg = "The atomic model colored by DAQ can be seen in Fig. \\ref{fig:daq}.\n\n"
-        if has_precalculated_data:
-            pdbFilename = os.path.join(project.getPath(), project.getTmpPath(), pdbdb_Id + '_DAQFromWS.pdb')
-            pdbFromWS = open(pdbFilename, 'w')
-            pdbFromWS.write(getFileFromWS(pdbdb_Id, 'daq'))
-            pdbFromWS.close()
-            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", pdbFilename, "fig:daq", bfactor=True, occupancy=False, legendMin=-1, legendMax=1)
-
-        else:
-            fnCifDAQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_DAQ_score.cif"))
-            replaceOcuppancyWithAttribute(os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "DAQ_score", fnCifDAQ)
-            report.atomicModel("daqView", msg, "Atomic model colored by DAQ", fnCifDAQ, "fig:daq", bfactor=False, occupancy=True, rainbow=False, legendMin=-1, legendMax=1)
+        fnCifDAQ = os.path.join(project.getPath(), prot._getExtraPath("chimeraAttribute_DAQ_score.cif"))
+        replaceOcuppancyWithAttribute(os.path.join(project.getPath(),prot.outputAtomStruct.getFileName()), "DAQ_score", fnCifDAQ)
+        report.atomicModel("daqView", msg, "Atomic model colored by DAQ", fnCifDAQ, "fig:daq", bfactor=False, occupancy=True, rainbow=False, legendMin=-1, legendMax=1)
 
         saveIntermediateData(report.getReportDir(), 'DAQ', True, 'DAQView',
                             [os.path.join(report.getReportDir(), 'daqView1.jpg'),
@@ -1731,9 +1613,7 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
     if len(warnings)>0:
         report.writeAbstract("DAQ detects some mismatch between the map and its model (see Sec. \\ref{%s}). "%secLabel)
 
-    if not has_precalculated_data:
-        return prot
-    return
+    return prot
 
 def reportInput(project, report, FNMODEL, writeAtomicModelFailed=False):
 
@@ -1835,6 +1715,9 @@ def levelA(project, report, EMDB_ID_NUM, protImportMap, FNMODEL, fnPdb, writeAto
                     guinierModel(project, report, protImportMap, protConvert, protCreateHardMask, resolution, priority=priority)
                     mapq(project, report, protImportMap, fittedProtAtom, resolution, pdbdb_Id, priority=priority)
                     emringer(project, report, protImportForPhenix, fittedProtAtom, resolution, priority=priority)
-                    daq(project, report, protImportMap, protAtom, resolution, pdbdb_Id, priority=priority)
+                    # DAQ must use the same (possibly docked/fitted) model as the rest of Level A: the
+                    # original protAtom may lie outside the map box (e.g. EMD-31078, where Phenix had to
+                    # dock it) and then DAQ silently returns 0.0 for every residue.
+                    daq(project, report, protImportMap, fittedProtAtom, resolution, pdbdb_Id, priority=priority)
 
     return protAtom
