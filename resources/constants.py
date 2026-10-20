@@ -120,14 +120,12 @@ NOT_APPLY_MAPQ_DEGENERATE_RESULT = \
     "{\\color{brown} \\textbf{MapQ could not be computed reliably for this map.}} " \
     "Every per-atom Q-score returned by MapQ was exactly 0.0, which is not a possible outcome of a " \
     "genuine measurement (real Q-scores vary continuously and are essentially never identical for " \
-    "every single atom). This degenerate result is a known failure mode of MapQ on sparse or " \
-    "``composite'' maps, where the modelled density occupies only a small fraction of the deposited " \
-    "box: MapQ estimates the map's dynamic range from the mean and standard deviation of the " \
-    "\\textbf{entire} box, so when most of the box is empty background, that estimate collapses to " \
-    "the background noise level and every per-atom score is computed against the wrong reference, " \
-    "yielding zeros instead of a real measurement. The map-model fit itself is not in question here " \
-    "(it was already checked in Sec.~\\ref{sec:AAnalysis}); this is a limitation of the MapQ " \
-    "computation for this kind of map, not evidence of a poor structure.\\\\ \n\n"
+    "every single atom). It means that MapQ sampled the map only in regions where all values are " \
+    "exactly zero (for instance, outside the masked density of a masked map), i.e. that the atomic " \
+    "model and the map were not placed in the same coordinate frame during the MapQ computation. " \
+    "This is a processing problem of this analysis, not a limitation of MapQ for this kind of map " \
+    "(Q-scores can be computed on masked maps) and not evidence of a poor structure: the map-model " \
+    "fit itself was already checked in Sec.~\\ref{sec:AAnalysis}.\\\\ \n\n"
 
 
 SUMMARY_WARNINGS_TITLE = "\\textbf{\\underline{Summary of the warnings across sections.}}\\\\ \n\n\n"

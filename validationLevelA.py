@@ -1135,13 +1135,16 @@ have a Gaussian shape.\\\\
         mapq_scores += [float(value) for attribute, value in zip(attributes, values) if attribute == "MapQ_Score"]
 
     # A genuine MapQ computation never returns the exact same value (0.0) for every single atom;
-    # this only happens when MapQ's global mean/std-based estimate of the map's dynamic range
-    # collapses on a sparse/composite map (see NOT_APPLY_MAPQ_DEGENERATE_RESULT). Detect it here
-    # instead of silently reporting a fabricated-looking "0.00" table (see EMD-74451 for reference).
+    # this happens when the atoms are sampled only where the map is exactly zero, i.e. model and map
+    # are not in the same frame (e.g. EMD-30652, EMD-16484: the old ProtMapQ on mayr/milgrom moves
+    # the model's centre of mass to (0,0,0), outside EMDB maps with origin 0; the maps being masked
+    # makes the result exactly 0). See fixes/010 and NOT_APPLY_MAPQ_DEGENERATE_RESULT. Detect it
+    # here instead of silently reporting a fabricated-looking "0.00" table.
     if len(mapq_scores) == 0 or (min(mapq_scores) == 0.0 and max(mapq_scores) == 0.0):
-        print("- MapQ returned degenerate all-zero Q-scores for %s (%d values). This map is likely "
-              "too sparse/composite for MapQ's dynamic-range estimation to work; skipping the MapQ "
-              "section instead of reporting fabricated results." % (pdbdb_Id, len(mapq_scores)))
+        print("- MapQ returned degenerate all-zero Q-scores for %s (%d values). The model was most "
+              "likely sampled outside the (masked) map density, i.e. model and map were not in the "
+              "same frame (check the scipion-em-mapq version on the node that ran it); skipping the "
+              "MapQ section instead of reporting fabricated results." % (pdbdb_Id, len(mapq_scores)))
         report.writeSummary("A.e MapQ", secLabel, NOT_APPLY_MESSAGE)
         report.write(NOT_APPLY_MAPQ_DEGENERATE_RESULT + STATUS_NOT_APPLY)
         return prot
@@ -1543,7 +1546,6 @@ density feature corresponds to an aminoacid, atom, and secondary structure. Thes
         daqValues = []
         # daqDic = prot.parseDAQScores(prot.outputAtomStruct.getFileName())
         # daqValues = [float(x) for x in list(daqDic.values())]
-        from pwem.convert.atom_struct import AtomicStructHandler
         cifDic = AtomicStructHandler().readLowLevel(prot._getPath('outputStructure.cif'))
         for name, value in zip(cifDic['_scipion_attributes.name'],cifDic['_scipion_attributes.value']):
             if name=="DAQ_score":
