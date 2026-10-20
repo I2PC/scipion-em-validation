@@ -43,7 +43,7 @@ from validationReport import readMap, readGuinier, latexEnumerate, calculateSha2
 
 import xmipp3
 
-from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished, computeImportMemory, computeMaskMemory
+from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished, computeImportMemory, computeMaskMemory, computeLocBfactorMemory
 
 import configparser
 
@@ -1015,7 +1015,8 @@ local magnitude and phase term using the spiral transform.\\\\
                                max_res=resolution,
                                numberOfThreads=n_threads)
     if use_slurm:
-        sendToSlurm(prot, priority=True if priority else False)
+        locBfactorMemory = computeLocBfactorMemory(*map.getDim(), n_threads)
+        sendToSlurm(prot, memory=locBfactorMemory, priority=True if priority else False)
     project.launchProtocol(prot)
     # waitOutput(project, prot, 'bmap')
     # waitOutputFile(project, prot, "bmap.mrc")

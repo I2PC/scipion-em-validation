@@ -56,6 +56,29 @@ def computeMaskMemory(col, row, sec, base_memory=8192):
   memory = max(base_memory, int(col * row * sec * MASK_BYTES_PER_VOXEL / (1024 ** 2)))
   return min(memory, MAX_IMPORT_MEMORY_MB)
 
+# ucm ProtLocBFactor (scipion-em-javimaps, computations.bfactor) runs a multiprocessing Pool of
+# numberOfThreads workers, each holding ~7 complex128 copies of the volume (4 ifftn per frequency).
+# Measured peak (sacct MaxRSS, 10 threads): 30.1 GB on 294^3 (EMD-30652) and 13.2 GB on 216^3
+# (EMD-11850), i.e. ~120-130 B/voxel per worker. With the flat 8 GB default the OOM killer kills a
+# worker and Pool.map hangs until the 48 h time limit. See fixes/012-locbfactor-oom-pool-hang.md
+LOCBFACTOR_BYTES_PER_VOXEL_PER_THREAD = 130
+LOCBFACTOR_MEMORY_SAFETY_FACTOR = 1.3
+
+def computeLocBfactorMemory(col, row, sec, nThreads, base_memory=8192):
+  """
+  Estimates the Slurm memory (in MB) needed by ucm ProtLocBFactor on the (resized) map
+  """
+  if not (col and row and sec):
+    return base_memory
+  nThreads = max(1, int(nThreads or 1))
+  memory = max(base_memory, int(col * row * sec * nThreads * LOCBFACTOR_BYTES_PER_VOXEL_PER_THREAD *
+                                LOCBFACTOR_MEMORY_SAFETY_FACTOR / (1024 ** 2)))
+  if memory > MAX_IMPORT_MEMORY_MB:
+    print("WARNING: estimated LocBFactor memory (%d MB) for a %dx%dx%d map with %d threads exceeds "
+          "the %d MB cap, using the cap instead" % (memory, col, row, sec, nThreads, MAX_IMPORT_MEMORY_MB))
+    memory = MAX_IMPORT_MEMORY_MB
+  return memory
+
 # MB per atom for Phenix's cryo-EM validation/fitting-check step (phenixExecution() in
 # validationLevelA.py), which until now was sent to Slurm with the flat 8192 MB default
 # regardless of model size. Calibrated from two direct reproductions of EMD-70833's real
