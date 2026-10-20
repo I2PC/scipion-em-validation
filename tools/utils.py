@@ -349,6 +349,22 @@ def saveIntermediateData(fnReportDir, protocol, isFile, fileOrParamKey, value, d
     return intermediateData
 
 
+# Volumes (input maps, half maps and derived maps) are ~95% of the stored data and are not used by
+# the web (campins only reads report.pdf) nor by 3DBionotes (it uses the json files), so they are not stored
+NOT_STORED_EXTENSIONS = ('.map', '.mrc', '.mrcs', '.vol', '.ccp4')
+# Input data (EMDB maps, PDB model or user uploads) can be retrieved from its origin
+NOT_STORED_PROTOCOLS = ('inputData',)
+RSYNC_EXCLUDE = ' '.join("--exclude='*%s'" % ext for ext in NOT_STORED_EXTENSIONS)
+
+
+def isStoredFile(path):
+    """
+    True if the file has to be stored with the intermediate data (it is not a volume)
+    @param path: file path, possibly with a Scipion ':mrc'-like suffix
+    """
+    return not path.split(':')[0].lower().endswith(NOT_STORED_EXTENSIONS)
+
+
 def storeIntermediateData(fnReportDir, destPath):
     """
     Copy files described in intermediateData.json to the destination path
@@ -360,22 +376,28 @@ def storeIntermediateData(fnReportDir, destPath):
         with open(intermediateDataFile, 'r') as json_file:
             intermediateData = json.load(json_file)
             for protocol in intermediateData:
+                if protocol in NOT_STORED_PROTOCOLS:
+                    continue
                 if 'files' in intermediateData[protocol]:
                     for intermediateProtocolInfo in intermediateData[protocol]['files']:
                         if type(intermediateProtocolInfo['value']) == list:
                             for intermediateProtocolPath in intermediateProtocolInfo['value']:
+                                if not isStoredFile(intermediateProtocolPath):
+                                    continue
                                 parentFolder = intermediateProtocolPath.split('projects/')[1].rsplit('/', 1)[0]
                                 os.makedirs(os.path.join(destPath, parentFolder), exist_ok=True)
-                                cmd = 'rsync -rltv --progress %s %s' % (intermediateProtocolPath, os.path.join(destPath, parentFolder))
+                                cmd = 'rsync -rltv --progress %s %s %s' % (RSYNC_EXCLUDE, intermediateProtocolPath, os.path.join(destPath, parentFolder))
                                 subprocess.run(cmd, shell=True)
                         else:
+                            if not isStoredFile(intermediateProtocolInfo['value']):
+                                continue
                             if 'uploads' in intermediateProtocolInfo['value']:
                                 parentFolder = intermediateProtocolInfo['value'].split('uploads/')[1].rsplit('/', 1)[0]
                             else:
                                 parentFolder = intermediateProtocolInfo['value'].split('projects/')[1].rsplit('/', 1)[0]
                             os.makedirs(os.path.join(destPath, parentFolder), exist_ok=True)
-                            cmd = 'rsync -rltv --progress %s %s' % (
-                            intermediateProtocolInfo['value'], os.path.join(destPath, parentFolder))
+                            cmd = 'rsync -rltv --progress %s %s %s' % (
+                            RSYNC_EXCLUDE, intermediateProtocolInfo['value'], os.path.join(destPath, parentFolder))
                             subprocess.run(cmd, shell=True)
         # copy the file itself
         cmd = 'rsync %s %s' % (intermediateDataFile, os.path.join(destPath, fnReportDir.split('/')[-2]))
@@ -383,8 +405,8 @@ def storeIntermediateData(fnReportDir, destPath):
         # project and settings sqlite
         cmd = 'rsync %s %s %s' % (os.path.join(fnReportDir.rsplit('/',1)[0], 'project.sqlite'), os.path.join(fnReportDir.rsplit('/',1)[0], 'settings.sqlite'), os.path.join(destPath, fnReportDir.split('/')[-2]))
         subprocess.run(cmd, shell=True)
-        # full validationReport folder
-        cmd = 'rsync -rltv --progress %s %s' % (fnReportDir, os.path.join(destPath, fnReportDir.split('/')[-2]))
+        # full validationReport folder (without volumes)
+        cmd = 'rsync -rltv --progress %s %s %s' % (RSYNC_EXCLUDE, fnReportDir, os.path.join(destPath, fnReportDir.split('/')[-2]))
         subprocess.run(cmd, shell=True)
 
 
