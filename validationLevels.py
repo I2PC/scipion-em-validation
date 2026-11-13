@@ -35,8 +35,7 @@ import pyworkflow.plugin as pwplugin
 from pyworkflow.project import Manager
 from pyworkflow.utils.path import makePath, copyFile, cleanPath
 import pyworkflow.utils as pwutils
-from resourceManager import sendTo
-, waitOutput, waitUntilFinishes
+from resourceManager import sendToSlurm, waitOutput, waitUntilFinishes, computeImportMemory, computeMaskMemory
 from pwem.convert.atom_struct import AtomicStructHandler
 from validationReport import readMap, get_env_bool
 import json
@@ -50,7 +49,7 @@ from bws_interpo.convert_eval_results import convert as convert_to_bws
 
 
 config = configparser.ConfigParser()
-config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+config.read([os.path.join(os.path.dirname(__file__), 'config.yaml'), os.path.join(os.path.dirname(__file__), 'config_dev.yaml')])
 use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
 store_intermediate_data = get_env_bool('INTERMEDIATE_DATA_STORE_INTERMEDIATE_DATA') or config['INTERMEDIATE_DATA'].getboolean('STORE_INTERMEDIATE_DATA')
 intermediate_data_final_path = os.getenv('INTERMEDIATE_DATA_DEST_PATH') or config['INTERMEDIATE_DATA'].get('DEST_PATH')
@@ -274,6 +273,7 @@ if IS_EMDB_ENTRY:
         print("Results of 'does_map_exist':")
         print('Response code:', does_map_exist[1])
         print('Response text:', does_map_exist[2])
+        sys.exit("There is no EMDB map with code %s: %s" % (EMDB_ID_NUM, does_map_exist[2][:500]))
 else:
     PRIORITY_QUEUE = True
     for arg in sys.argv:
@@ -435,8 +435,15 @@ else:
                                                    samplingRate=TS,
                                                    setOrigCoord=False)
         protImportMapChecker.setObjLabel('check format - import map')
+MAP_COL, MAP_ROW, MAP_SEC = None, None, None
+if IS_EMDB_ENTRY:
+    # Also used later to tell a real 2D image stack apart from a 3D volume
+    # whose MRC header has ispg=0 (see level0()/importMap() in
+    # validationLevel0.py), so it is fetched regardless of use_slurm.
+    MAP_COL, MAP_ROW, MAP_SEC = EMDButils.get_map_dimensions(EMDB_ID_NUM)
 if use_slurm:
-    sendToSlurm(protImportMapChecker, priority=False if IS_EMDB_ENTRY else True)
+    importMemory = computeImportMemory(MAP_COL, MAP_ROW, MAP_SEC) if IS_EMDB_ENTRY else 8192
+    sendToSlurm(protImportMapChecker, memory=importMemory, priority=False if IS_EMDB_ENTRY else True)
 project.launchProtocol(protImportMapChecker)
 # waitOutput(project, protImportMapChecker, 'outputVolume')
 waitUntilFinishes(project, protImportMapChecker)
@@ -450,6 +457,18 @@ else:
         FNMAP = os.path.join(
             project.getPath(), protImportMapChecker.outputVolume.getFileName())
         MAPCOORDX, MAPCOORDY, MAPCOORDZ = protImportMapChecker.outputVolume.getShiftsFromOrigin()
+        # Scipion's EMDB import ignores the map axis order (MAPC/MAPR/MAPS) when setting the origin,
+        # so maps not stored as x/y/z get a wrong origin and the model ends up outside the map
+        # (e.g. EMD-31078). Take the origin from the map header instead.
+        headerOrigin = EMDButils.get_map_origin_xyz(FNMAP)
+        if headerOrigin is not None and \
+                np.linalg.norm(np.array(headerOrigin) - np.array([MAPCOORDX, MAPCOORDY, MAPCOORDZ])) > 0.1:
+            print("WARNING: origin from Scipion EMDB import (%s) does not match the map header "
+                  "taking the axis order into account (%s). Using the header origin."
+                  % ((MAPCOORDX, MAPCOORDY, MAPCOORDZ), headerOrigin))
+            MAPCOORDX, MAPCOORDY, MAPCOORDZ = headerOrigin
+            protImportMapChecker.outputVolume.setShiftsInOrigin(MAPCOORDX, MAPCOORDY, MAPCOORDZ)
+            protImportMapChecker._store()
         MAPCOORDX = -1 * MAPCOORDX
         MAPCOORDY = -1 * MAPCOORDY
         MAPCOORDZ = -1 * MAPCOORDZ
@@ -466,6 +485,8 @@ else:
                     project.getPath(), protImportMapChecker._getExtraPath(), fnMap1)
                 FNMAP2 = os.path.join(
                     project.getPath(), protImportMapChecker._getExtraPath(), fnMap2)
+            else:
+                sys.exit("Level 1 was requested and EMD-%s has half maps, but they could not be downloaded" % EMDB_ID_NUM)
 
     # check if we can have a proper mask with the threshold specified
     protCreateMaskChecker = project.newProtocol(pwplugin.Domain.importFromPlugin('xmipp3.protocols.protocol_preprocess', 'XmippProtCreateMask3D', doRaise=True),
@@ -476,15 +497,21 @@ else:
                                                 elementSize=math.ceil(2/TS)) # Dilation by 2A
     protCreateMaskChecker.setObjLabel('check proper mask')
     if use_slurm:
-        sendToSlurm(protCreateMaskChecker, priority=False if IS_EMDB_ENTRY else True)
+        maskMemory = computeMaskMemory(MAP_COL, MAP_ROW, MAP_SEC) if IS_EMDB_ENTRY else 8192
+        sendToSlurm(protCreateMaskChecker, memory=maskMemory, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protCreateMaskChecker)
     waitUntilFinishes(project, protCreateMaskChecker)
 
-    M = readMap(protCreateMaskChecker.outputMask.getFileName()).getData()
-    totalMass = np.sum(M)
-    if not totalMass > 0:
+    # e.g. OOM in keepBiggest: report it instead of crashing on the missing outputMask
+    if protCreateMaskChecker.isFailed() or not hasattr(protCreateMaskChecker, 'outputMask'):
         wrongInputs['errors'].append({'param': 'threshold', 'value': MAPTHRESHOLD,
-                                     'cause': 'The mask obtained from the volume map is empty, try to lower the threshold value'})
+                                     'cause': 'The mask could not be computed from the volume map (protocol failed, see check proper mask logs)'})
+    else:
+        M = readMap(protCreateMaskChecker.outputMask.getFileName()).getData()
+        totalMass = np.sum(M)
+        if not totalMass > 0:
+            wrongInputs['errors'].append({'param': 'threshold', 'value': MAPTHRESHOLD,
+                                         'cause': 'The mask obtained from the volume map is empty, try to lower the threshold value'})
 
 if "1" in levels:
     # check 'map1' and 'map2' arg
@@ -507,7 +534,7 @@ if "1" in levels:
                                                     samplingRate=TS,
                                                     setOrigCoord=False)
         protImportMap1Checker.setObjLabel('check format - import half1')
-    if user_slurm:
+    if use_slurm:
         sendToSlurm(protImportMap1Checker, priority=False if IS_EMDB_ENTRY else True)
     project.launchProtocol(protImportMap1Checker)
     # waitOutput(project, protImportMap1Checker, 'outputVolume')
@@ -795,12 +822,16 @@ else:  # go ahead
     # Create report
     # Level 0
     from validationLevel0 import level0
-    protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, protCreateSoftMaskFromResizedMap, fnMaskedMapDict = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = True, priority=False if IS_EMDB_ENTRY else True)
+    protImportMap, protCreateHardMask, protCreateSoftMask, bfactor, protResizeMap, protCreateHardMaskFromResizedMap, protCreateSoftMaskFromResizedMap, fnMaskedMapDict = level0(project, report, FNMAP, FNMAP1, FNMAP2, TS, MAPTHRESHOLD, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, skipAnalysis = False, priority=False if IS_EMDB_ENTRY else True, mapDimensions=(MAP_COL, MAP_ROW, MAP_SEC))
 
     # Level 1
     if "1" in levels:
         from validationLevel1 import level1
-        level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protImportMap, protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis = True, priority=False if IS_EMDB_ENTRY else True)
+        level1(project, report, FNMAP1, FNMAP2, TS, MAPRESOLUTION, MAPCOORDX, MAPCOORDY, MAPCOORDZ, protImportMap, protCreateHardMask, protCreateSoftMask, fnMaskedMapDict, skipAnalysis = False, priority=False if IS_EMDB_ENTRY else True)
+        # The entry has half maps, so level 1 must have been computed: fail the validation instead
+        # of silently producing a report without it (EMDBlauncher stores stderr as fail_reason)
+        if not any(prot.getObjLabel().startswith('1.a') for prot in project.getRuns()):
+            sys.exit("Level 1 was requested and the entry has half maps, but level 1 analysis was not computed")
 
     # Level 2
     if "2" in levels:

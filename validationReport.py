@@ -38,7 +38,7 @@ def get_env_int(var_name, default=None):
         return default
 
 config = configparser.ConfigParser()
-config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+config.read([os.path.join(os.path.dirname(__file__), 'config.yaml'), os.path.join(os.path.dirname(__file__), 'config_dev.yaml')])
 max_mem_to_use = get_env_int('CHIMERA_MAX_MEM_TO_USE') or config['CHIMERA'].getint('MAX_MEM_TO_USE')
 max_voxels_to_open = get_env_int('CHIMERA_MAX_VOXELS') or config['CHIMERA'].getint('MAX_VOXELS')
 use_virtual_display = get_env_bool('CHIMERA_USE_VIRTUAL_DISPLAY') or config['CHIMERA'].getboolean('USE_VIRTUAL_DISPLAY')

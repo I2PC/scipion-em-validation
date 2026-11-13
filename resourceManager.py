@@ -7,7 +7,7 @@ from pyworkflow.protocol import getProtocolFromDb
 import configparser
 
 config = configparser.ConfigParser()
-config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+config.read([os.path.join(os.path.dirname(__file__), 'config.yaml'), os.path.join(os.path.dirname(__file__), 'config_dev.yaml')])
 standard_queue = os.getenv('QUEUE_STANDARD_QUEUE_NAME') or config['QUEUE'].get('STANDARD_QUEUE_NAME')
 priority_queue = os.getenv('QUEUE_PRIORITY_QUEUE_NAME') or config['QUEUE'].get('PRIORITY_QUEUE_NAME')
 if os.getenv('QUEUE_NODE_LIST'):
@@ -18,6 +18,95 @@ else:
   node_list = None
 
 #TODO: add function to set whether the user wants to use slurm or not
+
+BYTES_PER_VOXEL = 4  # EMDB maps are stored as float32
+MEMORY_SAFETY_FACTOR = 3  # headroom for copies made while downloading/importing
+MAX_IMPORT_MEMORY_MB = 131072  # 128 GB hard cap, never request more than this
+
+def computeImportMemory(col, row, sec, base_memory=8192):
+  """
+  Estimates the Slurm memory (in MB) needed to import an EMDB map
+  """
+  if not (col and row and sec):
+    return base_memory
+
+  voxels = col * row * sec
+  estimated_mb = (voxels * BYTES_PER_VOXEL * MEMORY_SAFETY_FACTOR) / (1024 ** 2)
+  if estimated_mb <= base_memory:
+    return base_memory
+
+  memory = int(estimated_mb)
+  if memory > MAX_IMPORT_MEMORY_MB:
+    print("WARNING: estimated import memory (%d MB) for a %dx%dx%d map exceeds "
+          "the %d MB cap, using the cap instead" % (memory, col, row, sec, MAX_IMPORT_MEMORY_MB))
+    memory = MAX_IMPORT_MEMORY_MB
+  return memory
+
+# XmippProtCreateMask3D (keepBiggest) keeps ~4 double copies of the volume: measured
+# ~35 B/voxel peak on EMD-4842 (480^3), so float32-based computeImportMemory falls short
+# (EMD-20206, 800^3: OOM at 8 GB). See fixes/008-mask-checker-oom-keepbiggest.md
+MASK_BYTES_PER_VOXEL = 40
+
+def computeMaskMemory(col, row, sec, base_memory=8192):
+  """
+  Estimates the Slurm memory (in MB) needed by XmippProtCreateMask3D on an EMDB map
+  """
+  if not (col and row and sec):
+    return base_memory
+  memory = max(base_memory, int(col * row * sec * MASK_BYTES_PER_VOXEL / (1024 ** 2)))
+  return min(memory, MAX_IMPORT_MEMORY_MB)
+
+# ucm ProtLocBFactor (scipion-em-javimaps, computations.bfactor) runs a multiprocessing Pool of
+# numberOfThreads workers, each holding ~7 complex128 copies of the volume (4 ifftn per frequency).
+# Measured peak (sacct MaxRSS, 10 threads): 30.1 GB on 294^3 (EMD-30652) and 13.2 GB on 216^3
+# (EMD-11850), i.e. ~120-130 B/voxel per worker. With the flat 8 GB default the OOM killer kills a
+# worker and Pool.map hangs until the 48 h time limit. See fixes/012-locbfactor-oom-pool-hang.md
+LOCBFACTOR_BYTES_PER_VOXEL_PER_THREAD = 130
+LOCBFACTOR_MEMORY_SAFETY_FACTOR = 1.3
+
+def computeLocBfactorMemory(col, row, sec, nThreads, base_memory=8192):
+  """
+  Estimates the Slurm memory (in MB) needed by ucm ProtLocBFactor on the (resized) map
+  """
+  if not (col and row and sec):
+    return base_memory
+  nThreads = max(1, int(nThreads or 1))
+  memory = max(base_memory, int(col * row * sec * nThreads * LOCBFACTOR_BYTES_PER_VOXEL_PER_THREAD *
+                                LOCBFACTOR_MEMORY_SAFETY_FACTOR / (1024 ** 2)))
+  if memory > MAX_IMPORT_MEMORY_MB:
+    print("WARNING: estimated LocBFactor memory (%d MB) for a %dx%dx%d map with %d threads exceeds "
+          "the %d MB cap, using the cap instead" % (memory, col, row, sec, nThreads, MAX_IMPORT_MEMORY_MB))
+    memory = MAX_IMPORT_MEMORY_MB
+  return memory
+
+# MB per atom for Phenix's cryo-EM validation/fitting-check step (phenixExecution() in
+# validationLevelA.py), which until now was sent to Slurm with the flat 8192 MB default
+# regardless of model size. Calibrated from two direct reproductions of EMD-70833's real
+# map (560^3 voxels) and model (9OTI, 43325 atoms) run standalone (outside Slurm, so
+# uncapped): observed peak RSS was ~5.9 GB (~0.136 MB/atom). We round that up with margin,
+# since memory usage varied noticeably between the two reproductions (raw vs
+# PDBFixer-processed model) for the same entry, and we only have data points at one map
+# size - this should be revisited once more entries have gone through it in production
+# (see fixes/005-phenix-oom-silent-levela-skip.md).
+PHENIX_MB_PER_ATOM = 0.2
+PHENIX_MEMORY_SAFETY_FACTOR = 2
+
+def computePhenixMemory(numAtoms, col=None, row=None, sec=None, base_memory=8192):
+  """
+  Estimates the Slurm memory (in MB) needed for Phenix's cryo-EM validation protocol.
+  Memory usage is dominated by the atomic model, not by the map (a 560^3 map alone only
+  needs ~2 GB per computeImportMemory), so this scales primarily with atom count; the
+  map-size estimate is kept only as a floor.
+  """
+  memory = computeImportMemory(col, row, sec, base_memory=base_memory) if (col and row and sec) else base_memory
+  if numAtoms:
+    estimated_mb = int(numAtoms * PHENIX_MB_PER_ATOM * PHENIX_MEMORY_SAFETY_FACTOR)
+    memory = max(memory, estimated_mb)
+  if memory > MAX_IMPORT_MEMORY_MB:
+    print("WARNING: estimated Phenix memory (%d MB) for %s atoms exceeds the %d MB cap, "
+          "using the cap instead" % (memory, numAtoms, MAX_IMPORT_MEMORY_MB))
+    memory = MAX_IMPORT_MEMORY_MB
+  return memory
 
 def waitOutput(project, prot, outputAttributeName, sleepTime=10, timeOut=432000):
   """ Wait until the output is being generated by the protocol. """

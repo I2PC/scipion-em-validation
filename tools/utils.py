@@ -349,6 +349,20 @@ def saveIntermediateData(fnReportDir, protocol, isFile, fileOrParamKey, value, d
     return intermediateData
 
 
+NOT_STORED_EXTENSIONS = ('.map', '.mrc', '.mrcs', '.vol', '.ccp4', '.pkl')
+# Input data (EMDB maps, PDB model or user uploads) can be retrieved from its origin
+NOT_STORED_PROTOCOLS = ('inputData',)
+RSYNC_EXCLUDE = ' '.join("--exclude='*%s'" % ext for ext in NOT_STORED_EXTENSIONS)
+
+
+def isStoredFile(path):
+    """
+    True if the file has to be stored with the intermediate data (it is not a volume)
+    @param path: file path, possibly with a Scipion ':mrc'-like suffix
+    """
+    return not path.split(':')[0].lower().endswith(NOT_STORED_EXTENSIONS)
+
+
 def storeIntermediateData(fnReportDir, destPath):
     """
     Copy files described in intermediateData.json to the destination path
@@ -360,22 +374,28 @@ def storeIntermediateData(fnReportDir, destPath):
         with open(intermediateDataFile, 'r') as json_file:
             intermediateData = json.load(json_file)
             for protocol in intermediateData:
+                if protocol in NOT_STORED_PROTOCOLS:
+                    continue
                 if 'files' in intermediateData[protocol]:
                     for intermediateProtocolInfo in intermediateData[protocol]['files']:
                         if type(intermediateProtocolInfo['value']) == list:
                             for intermediateProtocolPath in intermediateProtocolInfo['value']:
+                                if not isStoredFile(intermediateProtocolPath):
+                                    continue
                                 parentFolder = intermediateProtocolPath.split('projects/')[1].rsplit('/', 1)[0]
                                 os.makedirs(os.path.join(destPath, parentFolder), exist_ok=True)
-                                cmd = 'rsync -rltv --progress %s %s' % (intermediateProtocolPath, os.path.join(destPath, parentFolder))
+                                cmd = 'rsync -rltv --progress %s %s %s' % (RSYNC_EXCLUDE, intermediateProtocolPath, os.path.join(destPath, parentFolder))
                                 subprocess.run(cmd, shell=True)
                         else:
+                            if not isStoredFile(intermediateProtocolInfo['value']):
+                                continue
                             if 'uploads' in intermediateProtocolInfo['value']:
                                 parentFolder = intermediateProtocolInfo['value'].split('uploads/')[1].rsplit('/', 1)[0]
                             else:
                                 parentFolder = intermediateProtocolInfo['value'].split('projects/')[1].rsplit('/', 1)[0]
                             os.makedirs(os.path.join(destPath, parentFolder), exist_ok=True)
-                            cmd = 'rsync -rltv --progress %s %s' % (
-                            intermediateProtocolInfo['value'], os.path.join(destPath, parentFolder))
+                            cmd = 'rsync -rltv --progress %s %s %s' % (
+                            RSYNC_EXCLUDE, intermediateProtocolInfo['value'], os.path.join(destPath, parentFolder))
                             subprocess.run(cmd, shell=True)
         # copy the file itself
         cmd = 'rsync %s %s' % (intermediateDataFile, os.path.join(destPath, fnReportDir.split('/')[-2]))
@@ -383,8 +403,8 @@ def storeIntermediateData(fnReportDir, destPath):
         # project and settings sqlite
         cmd = 'rsync %s %s %s' % (os.path.join(fnReportDir.rsplit('/',1)[0], 'project.sqlite'), os.path.join(fnReportDir.rsplit('/',1)[0], 'settings.sqlite'), os.path.join(destPath, fnReportDir.split('/')[-2]))
         subprocess.run(cmd, shell=True)
-        # full validationReport folder
-        cmd = 'rsync -rltv --progress %s %s' % (fnReportDir, os.path.join(destPath, fnReportDir.split('/')[-2]))
+        # full validationReport folder (without volumes)
+        cmd = 'rsync -rltv --progress %s %s %s' % (RSYNC_EXCLUDE, fnReportDir, os.path.join(destPath, fnReportDir.split('/')[-2]))
         subprocess.run(cmd, shell=True)
 
 
@@ -394,50 +414,3 @@ def getFilename(path, withExt=False):
         return p.name
     else:
         return p.stem
-
-
-def getScoresFromWS(db_id, method):
-    """
-    Check if there are a precoputed values from the source DB
-    db_id can be a EMDB ID: emd-12345 or PDB ID: 5abc
-    """
-    methods = ['mapq', 'daq']
-    if not method or method not in methods:
-        return
-    url_rest_api = "https://3dbionotes.cnb.csic.es/bws/api/emv/%s/%s/" % (db_id.lower(), method)
-    try:
-        json_data = None
-        print('- getScoresFromWS %s, %s, %s' % (db_id, method, url_rest_api))
-        with requests.get(url_rest_api, verify=False) as response:
-            if response.status_code == 200:
-                json_data = response.json()
-            else:
-                print('- Could not download file: %s, %s' % (response.status_code, response.reason))
-    except Exception as ex:
-        print('Could not connect to',url_rest_api, ex)
-        print('- Proceed to calculate it localy')
-
-    return json_data
-
-
-def getFileFromWS(db_id, method):
-    """
-    Check if there are is raw data file from the source DB
-    db_id can be a EMDB ID: emd-12345 or PDB ID: 5abc
-    """
-    methods = ['mapq', 'daq']
-    if not method or method not in methods:
-        return
-    url_rest_api = "https://3dbionotes.cnb.csic.es/bws/api/emv/%s/%s/%s/" % (db_id.lower(), method, 'mmcif' if method == 'mapq' else 'pdb')
-    try:
-        raw_data = None
-        print('- getFileFromWS %s, %s, %s' % (db_id, method, url_rest_api))
-        with requests.get(url_rest_api, verify=False) as response:
-            if response.status_code == 200:
-                raw_data = response.text
-            else:
-                print('- Could not download file: %s, %s' % (response.status_code, response.reason))
-    except Exception as ex:
-        print('Could not connect to',url_rest_api, ex)
-
-    return raw_data

@@ -116,6 +116,17 @@ NOT_APPY_NO_RESOLUTION = "{\\color{brown} This method cannot be applied to maps 
 NOT_APPLY_BETTER_RESOLUTION = "{\\color{brown} This method cannot be applied to maps with a resolution better than %d\\AA.}\\\\ \n\n"
 NOT_APPLY_WORSE_RESOLUTION = "{\\color{brown} This method cannot be applied to maps with a resolution worse than %d\\AA.}\\\\ \n\n"
 
+NOT_APPLY_MAPQ_DEGENERATE_RESULT = \
+    "{\\color{brown} \\textbf{MapQ could not be computed reliably for this map.}} " \
+    "Every per-atom Q-score returned by MapQ was exactly 0.0, which is not a possible outcome of a " \
+    "genuine measurement (real Q-scores vary continuously and are essentially never identical for " \
+    "every single atom). It means that MapQ sampled the map only in regions where all values are " \
+    "exactly zero (for instance, outside the masked density of a masked map), i.e. that the atomic " \
+    "model and the map were not placed in the same coordinate frame during the MapQ computation. " \
+    "This is a processing problem of this analysis, not a limitation of MapQ for this kind of map " \
+    "(Q-scores can be computed on masked maps) and not evidence of a poor structure: the map-model " \
+    "fit itself was already checked in Sec.~\\ref{sec:AAnalysis}.\\\\ \n\n"
+
 
 SUMMARY_WARNINGS_TITLE = "\\textbf{\\underline{Summary of the warnings across sections.}}\\\\ \n\n\n"
 PROPERLY_FITTED = "Map and model seem to be properly aligned. \n\n\n"

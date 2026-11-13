@@ -5,3 +5,6 @@ logs/
 .idea
 
 config_dev.yaml
+
+# Notas locales de fixes/debugging (no forman parte del repo upstream)
+fixes/

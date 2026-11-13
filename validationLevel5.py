@@ -36,7 +36,7 @@ import configparser
 from resources.constants import *
 
 config = configparser.ConfigParser()
-config.read(os.path.join(os.path.dirname(__file__), 'config.yaml'))
+config.read([os.path.join(os.path.dirname(__file__), 'config.yaml'), os.path.join(os.path.dirname(__file__), 'config_dev.yaml')])
 use_slurm = get_env_bool('QUEUE_USE_SLURM') or config['QUEUE'].getboolean('USE_SLURM')
 
 def importMicrographs(project, label, fnMics, TsMics, kV, Cs, Q0):
