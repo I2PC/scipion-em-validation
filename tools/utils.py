@@ -349,9 +349,7 @@ def saveIntermediateData(fnReportDir, protocol, isFile, fileOrParamKey, value, d
     return intermediateData
 
 
-# Volumes (input maps, half maps and derived maps) are ~95% of the stored data and are not used by
-# the web (campins only reads report.pdf) nor by 3DBionotes (it uses the json files), so they are not stored
-NOT_STORED_EXTENSIONS = ('.map', '.mrc', '.mrcs', '.vol', '.ccp4')
+NOT_STORED_EXTENSIONS = ('.map', '.mrc', '.mrcs', '.vol', '.ccp4', '.pkl')
 # Input data (EMDB maps, PDB model or user uploads) can be retrieved from its origin
 NOT_STORED_PROTOCOLS = ('inputData',)
 RSYNC_EXCLUDE = ' '.join("--exclude='*%s'" % ext for ext in NOT_STORED_EXTENSIONS)
