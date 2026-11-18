@@ -43,7 +43,7 @@ from validationReport import readMap, calculateSha256, CDFFromHistogram, CDFperc
     radialPlot, reportMultiplePlots, reportHistogram, isHomogeneous, get_env_bool, get_env_int
 import xmipp3
 
-from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished
+from resourceManager import waitOutput, waitOutputFile, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished, computeFscFdrMemory
 
 import configparser
 
@@ -350,7 +350,8 @@ distribution of the FSC of noise is calculated from the two maps.\\\\
     prot.mask.set(protMask.outputMask)
 
     if use_slurm:
-        sendToSlurm(prot, priority=True if priority else False)
+        fscFdrMemory = computeFscFdrMemory(*protImportMap1.outputVolume.getDim())
+        sendToSlurm(prot, memory=fscFdrMemory, priority=True if priority else False)
     project.launchProtocol(prot)
     #waitOutput(project, prot, 'outputFSC')
     waitUntilFinishes(project, prot)
