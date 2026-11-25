@@ -31,6 +31,7 @@ import numpy as np
 import os
 import scipy
 import subprocess
+import sys
 from datetime import datetime
 from random import randint
 from time import sleep
@@ -198,6 +199,12 @@ def resizeMap(project, protMap, resolution, priority=False, mapDimensions=None):
 
     projectPath = os.path.join(project.getPath())
     subprocess.call(['chmod', '-R', 'o+r', projectPath])
+
+    if protResizeMap.isFailed() or protResizeMap.isAborted() or \
+            not hasattr(protResizeMap, 'outputVol'):
+        sys.exit("Resize volume protocol failed (%s, run.stderr in %s). "
+                 "Possible out-of-memory kill (exit 137) or full disk."
+                 % (protResizeMap.getStatus(), protResizeMap.getWorkingDir()))
 
     return protResizeMap, TsTarget
 
