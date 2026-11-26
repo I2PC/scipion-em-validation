@@ -46,6 +46,20 @@ def computeImportMemory(col, row, sec, base_memory=8192):
 # ~35 B/voxel peak on EMD-4842 (480^3), so float32-based computeImportMemory falls short
 # (EMD-20206, 800^3: OOM at 8 GB). See fixes/008-mask-checker-oom-keepbiggest.md
 MASK_BYTES_PER_VOXEL = 40
+# Xmipp Fourier-based programs (xmipp_transform_filter --fourier, xmipp_volume_correct_bfactor)
+# work in double precision and keep several complex copies of the map.
+FOURIER_BYTES_PER_VOXEL = 32
+FOURIER_MEMORY_SAFETY_FACTOR = 1.5
+
+def computeFourierMemory(col, row, sec, base_memory=8192):
+  """
+  Estimates the Slurm memory (in MB) needed by Xmipp Fourier-based programs on a col x row x sec map
+  """
+  if not (col and row and sec):
+    return base_memory
+  memory = max(base_memory, int(col * row * sec * FOURIER_BYTES_PER_VOXEL *
+                                FOURIER_MEMORY_SAFETY_FACTOR / (1024 ** 2)))
+  return min(memory, MAX_IMPORT_MEMORY_MB)
 
 def computeMaskMemory(col, row, sec, base_memory=8192):
   """

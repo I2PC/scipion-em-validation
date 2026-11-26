@@ -46,7 +46,7 @@ import pwem.convert.atom_struct
 import xmipp3
 
 from validationReport import reportHistogram, readGuinier, reportMultiplePlots, reportPlot, isHomogeneous, safeNeg, get_env_bool, get_env_int
-from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished, computePhenixMemory
+from resourceManager import waitOutput, sendToSlurm, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished, computePhenixMemory, computeFourierMemory
 
 import configparser
 
@@ -963,7 +963,7 @@ def guinierModel(project, report, protImportMap, protConvert, protCreateHardMask
     else:
         cmd = f'{"bash " + containerized_launcher_path if containerized else scipion3} xmipp_volume_correct_bfactor {args}'
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
-        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_levelA_' + str(randomInt), report.getReportDir(), cmd, priority=priority)
+        slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_levelA_' + str(randomInt), report.getReportDir(), cmd, memory=computeFourierMemory(*protConvert.outputVolume.getDim()), priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished

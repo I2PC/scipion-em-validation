@@ -44,7 +44,7 @@ from validationReport import readMap, readGuinier, latexEnumerate, calculateSha2
 
 import xmipp3
 
-from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished, computeImportMemory, computeMaskMemory, computeLocBfactorMemory
+from resourceManager import sendToSlurm, waitOutput, skipSlurm, waitOutputFile, waitUntilFinishes, createScriptForSlurm, checkIfJobFinished, computeImportMemory, computeMaskMemory, computeLocBfactorMemory, computeFourierMemory
 
 import configparser
 
@@ -191,7 +191,7 @@ def resizeMap(project, protMap, resolution, priority=False, mapDimensions=None):
                                             resizeFactor=1)
     protResizeMap.inputVolumes.set(protMap.outputVolume)
     if use_slurm:
-        resizeMemory = computeImportMemory(*mapDimensions) if mapDimensions else 8192
+        resizeMemory = computeFourierMemory(*mapDimensions) if mapDimensions else 8192
         sendToSlurm(protResizeMap, memory=resizeMemory, priority=True if priority else False)
     project.launchProtocol(protResizeMap)
     # waitOutput(project, protResizeMap, 'outputVol')
@@ -743,7 +743,7 @@ is between 0 and 300 \AA$^2$.
         cmd = f'{"bash " + containerized_launcher_path if containerized else scipion3} xmipp_volume_correct_bfactor {args}'
         randomInt = int(datetime.now().timestamp()) + randint(0, 1000000)
         slurmScriptPath = createScriptForSlurm('xmipp_volume_correct_bfactor_level0_' + str(
-            randomInt), report.getReportDir(), cmd, priority=priority)
+            randomInt), report.getReportDir(), cmd, memory=computeFourierMemory(*map.getDim()), priority=priority)
         # send job to queue
         subprocess.Popen('sbatch %s' % slurmScriptPath, shell=True)
         # check if job has finished
