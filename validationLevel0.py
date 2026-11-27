@@ -860,7 +860,10 @@ input map to the appearance of the atomic structures a local resolution label ca
                                inputVolume=map,
                                Mask=mask)
     if use_slurm:
-        sendToSlurm(prot, GPU=True, priority=True if priority else False)
+        # mask dilation / volume loading scale with the (resized) map size; the flat
+        # 8 GB default got OOM-killed on big maps
+        sendToSlurm(prot, memory=max(computeMaskMemory(*map.getDim()), computeFourierMemory(*map.getDim())),
+                    GPU=True, priority=True if priority else False)
     project.launchProtocol(prot)
     # waitOutput(project, prot, 'resolution_Volume')
     waitUntilFinishes(project, prot)
@@ -1160,7 +1163,7 @@ LocOccupancy (see this \\href{%s}{link} for more details) estimates the occupanc
                                mask_in_molecule=mask,
                                max_res=resolution)
     if use_slurm:
-        sendToSlurm(prot, priority=True if priority else False)
+        sendToSlurm(prot, memory=computeFourierMemory(*map.getDim()), priority=True if priority else False)
     project.launchProtocol(prot)
     # waitOutput(project, prot, 'omap')
     waitUntilFinishes(project, prot)
